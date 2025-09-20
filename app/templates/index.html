@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ค้นหารายชื่อผู้สมัครสอบ ธรรม-บาลี</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>ระบบค้นหารายชื่อผู้สมัครสอบ ธรรม-บาลีสนามหลวง</h1>
+            <h2>ในนามวัดพระธรรมกาย จ.ปทุมธานี</h2>
+        </header>
+
+        <main>
+            <section class="update-section">
+                <button id="update-btn">🔄 อัปเดตข้อมูลเป็นเวอร์ชันล่าสุด</button>
+                <div class="info">
+                    ข้อมูล ณ <span id="info-timestamp">กำลังโหลด...</span>
+                    (<span id="info-count">0</span> รายการ)
+                </div>
+                <div id="update-status" class="status-message" style="display: none;"></div>
+            </section>
+
+            <section class="search-section">
+                <input type="text" id="search-input" placeholder="พิมพ์ชื่อ-ฉายา หรือนามสกุล เพื่อค้นหา...">
+            </section>
+
+            <section id="results-container">
+                <!-- ผลการค้นหาจะแสดงที่นี่ -->
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
