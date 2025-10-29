@@ -24,7 +24,7 @@ URL เว็บไซต์: https://pariyat-search.onrender.com
 เปิด Command Prompt
 พิมพ์: D: (แล้วกด Enter)
 พิมพ์: cd pariyat-search-project\scraper (แล้วกด Enter)
-พิมพ์: python scraper.py (แล้วกด Enter)
+พิมพ์: py scraper.py (แล้วกด Enter)
 รอจนกว่าโปรแกรมจะทำงานเสร็จและขึ้นข้อความว่า "บันทึกข้อมูลเรียบร้อย!"
 
 ขั้นตอนที่ 2: อัปโหลดข้อมูลใหม่ขึ้นสู่ระบบออนไลน์
