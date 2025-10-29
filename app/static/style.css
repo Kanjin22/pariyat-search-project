@@ -1,19 +1,83 @@
-body { font-family: 'Sarabun', sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; }
-.container { width: 100%; max-width: 800px; background-color: #ffffff; padding: 20px 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-header { text-align: center; margin-bottom: 20px; }
-header h1 { margin: 0; color: #1a237e; }
-header p { margin: 5px 0 0; color: #555; }
-.update-section { text-align: center; margin-bottom: 25px; }
-#update-btn { font-family: 'Sarabun', sans-serif; font-size: 1.1rem; font-weight: bold; background-color: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; transition: background-color 0.3s ease; width: 100%; margin-bottom: 10px; }
-#update-btn:hover { background-color: #218838; }
-#update-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
-.info { color: #666; font-size: 0.9rem; }
-.search-section input { width: 100%; padding: 15px; font-size: 1.1rem; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-.status-message { margin-top: 10px; padding: 10px; border-radius: 5px; }
-.status-message.success { background-color: #d4edda; color: #155724; }
-.status-message.error { background-color: #f8d7da; color: #721c24; }
+/* === การตั้งค่าพื้นฐาน === */
+body {
+    font-family: 'Sarabun', sans-serif;
+    background-color: #eef2f5;
+    /* เปลี่ยนสีพื้นหลังให้ดูสบายตาขึ้น */
+    color: #333;
+    margin: 0;
+    padding: 20px;
+}
 
-/* --- CSS ใหม่สำหรับการแสดงผลแบบกลุ่ม --- */
+.container {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    /* จัดให้อยู่กลางจอ */
+}
+
+/* === ส่วนที่ 1: หัวข้อหลัก === */
+.main-header {
+    text-align: center;
+    padding: 10px 0;
+    margin-bottom: 20px;
+}
+
+.main-header h1 {
+    margin: 0;
+    color: #1a237e;
+    font-size: 2rem;
+}
+
+.main-header p {
+    margin: 5px 0 0;
+    color: #444;
+    font-size: 1.1rem;
+}
+
+/* === ส่วนที่ 2: แถบข้อมูล === */
+.data-info-section {
+    background-color: #ffffff;
+    padding: 15px 20px;
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+    border: 1px solid #e0e0e0;
+}
+
+.info-text {
+    font-size: 1rem;
+    color: #555;
+}
+
+/* === ส่วนที่ 3: พื้นที่ค้นหา === */
+.search-area {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.search-box input {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.1rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: #4a90e2;
+}
+
+#results-container {
+    margin-top: 20px;
+}
+
+/* === การ์ดแสดงผลการค้นหา (เหมือนเดิม) === */
 .result-group {
     background-color: #f8f9fa;
     border: 1px solid #e9ecef;
@@ -21,34 +85,41 @@ header p { margin: 5px 0 0; color: #555; }
     padding: 20px;
     margin-top: 15px;
 }
+
 .result-group .header {
     border-bottom: 1px solid #dee2e6;
     padding-bottom: 10px;
     margin-bottom: 15px;
 }
+
 .result-group .header h3 {
     margin: 0;
     font-size: 1.4rem;
     color: #003366;
 }
+
 .result-group .header p {
     margin: 5px 0 0;
     color: #495057;
     font-size: 1rem;
 }
+
 .registrations-list {
     list-style: none;
     padding-left: 0;
     margin: 0;
 }
+
 .registrations-list li {
     padding: 8px 0;
     border-bottom: 1px dashed #ced4da;
 }
+
 .registrations-list li:last-child {
     border-bottom: none;
 }
+
 .registrations-list span {
     font-weight: bold;
-    color: #155724; /* Green for status */
+    color: #155724;
 }
