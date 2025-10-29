@@ -1,0 +1,256 @@
+[
+    {
+        "label": "os",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "os",
+        "description": "os",
+        "detail": "os",
+        "documentation": {}
+    },
+    {
+        "label": "Flask",
+        "importPath": "flask",
+        "description": "flask",
+        "isExtraImport": true,
+        "detail": "flask",
+        "documentation": {}
+    },
+    {
+        "label": "render_template",
+        "importPath": "flask",
+        "description": "flask",
+        "isExtraImport": true,
+        "detail": "flask",
+        "documentation": {}
+    },
+    {
+        "label": "jsonify",
+        "importPath": "flask",
+        "description": "flask",
+        "isExtraImport": true,
+        "detail": "flask",
+        "documentation": {}
+    },
+    {
+        "label": "request",
+        "importPath": "flask",
+        "description": "flask",
+        "isExtraImport": true,
+        "detail": "flask",
+        "documentation": {}
+    },
+    {
+        "label": "pandas",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "pandas",
+        "description": "pandas",
+        "detail": "pandas",
+        "documentation": {}
+    },
+    {
+        "label": "datetime",
+        "importPath": "datetime",
+        "description": "datetime",
+        "isExtraImport": true,
+        "detail": "datetime",
+        "documentation": {}
+    },
+    {
+        "label": "requests",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "requests",
+        "description": "requests",
+        "detail": "requests",
+        "documentation": {}
+    },
+    {
+        "label": "BeautifulSoup",
+        "importPath": "bs4",
+        "description": "bs4",
+        "isExtraImport": true,
+        "detail": "bs4",
+        "documentation": {}
+    },
+    {
+        "label": "csv",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "csv",
+        "description": "csv",
+        "detail": "csv",
+        "documentation": {}
+    },
+    {
+        "label": "tqdm",
+        "importPath": "tqdm",
+        "description": "tqdm",
+        "isExtraImport": true,
+        "detail": "tqdm",
+        "documentation": {}
+    },
+    {
+        "label": "get_current_buddhist_year",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def get_current_buddhist_year():\n    \"\"\"\n    คำนวณปี พ.ศ. ปัจจุบัน โดยจะเปลี่ยนปีในวันที่ 1 มิถุนายนของทุกปี\n    และแปลงเป็นเลขไทย\n    \"\"\"\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    # ถ้าปัจจุบันยังไม่ถึงวันที่ 1 มิ.ย. ให้ใช้ปี พ.ศ. ของปีที่แล้ว\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "load_data",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def load_data():\n    global df\n    try:\n        df = pd.read_csv(DATA_FILE)\n        df = df.astype(str)\n    except FileNotFoundError:\n        df = pd.DataFrame()\ndef get_data_timestamp():\n    try:\n        timestamp = os.path.getmtime(DATA_FILE)",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "get_data_timestamp",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def get_data_timestamp():\n    try:\n        timestamp = os.path.getmtime(DATA_FILE)\n        return datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y %H:%M:%S')\n    except FileNotFoundError:\n        return \"ยังไม่มีข้อมูล\"\n# --- จุดแก้ไขสำคัญ: ส่งค่าปี พ.ศ. ไปยังหน้าเว็บ ---\n@app.route('/')\ndef index():\n    \"\"\"หน้าแรกของเว็บ\"\"\"",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "index",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def index():\n    \"\"\"หน้าแรกของเว็บ\"\"\"\n    current_year = get_current_buddhist_year()\n    return render_template('index.html', current_buddhist_year=current_year)\n@app.route('/get_data_info')\ndef get_data_info():\n    return jsonify({\n        'timestamp': get_data_timestamp(),\n        'count': len(df) if df is not None else 0\n    })",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "get_data_info",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def get_data_info():\n    return jsonify({\n        'timestamp': get_data_timestamp(),\n        'count': len(df) if df is not None else 0\n    })\n# (ฟังก์ชัน search เหมือนเดิม)\n@app.route('/search')\ndef search():\n    query = request.args.get('q', '')\n    if df is None or df.empty or query == '':",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "search",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def search():\n    query = request.args.get('q', '')\n    if df is None or df.empty or query == '':\n        return jsonify([])\n    results_df = df[df['full_name'].str.contains(query, case=False, na=False)]\n    if results_df.empty: return jsonify([])\n    grouped = results_df.groupby('full_name')\n    final_results = []\n    for name, group in grouped:\n        person_data = {",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "PROJECT_ROOT",
+        "kind": 5,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\nDATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\napp = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    \"\"\"\n    คำนวณปี พ.ศ. ปัจจุบัน โดยจะเปลี่ยนปีในวันที่ 1 มิถุนายนของทุกปี\n    และแปลงเป็นเลขไทย\n    \"\"\"\n    today = datetime.now()",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "DATA_FILE",
+        "kind": 5,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "DATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\napp = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    \"\"\"\n    คำนวณปี พ.ศ. ปัจจุบัน โดยจะเปลี่ยนปีในวันที่ 1 มิถุนายนของทุกปี\n    และแปลงเป็นเลขไทย\n    \"\"\"\n    today = datetime.now()\n    buddhist_year = today.year + 543",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "app",
+        "kind": 5,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "app = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    \"\"\"\n    คำนวณปี พ.ศ. ปัจจุบัน โดยจะเปลี่ยนปีในวันที่ 1 มิถุนายนของทุกปี\n    และแปลงเป็นเลขไทย\n    \"\"\"\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    # ถ้าปัจจุบันยังไม่ถึงวันที่ 1 มิ.ย. ให้ใช้ปี พ.ศ. ของปีที่แล้ว",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "df",
+        "kind": 5,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "df = None\ndef get_current_buddhist_year():\n    \"\"\"\n    คำนวณปี พ.ศ. ปัจจุบัน โดยจะเปลี่ยนปีในวันที่ 1 มิถุนายนของทุกปี\n    และแปลงเป็นเลขไทย\n    \"\"\"\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    # ถ้าปัจจุบันยังไม่ถึงวันที่ 1 มิ.ย. ให้ใช้ปี พ.ศ. ของปีที่แล้ว\n    if today < datetime(today.year, 6, 1):",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "URL_TO_DEBUG",
+        "kind": 5,
+        "importPath": "scraper.debug_scraper",
+        "description": "scraper.debug_scraper",
+        "peekOfCode": "URL_TO_DEBUG = \"https://app.pariyat.com/pages/postx/namelist.php?lid=5015\"\nHEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\nprint(f\"กำลังเริ่มชันสูตร URL: {URL_TO_DEBUG}\")\ntry:\n    response = requests.get(URL_TO_DEBUG, headers=HEADERS)\n    response.raise_for_status()\n    # --- หัวใจสำคัญ: บันทึกทุกสิ่งที่เห็นลงในไฟล์ ---\n    with open(\"debug_page.html\", \"wb\") as f: # ใช้ \"wb\" เพื่อป้องกันปัญหาเรื่องการเข้ารหัสตัวอักษร",
+        "detail": "scraper.debug_scraper",
+        "documentation": {}
+    },
+    {
+        "label": "HEADERS",
+        "kind": 5,
+        "importPath": "scraper.debug_scraper",
+        "description": "scraper.debug_scraper",
+        "peekOfCode": "HEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\nprint(f\"กำลังเริ่มชันสูตร URL: {URL_TO_DEBUG}\")\ntry:\n    response = requests.get(URL_TO_DEBUG, headers=HEADERS)\n    response.raise_for_status()\n    # --- หัวใจสำคัญ: บันทึกทุกสิ่งที่เห็นลงในไฟล์ ---\n    with open(\"debug_page.html\", \"wb\") as f: # ใช้ \"wb\" เพื่อป้องกันปัญหาเรื่องการเข้ารหัสตัวอักษร\n        f.write(response.content)",
+        "detail": "scraper.debug_scraper",
+        "documentation": {}
+    },
+    {
+        "label": "find_class_name",
+        "kind": 2,
+        "importPath": "scraper.scraper",
+        "description": "scraper.scraper",
+        "peekOfCode": "def find_class_name(soup):\n    \"\"\"\n    ฟังก์ชันผู้เชี่ยวชาญสำหรับค้นหาชื่อชั้นเรียน\n    และขัดเกลาข้อความให้กระชับที่สุด\n    \"\"\"\n    raw_text = \"\"\n    # แบบที่ 1: โครงสร้างใหม่ล่าสุด (h1.post-title)\n    tag = soup.find('h1', class_='post-title')\n    if tag:\n        raw_text = tag.text.strip()",
+        "detail": "scraper.scraper",
+        "documentation": {}
+    },
+    {
+        "label": "scrape_applicant_data_from_url",
+        "kind": 2,
+        "importPath": "scraper.scraper",
+        "description": "scraper.scraper",
+        "peekOfCode": "def scrape_applicant_data_from_url(class_url):\n    try:\n        response = requests.get(class_url, headers=HEADERS)\n        response.raise_for_status()\n        soup = BeautifulSoup(response.content, 'html.parser')\n        class_name = find_class_name(soup)\n        if class_name == \"ไม่พบชื่อชั้นเรียน\":\n            print(f\"\\n!!! คำเตือน: ไม่พบแท็กชื่อชั้นเรียนใน URL -> {class_url}\")\n        applicants = []\n        table = soup.find('table', class_='tbl_bordered') or soup.find('table')",
+        "detail": "scraper.scraper",
+        "documentation": {}
+    },
+    {
+        "label": "main",
+        "kind": 2,
+        "importPath": "scraper.scraper",
+        "description": "scraper.scraper",
+        "peekOfCode": "def main():\n    try:\n        with open(INPUT_LINKS_FILE, 'r', encoding='utf-8') as f:\n            class_links = [line.strip() for line in f if line.strip()]\n        print(f\"พบทั้งหมด {len(class_links)} ลิงก์จากไฟล์ {INPUT_LINKS_FILE}\")\n    except FileNotFoundError:\n        print(f\"!!! ไม่พบไฟล์ {INPUT_LINKS_FILE} !!!\")\n        return\n    all_applicants_data = []\n    print(\"\\nกำลังเริ่มดึงข้อมูล (เวอร์ชันสมบูรณ์แบบ)...\")",
+        "detail": "scraper.scraper",
+        "documentation": {}
+    },
+    {
+        "label": "INPUT_LINKS_FILE",
+        "kind": 5,
+        "importPath": "scraper.scraper",
+        "description": "scraper.scraper",
+        "peekOfCode": "INPUT_LINKS_FILE = \"class_links.txt\"\nOUTPUT_CSV_FILE = \"../data/pariyat_applicants_data.csv\"\nHEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\ndef find_class_name(soup):\n    \"\"\"\n    ฟังก์ชันผู้เชี่ยวชาญสำหรับค้นหาชื่อชั้นเรียน\n    และขัดเกลาข้อความให้กระชับที่สุด\n    \"\"\"",
+        "detail": "scraper.scraper",
+        "documentation": {}
+    },
+    {
+        "label": "OUTPUT_CSV_FILE",
+        "kind": 5,
+        "importPath": "scraper.scraper",
+        "description": "scraper.scraper",
+        "peekOfCode": "OUTPUT_CSV_FILE = \"../data/pariyat_applicants_data.csv\"\nHEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\ndef find_class_name(soup):\n    \"\"\"\n    ฟังก์ชันผู้เชี่ยวชาญสำหรับค้นหาชื่อชั้นเรียน\n    และขัดเกลาข้อความให้กระชับที่สุด\n    \"\"\"\n    raw_text = \"\"",
+        "detail": "scraper.scraper",
+        "documentation": {}
+    },
+    {
+        "label": "HEADERS",
+        "kind": 5,
+        "importPath": "scraper.scraper",
+        "description": "scraper.scraper",
+        "peekOfCode": "HEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\ndef find_class_name(soup):\n    \"\"\"\n    ฟังก์ชันผู้เชี่ยวชาญสำหรับค้นหาชื่อชั้นเรียน\n    และขัดเกลาข้อความให้กระชับที่สุด\n    \"\"\"\n    raw_text = \"\"\n    # แบบที่ 1: โครงสร้างใหม่ล่าสุด (h1.post-title)",
+        "detail": "scraper.scraper",
+        "documentation": {}
+    }
+]
