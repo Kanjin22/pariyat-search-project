@@ -45,81 +45,96 @@
         const commitMsg = document.getElementById('commit-msg');
 
         function startStreaming(button, url, options = {}) {
-            button.disabled = true;
-            runBtn.disabled = true; // Disable both buttons
+            // Disable all buttons during operation
+            runBtn.disabled = true;
             pushBtn.disabled = true;
             log.textContent = 'กำลังเชื่อมต่อกับเซิร์ฟเวอร์...\n';
 
-            const eventSource = new EventSource(url, options);
+            const eventSource = new EventSource(url);
 
             eventSource.onmessage = function(event) {
                 if (event.data) {
                     log.textContent += event.data + '\n';
                 }
                 log.scrollTop = log.scrollHeight;
+
+                // Check for final success/error message to re-enable buttons
+                if (event.data.includes("✅") || event.data.includes("❌")) {
+                    eventSource.close();
+                    runBtn.disabled = false;
+                    runBtn.textContent = '🚀 เริ่มกระบวนการอัปเดตข้อมูล';
+                    // Only re-enable push button if scraper was successful
+                    if (log.textContent.includes("ดึงข้อมูลสำเร็จ")) {
+                        pushBtn.disabled = false;
+                    }
+                    pushBtn.textContent = '📤 Push to GitHub & Deploy';
+                }
             };
 
             eventSource.onerror = function(err) {
                 log.textContent += '\n🏁 การเชื่อมต่อสิ้นสุดลงแล้ว';
                 eventSource.close();
-                runBtn.disabled = false; // Enable run button
-                // Only re-enable push button if scraper was successful
-                if(log.textContent.includes("✅")) {
-                    pushBtn.disabled = false;
-                }
+                runBtn.disabled = false;
+                runBtn.textContent = '🚀 เริ่มกระบวนการอัปเดตข้อมูล';
+                pushBtn.textContent = '📤 Push to GitHub & Deploy';
             };
         }
-
+        
+        // Event Listener for the Scraper button
         runBtn.addEventListener('click', () => {
             runBtn.textContent = '🔄 กำลังดึงข้อมูล...';
             startStreaming(runBtn, '/run-scraper-stream');
         });
 
-        pushBtn.addEventListener('click', () => {
+        // Event Listener for the Git Push button
+        pushBtn.addEventListener('click', async () => {
+            // Re-use the streaming logic, but this time with a POST request
             pushBtn.textContent = '🔄 กำลัง Push...';
-            // We need to use POST for this, which EventSource doesn't support directly.
-            // So we will revert to the old fetch method for this button.
+            runBtn.disabled = true;
+            pushBtn.disabled = true;
             log.textContent = 'กำลังเริ่มต้นกระบวนการ Git...\n';
 
-            fetch('/git-push-stream', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: commitMsg.value })
-            })
-            .then(response => {
+            // Fetch doesn't support EventSource directly, so we read the stream manually
+            try {
+                const response = await fetch('/git-push-stream', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: commitMsg.value })
+                });
+                
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
 
-                function read() {
-                    reader.read().then(({ done, value }) => {
-                        if (done) {
-                            log.textContent += '\n🏁 การเชื่อมต่อสิ้นสุดลงแล้ว';
-                            runBtn.disabled = false;
-                            pushBtn.disabled = false;
-                            pushBtn.textContent = '📤 Push to GitHub & Deploy';
-                            return;
+                function processStream({ done, value }) {
+                    if (done) {
+                        log.textContent += '\n🏁 กระบวนการ Git สิ้นสุดลงแล้ว';
+                        runBtn.disabled = false;
+                        pushBtn.disabled = false;
+                        pushBtn.textContent = '📤 Push to GitHub & Deploy';
+                        return;
+                    }
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n\n');
+                    lines.forEach(line => {
+                        if (line.startsWith('data: ')) {
+                            log.textContent += line.substring(6).trim() + '\n';
                         }
-                        // Decode and process the streamed data
-                        const chunk = decoder.decode(value, { stream: true });
-                        // Server-Sent Events format is "data: message\n\n"
-                        const lines = chunk.split('\n\n');
-                        lines.forEach(line => {
-                            if (line.startsWith('data: ')) {
-                                log.textContent += line.substring(6) + '\n';
-                            }
-                        });
-                        log.scrollTop = log.scrollHeight;
-                        read(); // Continue reading
                     });
+                    log.scrollTop = log.scrollHeight;
+                    
+                    // Continue reading the stream
+                    reader.read().then(processStream);
                 }
-                read();
-            })
-            .catch(err => {
-                log.textContent += `\n❌ เกิดข้อผิดพลาดในการเชื่อมต่อ: ${err}`;
+
+                reader.read().then(processStream);
+
+            } catch (error) {
+                log.textContent += `\n❌ เกิดข้อผิดพลาดในการเชื่อมต่อ: ${error}`;
                 runBtn.disabled = false;
                 pushBtn.disabled = false;
                 pushBtn.textContent = '📤 Push to GitHub & Deploy';
-            });
+            }
         });
     </script>
 </body>

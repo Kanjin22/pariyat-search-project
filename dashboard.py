@@ -34,14 +34,13 @@ def run_scraper_stream():
         command = [sys.executable, SCRAPER_SCRIPT]
         returncode = yield from stream_command_output(command, SCRAPER_DIR)
         if returncode == 0:
-            yield "data: \n\n"
+            yield "data: \n"
             yield "data: ✅ ดึงข้อมูลสำเร็จ! คุณสามารถไปขั้นตอนที่ 2 ได้\n\n"
         else:
-            yield "data: \n\n"
+            yield "data: \n"
             yield f"data: ❌ เกิดข้อผิดพลาด! โปรแกรมจบการทำงานด้วยรหัส: {returncode}\n\n"
     return Response(generate(), mimetype='text/event-stream')
 
-# --- API ใหม่: สำหรับการ Push to GitHub แบบ Stream ---
 @app.route('/git-push-stream', methods=['POST'])
 def git_push_stream():
     commit_message = request.json.get('message', 'Automated update via Dashboard')
@@ -56,10 +55,18 @@ def git_push_stream():
 
         # 2. Git Commit
         yield "data: \n--- [2/3] กำลังรัน git commit ---\n\n"
-        returncode = yield from stream_command_output(['git', 'commit', '-m', f'"{commit_message}"'], PROJECT_ROOT)
-        # Git commit อาจจะจบด้วยรหัส 1 ถ้าไม่มีอะไรให้ commit ซึ่งไม่ถือว่าเป็น Error
-        if returncode > 1:
-            yield f"data: ❌ git commit ล้มเหลว (รหัส: {returncode})\n\n"
+        # ใช้ shell=True กับ commit เพื่อให้ f'"{commit_message}"' ทำงานถูกต้องบน Windows
+        process = subprocess.Popen(
+            f'git commit -m "{commit_message}"',
+            cwd=PROJECT_ROOT, shell=True, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, text=True,
+            encoding=sys.stdout.encoding or 'utf-8', errors='ignore', bufsize=1
+        )
+        for line in process.stdout:
+            yield f"data: {line.strip()}\n\n"
+        process.wait()
+        if process.returncode > 1:
+            yield f"data: ❌ git commit ล้มเหลว (รหัส: {process.returncode})\n\n"
             return
         
         # 3. Git Push
@@ -70,10 +77,9 @@ def git_push_stream():
             yield "data:    อาจจะต้องยืนยันตัวตนในเบราว์เซอร์ หรือใช้ GitHub Desktop แทน\n\n"
             return
             
-        yield "data: \n✅ All Git commands executed successfully! Render should start deploying shortly.\n\n"
+        yield "data: \n✅ กระบวนการ Git ทั้งหมดสำเร็จ! Render ควรจะเริ่ม Deploy ในไม่ช้า\n\n"
         
     return Response(generate(), mimetype='text/event-stream')
-
 
 if __name__ == '__main__':
     print("Dashboard is running on http://127.0.0.1:5001")
