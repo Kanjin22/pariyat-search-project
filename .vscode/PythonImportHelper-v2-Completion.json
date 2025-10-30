@@ -327,7 +327,7 @@
         "kind": 2,
         "importPath": "dashboard",
         "description": "dashboard",
-        "peekOfCode": "def index():\n    return render_template('dashboard.html')\n@app.route('/run-scraper-stream')\ndef run_scraper_stream():\n    def generate():\n        command = [sys.executable, SCRAPER_SCRIPT]\n        returncode = yield from stream_command_output(command, SCRAPER_DIR)\n        if returncode == 0:\n            yield \"data: \\n\\n\"\n            yield \"data: ✅ ดึงข้อมูลสำเร็จ! คุณสามารถไปขั้นตอนที่ 2 ได้\\n\\n\"",
+        "peekOfCode": "def index():\n    return render_template('dashboard.html')\n@app.route('/run-scraper-stream')\ndef run_scraper_stream():\n    def generate():\n        command = [sys.executable, SCRAPER_SCRIPT]\n        returncode = yield from stream_command_output(command, SCRAPER_DIR)\n        if returncode == 0:\n            yield \"data: \\n\"\n            yield \"data: ✅ ดึงข้อมูลสำเร็จ! คุณสามารถไปขั้นตอนที่ 2 ได้\\n\\n\"",
         "detail": "dashboard",
         "documentation": {}
     },
@@ -336,7 +336,7 @@
         "kind": 2,
         "importPath": "dashboard",
         "description": "dashboard",
-        "peekOfCode": "def run_scraper_stream():\n    def generate():\n        command = [sys.executable, SCRAPER_SCRIPT]\n        returncode = yield from stream_command_output(command, SCRAPER_DIR)\n        if returncode == 0:\n            yield \"data: \\n\\n\"\n            yield \"data: ✅ ดึงข้อมูลสำเร็จ! คุณสามารถไปขั้นตอนที่ 2 ได้\\n\\n\"\n        else:\n            yield \"data: \\n\\n\"\n            yield f\"data: ❌ เกิดข้อผิดพลาด! โปรแกรมจบการทำงานด้วยรหัส: {returncode}\\n\\n\"",
+        "peekOfCode": "def run_scraper_stream():\n    def generate():\n        command = [sys.executable, SCRAPER_SCRIPT]\n        returncode = yield from stream_command_output(command, SCRAPER_DIR)\n        if returncode == 0:\n            yield \"data: \\n\"\n            yield \"data: ✅ ดึงข้อมูลสำเร็จ! คุณสามารถไปขั้นตอนที่ 2 ได้\\n\\n\"\n        else:\n            yield \"data: \\n\"\n            yield f\"data: ❌ เกิดข้อผิดพลาด! โปรแกรมจบการทำงานด้วยรหัส: {returncode}\\n\\n\"",
         "detail": "dashboard",
         "documentation": {}
     },
