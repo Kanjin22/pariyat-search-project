@@ -45,7 +45,6 @@
         const commitMsg = document.getElementById('commit-msg');
 
         function startStreaming(button, url, options = {}) {
-            // Disable all buttons during operation
             runBtn.disabled = true;
             pushBtn.disabled = true;
             log.textContent = 'กำลังเชื่อมต่อกับเซิร์ฟเวอร์...\n';
@@ -58,12 +57,10 @@
                 }
                 log.scrollTop = log.scrollHeight;
 
-                // Check for final success/error message to re-enable buttons
                 if (event.data.includes("✅") || event.data.includes("❌")) {
                     eventSource.close();
                     runBtn.disabled = false;
                     runBtn.textContent = '🚀 เริ่มกระบวนการอัปเดตข้อมูล';
-                    // Only re-enable push button if scraper was successful
                     if (log.textContent.includes("ดึงข้อมูลสำเร็จ")) {
                         pushBtn.disabled = false;
                     }
@@ -80,21 +77,17 @@
             };
         }
         
-        // Event Listener for the Scraper button
         runBtn.addEventListener('click', () => {
             runBtn.textContent = '🔄 กำลังดึงข้อมูล...';
             startStreaming(runBtn, '/run-scraper-stream');
         });
 
-        // Event Listener for the Git Push button
         pushBtn.addEventListener('click', async () => {
-            // Re-use the streaming logic, but this time with a POST request
             pushBtn.textContent = '🔄 กำลัง Push...';
             runBtn.disabled = true;
             pushBtn.disabled = true;
             log.textContent = 'กำลังเริ่มต้นกระบวนการ Git...\n';
 
-            // Fetch doesn't support EventSource directly, so we read the stream manually
             try {
                 const response = await fetch('/git-push-stream', { 
                     method: 'POST',
@@ -123,7 +116,6 @@
                     });
                     log.scrollTop = log.scrollHeight;
                     
-                    // Continue reading the stream
                     reader.read().then(processStream);
                 }
 

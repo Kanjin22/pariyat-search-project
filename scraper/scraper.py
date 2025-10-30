@@ -1,9 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import csv
-# from tqdm import tqdm # เราจะไม่ใช้ tqdm แล้ว
 
-# --- ค่าตั้งต้น (เหมือนเดิม) ---
 INPUT_LINKS_FILE = "class_links.txt"
 OUTPUT_CSV_FILE = "../data/pariyat_applicants_data.csv"
 HEADERS = {
@@ -44,10 +42,8 @@ def scrape_applicant_data_from_url(class_url):
                 applicants.append({'sequence': sequence, 'full_name': full_name, 'age_pansa': age_pansa, 'id_card_status': id_card_status, 'cert_id': cert_id, 'reg_status': reg_status, 'class_name': class_name})
         return applicants
     except requests.exceptions.RequestException:
-        # ไม่ต้องแสดง Error ถ้าเข้าลิงก์ไม่ได้ เพื่อให้ Log สะอาด
         return []
 
-# --- จุดแก้ไขสำคัญอยู่ที่ main() ---
 def main():
     try:
         with open(INPUT_LINKS_FILE, 'r', encoding='utf-8') as f:
@@ -62,9 +58,7 @@ def main():
     
     print("\nกำลังเริ่มดึงข้อมูล...")
     
-    # --- เปลี่ยนจากการใช้ tqdm มาเป็น for loop ธรรมดาพร้อม enumerate ---
     for i, link in enumerate(class_links, 1):
-        # พิมพ์รายงานความคืบหน้าออกมาเป็นข้อความ
         print(f"[{i}/{total_links}] กำลังประมวลผล: {link}")
         
         applicants_on_page = scrape_applicant_data_from_url(link)

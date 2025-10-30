@@ -46,16 +46,13 @@ def git_push_stream():
     commit_message = request.json.get('message', 'Automated update via Dashboard')
     
     def generate():
-        # 1. Git Add
         yield "data: --- [1/3] กำลังรัน git add . ---\n\n"
         returncode = yield from stream_command_output(['git', 'add', '.'], PROJECT_ROOT)
         if returncode != 0:
             yield f"data: ❌ git add ล้มเหลว (รหัส: {returncode})\n\n"
             return
 
-        # 2. Git Commit
         yield "data: \n--- [2/3] กำลังรัน git commit ---\n\n"
-        # ใช้ shell=True กับ commit เพื่อให้ f'"{commit_message}"' ทำงานถูกต้องบน Windows
         process = subprocess.Popen(
             f'git commit -m "{commit_message}"',
             cwd=PROJECT_ROOT, shell=True, stdout=subprocess.PIPE,
@@ -69,7 +66,6 @@ def git_push_stream():
             yield f"data: ❌ git commit ล้มเหลว (รหัส: {process.returncode})\n\n"
             return
         
-        # 3. Git Push
         yield "data: \n--- [3/3] กำลังรัน git push ---\n\n"
         returncode = yield from stream_command_output(['git', 'push', 'origin', 'main'], PROJECT_ROOT)
         if returncode != 0:

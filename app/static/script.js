@@ -1,11 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // ตัวแปรที่เกี่ยวกับปุ่มอัปเดตถูกลบออกไปแล้ว
     const timestampSpan = document.getElementById('info-timestamp');
     const countSpan = document.getElementById('info-count');
     const searchInput = document.getElementById('search-input');
     const resultsContainer = document.getElementById('results-container');
 
-    // 1. โหลดข้อมูล timestamp เริ่มต้นเมื่อเปิดหน้าเว็บ
     const fetchInitialInfo = async () => {
         try {
             const response = await fetch('/get_data_info');
@@ -18,9 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 2. ส่วน Event Listener ของปุ่มอัปเดตถูกลบออกไปแล้ว
-
-    // 3. จัดการการค้นหา
     searchInput.addEventListener('input', async (e) => {
         const query = e.target.value.trim();
         if (query.length < 2) {
@@ -34,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderResults(results);
     });
 
-    // 4. ฟังก์ชันแสดงผลการค้นหา (เหมือนเดิม)
     const renderResults = (results) => {
         if (results.length === 0) {
             resultsContainer.innerHTML = '<p>ไม่พบข้อมูลที่ตรงกับการค้นหา</p>';
@@ -56,6 +50,5 @@ document.addEventListener('DOMContentLoaded', () => {
         `).join('');
     };
     
-    // เริ่มทำงาน!
     fetchInitialInfo();
 });

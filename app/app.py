@@ -2,18 +2,16 @@ import os
 from flask import Flask, render_template, jsonify, request
 import pandas as pd
 from datetime import datetime
-import pytz # <-- นำเข้า library ใหม่
+import pytz
 
-# --- การหา Path (เหมือนเดิม) ---
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')
-TEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates') # <-- เพิ่มบรรทัดนี้
+TEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates')
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR) 
 df = None
 
 def get_current_buddhist_year():
-    # (ฟังก์ชันนี้เหมือนเดิม)
     today = datetime.now()
     buddhist_year = today.year + 543
     if today < datetime(today.year, 6, 1):
@@ -22,7 +20,6 @@ def get_current_buddhist_year():
     return str(buddhist_year).translate(thai_digits)
 
 def load_data():
-    # (ฟังก์ชันนี้เหมือนเดิม)
     global df
     try:
         df = pd.read_csv(DATA_FILE)
@@ -30,26 +27,20 @@ def load_data():
     except FileNotFoundError:
         df = pd.DataFrame()
 
-# --- จุดแก้ไขสำคัญ: ฟังก์ชัน get_data_timestamp ---
 def get_data_timestamp():
     """ดึงเวลาล่าสุดของไฟล์ และแปลงเป็นเวลาไทย (UTC+7)"""
     try:
-        # 1. ดึงเวลาของไฟล์ (ซึ่งเป็นเวลา UTC บนเซิร์ฟเวอร์)
         utc_timestamp = os.path.getmtime(DATA_FILE)
         utc_datetime = datetime.fromtimestamp(utc_timestamp, tz=pytz.utc)
         
-        # 2. กำหนด Time Zone ของกรุงเทพฯ
         bangkok_tz = pytz.timezone("Asia/Bangkok")
         
-        # 3. แปลงเวลา UTC เป็นเวลาของกรุงเทพฯ
         bangkok_datetime = utc_datetime.astimezone(bangkok_tz)
         
-        # 4. จัดรูปแบบการแสดงผล
         return bangkok_datetime.strftime('%d/%m/%Y %H:%M:%S')
     except FileNotFoundError:
         return "ยังไม่มีข้อมูล"
 
-# (ฟังก์ชันที่เหลือเหมือนเดิมทั้งหมด)
 @app.route('/')
 def index():
     current_year = get_current_buddhist_year()
