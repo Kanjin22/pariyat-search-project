@@ -1,8 +1,6 @@
-/* === การตั้งค่าพื้นฐาน === */
 body {
     font-family: 'Sarabun', sans-serif;
     background-color: #eef2f5;
-    /* เปลี่ยนสีพื้นหลังให้ดูสบายตาขึ้น */
     color: #333;
     margin: 0;
     padding: 20px;
@@ -12,10 +10,8 @@ body {
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
-    /* จัดให้อยู่กลางจอ */
 }
 
-/* === ส่วนที่ 1: หัวข้อหลัก === */
 .main-header {
     text-align: center;
     padding: 10px 0;
@@ -34,7 +30,6 @@ body {
     font-size: 1.1rem;
 }
 
-/* === ส่วนที่ 2: แถบข้อมูล === */
 .data-info-section {
     background-color: #ffffff;
     padding: 15px 20px;
@@ -50,7 +45,6 @@ body {
     color: #555;
 }
 
-/* === ส่วนที่ 3: พื้นที่ค้นหา === */
 .search-area {
     background-color: #ffffff;
     padding: 30px;
@@ -77,7 +71,6 @@ body {
     margin-top: 20px;
 }
 
-/* === การ์ดแสดงผลการค้นหา (เหมือนเดิม) === */
 .result-group {
     background-color: #f8f9fa;
     border: 1px solid #e9ecef;

@@ -1,6 +1,5 @@
 import requests
 
-# --- ใส่ URL ที่มีปัญหา 1 URL ลงไปที่นี่ ---
 URL_TO_DEBUG = "https://app.pariyat.com/pages/postx/namelist.php?lid=5015"
 
 HEADERS = {
@@ -13,8 +12,7 @@ try:
     response = requests.get(URL_TO_DEBUG, headers=HEADERS)
     response.raise_for_status()
     
-    # --- หัวใจสำคัญ: บันทึกทุกสิ่งที่เห็นลงในไฟล์ ---
-    with open("debug_page.html", "wb") as f: # ใช้ "wb" เพื่อป้องกันปัญหาเรื่องการเข้ารหัสตัวอักษร
+    with open("debug_page.html", "wb") as f: 
         f.write(response.content)
         
     print("\n✅ ชันสูตรสำเร็จ!")

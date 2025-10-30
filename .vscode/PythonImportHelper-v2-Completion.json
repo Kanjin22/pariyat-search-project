@@ -147,7 +147,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)\ndef load_data():\n    # (ฟังก์ชันนี้เหมือนเดิม)",
+        "peekOfCode": "def get_current_buddhist_year():\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)\ndef load_data():\n    global df\n    try:",
         "detail": "app.app",
         "documentation": {}
     },
@@ -156,7 +156,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def load_data():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    global df\n    try:\n        df = pd.read_csv(DATA_FILE)\n        df = df.astype(str)\n    except FileNotFoundError:\n        df = pd.DataFrame()\n# --- จุดแก้ไขสำคัญ: ฟังก์ชัน get_data_timestamp ---\ndef get_data_timestamp():",
+        "peekOfCode": "def load_data():\n    global df\n    try:\n        df = pd.read_csv(DATA_FILE)\n        df = df.astype(str)\n    except FileNotFoundError:\n        df = pd.DataFrame()\ndef get_data_timestamp():\n    \"\"\"ดึงเวลาล่าสุดของไฟล์ และแปลงเป็นเวลาไทย (UTC+7)\"\"\"\n    try:",
         "detail": "app.app",
         "documentation": {}
     },
@@ -165,7 +165,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def get_data_timestamp():\n    \"\"\"ดึงเวลาล่าสุดของไฟล์ และแปลงเป็นเวลาไทย (UTC+7)\"\"\"\n    try:\n        # 1. ดึงเวลาของไฟล์ (ซึ่งเป็นเวลา UTC บนเซิร์ฟเวอร์)\n        utc_timestamp = os.path.getmtime(DATA_FILE)\n        utc_datetime = datetime.fromtimestamp(utc_timestamp, tz=pytz.utc)\n        # 2. กำหนด Time Zone ของกรุงเทพฯ\n        bangkok_tz = pytz.timezone(\"Asia/Bangkok\")\n        # 3. แปลงเวลา UTC เป็นเวลาของกรุงเทพฯ\n        bangkok_datetime = utc_datetime.astimezone(bangkok_tz)",
+        "peekOfCode": "def get_data_timestamp():\n    \"\"\"ดึงเวลาล่าสุดของไฟล์ และแปลงเป็นเวลาไทย (UTC+7)\"\"\"\n    try:\n        utc_timestamp = os.path.getmtime(DATA_FILE)\n        utc_datetime = datetime.fromtimestamp(utc_timestamp, tz=pytz.utc)\n        bangkok_tz = pytz.timezone(\"Asia/Bangkok\")\n        bangkok_datetime = utc_datetime.astimezone(bangkok_tz)\n        return bangkok_datetime.strftime('%d/%m/%Y %H:%M:%S')\n    except FileNotFoundError:\n        return \"ยังไม่มีข้อมูล\"",
         "detail": "app.app",
         "documentation": {}
     },
@@ -201,7 +201,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\nDATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\nTEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates') # <-- เพิ่มบรรทัดนี้\napp = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):",
+        "peekOfCode": "PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\nDATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\nTEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates')\napp = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1",
         "detail": "app.app",
         "documentation": {}
     },
@@ -210,7 +210,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "DATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\nTEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates') # <-- เพิ่มบรรทัดนี้\napp = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1",
+        "peekOfCode": "DATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\nTEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates')\napp = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')",
         "detail": "app.app",
         "documentation": {}
     },
@@ -219,7 +219,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "TEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates') # <-- เพิ่มบรรทัดนี้\napp = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')",
+        "peekOfCode": "TEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates')\napp = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)",
         "detail": "app.app",
         "documentation": {}
     },
@@ -228,7 +228,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "app = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)",
+        "peekOfCode": "app = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)\ndef load_data():",
         "detail": "app.app",
         "documentation": {}
     },
@@ -237,7 +237,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "df = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)\ndef load_data():",
+        "peekOfCode": "df = None\ndef get_current_buddhist_year():\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)\ndef load_data():\n    global df",
         "detail": "app.app",
         "documentation": {}
     },
@@ -246,7 +246,7 @@
         "kind": 5,
         "importPath": "scraper.debug_scraper",
         "description": "scraper.debug_scraper",
-        "peekOfCode": "URL_TO_DEBUG = \"https://app.pariyat.com/pages/postx/namelist.php?lid=5015\"\nHEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\nprint(f\"กำลังเริ่มชันสูตร URL: {URL_TO_DEBUG}\")\ntry:\n    response = requests.get(URL_TO_DEBUG, headers=HEADERS)\n    response.raise_for_status()\n    # --- หัวใจสำคัญ: บันทึกทุกสิ่งที่เห็นลงในไฟล์ ---\n    with open(\"debug_page.html\", \"wb\") as f: # ใช้ \"wb\" เพื่อป้องกันปัญหาเรื่องการเข้ารหัสตัวอักษร",
+        "peekOfCode": "URL_TO_DEBUG = \"https://app.pariyat.com/pages/postx/namelist.php?lid=5015\"\nHEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\nprint(f\"กำลังเริ่มชันสูตร URL: {URL_TO_DEBUG}\")\ntry:\n    response = requests.get(URL_TO_DEBUG, headers=HEADERS)\n    response.raise_for_status()\n    with open(\"debug_page.html\", \"wb\") as f: \n        f.write(response.content)",
         "detail": "scraper.debug_scraper",
         "documentation": {}
     },
@@ -255,7 +255,7 @@
         "kind": 5,
         "importPath": "scraper.debug_scraper",
         "description": "scraper.debug_scraper",
-        "peekOfCode": "HEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\nprint(f\"กำลังเริ่มชันสูตร URL: {URL_TO_DEBUG}\")\ntry:\n    response = requests.get(URL_TO_DEBUG, headers=HEADERS)\n    response.raise_for_status()\n    # --- หัวใจสำคัญ: บันทึกทุกสิ่งที่เห็นลงในไฟล์ ---\n    with open(\"debug_page.html\", \"wb\") as f: # ใช้ \"wb\" เพื่อป้องกันปัญหาเรื่องการเข้ารหัสตัวอักษร\n        f.write(response.content)",
+        "peekOfCode": "HEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\nprint(f\"กำลังเริ่มชันสูตร URL: {URL_TO_DEBUG}\")\ntry:\n    response = requests.get(URL_TO_DEBUG, headers=HEADERS)\n    response.raise_for_status()\n    with open(\"debug_page.html\", \"wb\") as f: \n        f.write(response.content)\n    print(\"\\n✅ ชันสูตรสำเร็จ!\")",
         "detail": "scraper.debug_scraper",
         "documentation": {}
     },
@@ -345,7 +345,7 @@
         "kind": 2,
         "importPath": "dashboard",
         "description": "dashboard",
-        "peekOfCode": "def git_push_stream():\n    commit_message = request.json.get('message', 'Automated update via Dashboard')\n    def generate():\n        # 1. Git Add\n        yield \"data: --- [1/3] กำลังรัน git add . ---\\n\\n\"\n        returncode = yield from stream_command_output(['git', 'add', '.'], PROJECT_ROOT)\n        if returncode != 0:\n            yield f\"data: ❌ git add ล้มเหลว (รหัส: {returncode})\\n\\n\"\n            return\n        # 2. Git Commit",
+        "peekOfCode": "def git_push_stream():\n    commit_message = request.json.get('message', 'Automated update via Dashboard')\n    def generate():\n        yield \"data: --- [1/3] กำลังรัน git add . ---\\n\\n\"\n        returncode = yield from stream_command_output(['git', 'add', '.'], PROJECT_ROOT)\n        if returncode != 0:\n            yield f\"data: ❌ git add ล้มเหลว (รหัส: {returncode})\\n\\n\"\n            return\n        yield \"data: \\n--- [2/3] กำลังรัน git commit ---\\n\\n\"\n        process = subprocess.Popen(",
         "detail": "dashboard",
         "documentation": {}
     },
