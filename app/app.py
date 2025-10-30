@@ -7,8 +7,9 @@ import pytz # <-- นำเข้า library ใหม่
 # --- การหา Path (เหมือนเดิม) ---
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')
+TEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates') # <-- เพิ่มบรรทัดนี้
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=TEMPLATE_DIR) 
 df = None
 
 def get_current_buddhist_year():
