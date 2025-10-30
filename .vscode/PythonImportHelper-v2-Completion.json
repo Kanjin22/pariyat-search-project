@@ -41,6 +41,38 @@
         "documentation": {}
     },
     {
+        "label": "Flask",
+        "importPath": "flask",
+        "description": "flask",
+        "isExtraImport": true,
+        "detail": "flask",
+        "documentation": {}
+    },
+    {
+        "label": "render_template",
+        "importPath": "flask",
+        "description": "flask",
+        "isExtraImport": true,
+        "detail": "flask",
+        "documentation": {}
+    },
+    {
+        "label": "Response",
+        "importPath": "flask",
+        "description": "flask",
+        "isExtraImport": true,
+        "detail": "flask",
+        "documentation": {}
+    },
+    {
+        "label": "request",
+        "importPath": "flask",
+        "description": "flask",
+        "isExtraImport": true,
+        "detail": "flask",
+        "documentation": {}
+    },
+    {
         "label": "pandas",
         "kind": 6,
         "isExtraImport": true,
@@ -93,11 +125,21 @@
         "documentation": {}
     },
     {
-        "label": "tqdm",
-        "importPath": "tqdm",
-        "description": "tqdm",
+        "label": "subprocess",
+        "kind": 6,
         "isExtraImport": true,
-        "detail": "tqdm",
+        "importPath": "subprocess",
+        "description": "subprocess",
+        "detail": "subprocess",
+        "documentation": {}
+    },
+    {
+        "label": "sys",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "sys",
+        "description": "sys",
+        "detail": "sys",
         "documentation": {}
     },
     {
@@ -159,7 +201,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\nDATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\napp = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1",
+        "peekOfCode": "PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\nDATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\nTEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates') # <-- เพิ่มบรรทัดนี้\napp = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):",
         "detail": "app.app",
         "documentation": {}
     },
@@ -168,7 +210,16 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "DATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\napp = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')",
+        "peekOfCode": "DATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\nTEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates') # <-- เพิ่มบรรทัดนี้\napp = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "TEMPLATE_DIR",
+        "kind": 5,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "TEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates') # <-- เพิ่มบรรทัดนี้\napp = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')",
         "detail": "app.app",
         "documentation": {}
     },
@@ -177,7 +228,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "app = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)",
+        "peekOfCode": "app = Flask(__name__, template_folder=TEMPLATE_DIR) \ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)",
         "detail": "app.app",
         "documentation": {}
     },
@@ -213,7 +264,7 @@
         "kind": 2,
         "importPath": "scraper.scraper",
         "description": "scraper.scraper",
-        "peekOfCode": "def find_class_name(soup):\n    \"\"\"\n    ฟังก์ชันผู้เชี่ยวชาญสำหรับค้นหาชื่อชั้นเรียน\n    และขัดเกลาข้อความให้กระชับที่สุด\n    \"\"\"\n    raw_text = \"\"\n    # แบบที่ 1: โครงสร้างใหม่ล่าสุด (h1.post-title)\n    tag = soup.find('h1', class_='post-title')\n    if tag:\n        raw_text = tag.text.strip()",
+        "peekOfCode": "def find_class_name(soup):\n    raw_text = \"\"\n    tag = soup.find('h1', class_='post-title')\n    if tag:\n        raw_text = tag.text.strip()\n    elif (tag := soup.find('h3')) and tag.find('span', class_='alternate'):\n        clone = tag\n        if clone.span:\n            clone.span.decompose()\n        raw_text = clone.text.strip()",
         "detail": "scraper.scraper",
         "documentation": {}
     },
@@ -222,7 +273,7 @@
         "kind": 2,
         "importPath": "scraper.scraper",
         "description": "scraper.scraper",
-        "peekOfCode": "def scrape_applicant_data_from_url(class_url):\n    try:\n        response = requests.get(class_url, headers=HEADERS)\n        response.raise_for_status()\n        soup = BeautifulSoup(response.content, 'html.parser')\n        class_name = find_class_name(soup)\n        if class_name == \"ไม่พบชื่อชั้นเรียน\":\n            print(f\"\\n!!! คำเตือน: ไม่พบแท็กชื่อชั้นเรียนใน URL -> {class_url}\")\n        applicants = []\n        table = soup.find('table', class_='tbl_bordered') or soup.find('table')",
+        "peekOfCode": "def scrape_applicant_data_from_url(class_url):\n    try:\n        response = requests.get(class_url, headers=HEADERS)\n        response.raise_for_status()\n        soup = BeautifulSoup(response.content, 'html.parser')\n        class_name = find_class_name(soup)\n        if class_name == \"ไม่พบชื่อชั้นเรียน\":\n            print(f\"!!! คำเตือน: ไม่พบแท็กชื่อชั้นเรียนใน URL -> {class_url}\")\n        applicants = []\n        table = soup.find('table', class_='tbl_bordered') or soup.find('table')",
         "detail": "scraper.scraper",
         "documentation": {}
     },
@@ -231,7 +282,7 @@
         "kind": 2,
         "importPath": "scraper.scraper",
         "description": "scraper.scraper",
-        "peekOfCode": "def main():\n    try:\n        with open(INPUT_LINKS_FILE, 'r', encoding='utf-8') as f:\n            class_links = [line.strip() for line in f if line.strip()]\n        print(f\"พบทั้งหมด {len(class_links)} ลิงก์จากไฟล์ {INPUT_LINKS_FILE}\")\n    except FileNotFoundError:\n        print(f\"!!! ไม่พบไฟล์ {INPUT_LINKS_FILE} !!!\")\n        return\n    all_applicants_data = []\n    print(\"\\nกำลังเริ่มดึงข้อมูล (เวอร์ชันสมบูรณ์แบบ)...\")",
+        "peekOfCode": "def main():\n    try:\n        with open(INPUT_LINKS_FILE, 'r', encoding='utf-8') as f:\n            class_links = [line.strip() for line in f if line.strip()]\n        print(f\"พบทั้งหมด {len(class_links)} ลิงก์จากไฟล์ {INPUT_LINKS_FILE}\")\n    except FileNotFoundError:\n        print(f\"!!! ไม่พบไฟล์ {INPUT_LINKS_FILE} !!!\")\n        return\n    all_applicants_data = []\n    total_links = len(class_links)",
         "detail": "scraper.scraper",
         "documentation": {}
     },
@@ -240,7 +291,7 @@
         "kind": 5,
         "importPath": "scraper.scraper",
         "description": "scraper.scraper",
-        "peekOfCode": "INPUT_LINKS_FILE = \"class_links.txt\"\nOUTPUT_CSV_FILE = \"../data/pariyat_applicants_data.csv\"\nHEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\ndef find_class_name(soup):\n    \"\"\"\n    ฟังก์ชันผู้เชี่ยวชาญสำหรับค้นหาชื่อชั้นเรียน\n    และขัดเกลาข้อความให้กระชับที่สุด\n    \"\"\"",
+        "peekOfCode": "INPUT_LINKS_FILE = \"class_links.txt\"\nOUTPUT_CSV_FILE = \"../data/pariyat_applicants_data.csv\"\nHEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\ndef find_class_name(soup):\n    raw_text = \"\"\n    tag = soup.find('h1', class_='post-title')\n    if tag:\n        raw_text = tag.text.strip()",
         "detail": "scraper.scraper",
         "documentation": {}
     },
@@ -249,7 +300,7 @@
         "kind": 5,
         "importPath": "scraper.scraper",
         "description": "scraper.scraper",
-        "peekOfCode": "OUTPUT_CSV_FILE = \"../data/pariyat_applicants_data.csv\"\nHEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\ndef find_class_name(soup):\n    \"\"\"\n    ฟังก์ชันผู้เชี่ยวชาญสำหรับค้นหาชื่อชั้นเรียน\n    และขัดเกลาข้อความให้กระชับที่สุด\n    \"\"\"\n    raw_text = \"\"",
+        "peekOfCode": "OUTPUT_CSV_FILE = \"../data/pariyat_applicants_data.csv\"\nHEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\ndef find_class_name(soup):\n    raw_text = \"\"\n    tag = soup.find('h1', class_='post-title')\n    if tag:\n        raw_text = tag.text.strip()\n    elif (tag := soup.find('h3')) and tag.find('span', class_='alternate'):",
         "detail": "scraper.scraper",
         "documentation": {}
     },
@@ -258,8 +309,80 @@
         "kind": 5,
         "importPath": "scraper.scraper",
         "description": "scraper.scraper",
-        "peekOfCode": "HEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\ndef find_class_name(soup):\n    \"\"\"\n    ฟังก์ชันผู้เชี่ยวชาญสำหรับค้นหาชื่อชั้นเรียน\n    และขัดเกลาข้อความให้กระชับที่สุด\n    \"\"\"\n    raw_text = \"\"\n    # แบบที่ 1: โครงสร้างใหม่ล่าสุด (h1.post-title)",
+        "peekOfCode": "HEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\ndef find_class_name(soup):\n    raw_text = \"\"\n    tag = soup.find('h1', class_='post-title')\n    if tag:\n        raw_text = tag.text.strip()\n    elif (tag := soup.find('h3')) and tag.find('span', class_='alternate'):\n        clone = tag",
         "detail": "scraper.scraper",
+        "documentation": {}
+    },
+    {
+        "label": "stream_command_output",
+        "kind": 2,
+        "importPath": "dashboard",
+        "description": "dashboard",
+        "peekOfCode": "def stream_command_output(command, working_dir):\n    \"\"\"ฟังก์ชันกลางสำหรับรันคำสั่งและ Stream ผลลัพธ์กลับไป\"\"\"\n    try:\n        process = subprocess.Popen(\n            command, cwd=working_dir, stdout=subprocess.PIPE,\n            stderr=subprocess.STDOUT, text=True,\n            encoding=sys.stdout.encoding or 'utf-8', errors='ignore', bufsize=1\n        )\n        for line in process.stdout:\n            yield f\"data: {line.strip()}\\n\\n\"",
+        "detail": "dashboard",
+        "documentation": {}
+    },
+    {
+        "label": "index",
+        "kind": 2,
+        "importPath": "dashboard",
+        "description": "dashboard",
+        "peekOfCode": "def index():\n    return render_template('dashboard.html')\n@app.route('/run-scraper-stream')\ndef run_scraper_stream():\n    def generate():\n        command = [sys.executable, SCRAPER_SCRIPT]\n        returncode = yield from stream_command_output(command, SCRAPER_DIR)\n        if returncode == 0:\n            yield \"data: \\n\\n\"\n            yield \"data: ✅ ดึงข้อมูลสำเร็จ! คุณสามารถไปขั้นตอนที่ 2 ได้\\n\\n\"",
+        "detail": "dashboard",
+        "documentation": {}
+    },
+    {
+        "label": "run_scraper_stream",
+        "kind": 2,
+        "importPath": "dashboard",
+        "description": "dashboard",
+        "peekOfCode": "def run_scraper_stream():\n    def generate():\n        command = [sys.executable, SCRAPER_SCRIPT]\n        returncode = yield from stream_command_output(command, SCRAPER_DIR)\n        if returncode == 0:\n            yield \"data: \\n\\n\"\n            yield \"data: ✅ ดึงข้อมูลสำเร็จ! คุณสามารถไปขั้นตอนที่ 2 ได้\\n\\n\"\n        else:\n            yield \"data: \\n\\n\"\n            yield f\"data: ❌ เกิดข้อผิดพลาด! โปรแกรมจบการทำงานด้วยรหัส: {returncode}\\n\\n\"",
+        "detail": "dashboard",
+        "documentation": {}
+    },
+    {
+        "label": "git_push_stream",
+        "kind": 2,
+        "importPath": "dashboard",
+        "description": "dashboard",
+        "peekOfCode": "def git_push_stream():\n    commit_message = request.json.get('message', 'Automated update via Dashboard')\n    def generate():\n        # 1. Git Add\n        yield \"data: --- [1/3] กำลังรัน git add . ---\\n\\n\"\n        returncode = yield from stream_command_output(['git', 'add', '.'], PROJECT_ROOT)\n        if returncode != 0:\n            yield f\"data: ❌ git add ล้มเหลว (รหัส: {returncode})\\n\\n\"\n            return\n        # 2. Git Commit",
+        "detail": "dashboard",
+        "documentation": {}
+    },
+    {
+        "label": "app",
+        "kind": 5,
+        "importPath": "dashboard",
+        "description": "dashboard",
+        "peekOfCode": "app = Flask(__name__)\nPROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))\nSCRAPER_SCRIPT = os.path.join(PROJECT_ROOT, 'scraper', 'scraper.py')\nSCRAPER_DIR = os.path.join(PROJECT_ROOT, 'scraper')\ndef stream_command_output(command, working_dir):\n    \"\"\"ฟังก์ชันกลางสำหรับรันคำสั่งและ Stream ผลลัพธ์กลับไป\"\"\"\n    try:\n        process = subprocess.Popen(\n            command, cwd=working_dir, stdout=subprocess.PIPE,\n            stderr=subprocess.STDOUT, text=True,",
+        "detail": "dashboard",
+        "documentation": {}
+    },
+    {
+        "label": "PROJECT_ROOT",
+        "kind": 5,
+        "importPath": "dashboard",
+        "description": "dashboard",
+        "peekOfCode": "PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))\nSCRAPER_SCRIPT = os.path.join(PROJECT_ROOT, 'scraper', 'scraper.py')\nSCRAPER_DIR = os.path.join(PROJECT_ROOT, 'scraper')\ndef stream_command_output(command, working_dir):\n    \"\"\"ฟังก์ชันกลางสำหรับรันคำสั่งและ Stream ผลลัพธ์กลับไป\"\"\"\n    try:\n        process = subprocess.Popen(\n            command, cwd=working_dir, stdout=subprocess.PIPE,\n            stderr=subprocess.STDOUT, text=True,\n            encoding=sys.stdout.encoding or 'utf-8', errors='ignore', bufsize=1",
+        "detail": "dashboard",
+        "documentation": {}
+    },
+    {
+        "label": "SCRAPER_SCRIPT",
+        "kind": 5,
+        "importPath": "dashboard",
+        "description": "dashboard",
+        "peekOfCode": "SCRAPER_SCRIPT = os.path.join(PROJECT_ROOT, 'scraper', 'scraper.py')\nSCRAPER_DIR = os.path.join(PROJECT_ROOT, 'scraper')\ndef stream_command_output(command, working_dir):\n    \"\"\"ฟังก์ชันกลางสำหรับรันคำสั่งและ Stream ผลลัพธ์กลับไป\"\"\"\n    try:\n        process = subprocess.Popen(\n            command, cwd=working_dir, stdout=subprocess.PIPE,\n            stderr=subprocess.STDOUT, text=True,\n            encoding=sys.stdout.encoding or 'utf-8', errors='ignore', bufsize=1\n        )",
+        "detail": "dashboard",
+        "documentation": {}
+    },
+    {
+        "label": "SCRAPER_DIR",
+        "kind": 5,
+        "importPath": "dashboard",
+        "description": "dashboard",
+        "peekOfCode": "SCRAPER_DIR = os.path.join(PROJECT_ROOT, 'scraper')\ndef stream_command_output(command, working_dir):\n    \"\"\"ฟังก์ชันกลางสำหรับรันคำสั่งและ Stream ผลลัพธ์กลับไป\"\"\"\n    try:\n        process = subprocess.Popen(\n            command, cwd=working_dir, stdout=subprocess.PIPE,\n            stderr=subprocess.STDOUT, text=True,\n            encoding=sys.stdout.encoding or 'utf-8', errors='ignore', bufsize=1\n        )\n        for line in process.stdout:",
+        "detail": "dashboard",
         "documentation": {}
     }
 ]
