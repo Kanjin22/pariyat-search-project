@@ -58,6 +58,15 @@
         "documentation": {}
     },
     {
+        "label": "pytz",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "pytz",
+        "description": "pytz",
+        "detail": "pytz",
+        "documentation": {}
+    },
+    {
         "label": "requests",
         "kind": 6,
         "isExtraImport": true,
@@ -96,7 +105,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def get_current_buddhist_year():\n    \"\"\"\n    คำนวณปี พ.ศ. ปัจจุบัน โดยจะเปลี่ยนปีในวันที่ 1 มิถุนายนของทุกปี\n    และแปลงเป็นเลขไทย\n    \"\"\"\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    # ถ้าปัจจุบันยังไม่ถึงวันที่ 1 มิ.ย. ให้ใช้ปี พ.ศ. ของปีที่แล้ว\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1",
+        "peekOfCode": "def get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)\ndef load_data():\n    # (ฟังก์ชันนี้เหมือนเดิม)",
         "detail": "app.app",
         "documentation": {}
     },
@@ -105,7 +114,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def load_data():\n    global df\n    try:\n        df = pd.read_csv(DATA_FILE)\n        df = df.astype(str)\n    except FileNotFoundError:\n        df = pd.DataFrame()\ndef get_data_timestamp():\n    try:\n        timestamp = os.path.getmtime(DATA_FILE)",
+        "peekOfCode": "def load_data():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    global df\n    try:\n        df = pd.read_csv(DATA_FILE)\n        df = df.astype(str)\n    except FileNotFoundError:\n        df = pd.DataFrame()\n# --- จุดแก้ไขสำคัญ: ฟังก์ชัน get_data_timestamp ---\ndef get_data_timestamp():",
         "detail": "app.app",
         "documentation": {}
     },
@@ -114,7 +123,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def get_data_timestamp():\n    try:\n        timestamp = os.path.getmtime(DATA_FILE)\n        return datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y %H:%M:%S')\n    except FileNotFoundError:\n        return \"ยังไม่มีข้อมูล\"\n# --- จุดแก้ไขสำคัญ: ส่งค่าปี พ.ศ. ไปยังหน้าเว็บ ---\n@app.route('/')\ndef index():\n    \"\"\"หน้าแรกของเว็บ\"\"\"",
+        "peekOfCode": "def get_data_timestamp():\n    \"\"\"ดึงเวลาล่าสุดของไฟล์ และแปลงเป็นเวลาไทย (UTC+7)\"\"\"\n    try:\n        # 1. ดึงเวลาของไฟล์ (ซึ่งเป็นเวลา UTC บนเซิร์ฟเวอร์)\n        utc_timestamp = os.path.getmtime(DATA_FILE)\n        utc_datetime = datetime.fromtimestamp(utc_timestamp, tz=pytz.utc)\n        # 2. กำหนด Time Zone ของกรุงเทพฯ\n        bangkok_tz = pytz.timezone(\"Asia/Bangkok\")\n        # 3. แปลงเวลา UTC เป็นเวลาของกรุงเทพฯ\n        bangkok_datetime = utc_datetime.astimezone(bangkok_tz)",
         "detail": "app.app",
         "documentation": {}
     },
@@ -123,7 +132,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def index():\n    \"\"\"หน้าแรกของเว็บ\"\"\"\n    current_year = get_current_buddhist_year()\n    return render_template('index.html', current_buddhist_year=current_year)\n@app.route('/get_data_info')\ndef get_data_info():\n    return jsonify({\n        'timestamp': get_data_timestamp(),\n        'count': len(df) if df is not None else 0\n    })",
+        "peekOfCode": "def index():\n    current_year = get_current_buddhist_year()\n    return render_template('index.html', current_buddhist_year=current_year)\n@app.route('/get_data_info')\ndef get_data_info():\n    return jsonify({\n        'timestamp': get_data_timestamp(),\n        'count': len(df) if df is not None else 0\n    })\n@app.route('/search')",
         "detail": "app.app",
         "documentation": {}
     },
@@ -132,7 +141,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def get_data_info():\n    return jsonify({\n        'timestamp': get_data_timestamp(),\n        'count': len(df) if df is not None else 0\n    })\n# (ฟังก์ชัน search เหมือนเดิม)\n@app.route('/search')\ndef search():\n    query = request.args.get('q', '')\n    if df is None or df.empty or query == '':",
+        "peekOfCode": "def get_data_info():\n    return jsonify({\n        'timestamp': get_data_timestamp(),\n        'count': len(df) if df is not None else 0\n    })\n@app.route('/search')\ndef search():\n    query = request.args.get('q', '')\n    if df is None or df.empty or query == '': return jsonify([])\n    results_df = df[df['full_name'].str.contains(query, case=False, na=False)]",
         "detail": "app.app",
         "documentation": {}
     },
@@ -141,7 +150,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def search():\n    query = request.args.get('q', '')\n    if df is None or df.empty or query == '':\n        return jsonify([])\n    results_df = df[df['full_name'].str.contains(query, case=False, na=False)]\n    if results_df.empty: return jsonify([])\n    grouped = results_df.groupby('full_name')\n    final_results = []\n    for name, group in grouped:\n        person_data = {",
+        "peekOfCode": "def search():\n    query = request.args.get('q', '')\n    if df is None or df.empty or query == '': return jsonify([])\n    results_df = df[df['full_name'].str.contains(query, case=False, na=False)]\n    if results_df.empty: return jsonify([])\n    grouped = results_df.groupby('full_name')\n    final_results = []\n    for name, group in grouped:\n        person_data = {\n            'name': name, 'age_pansa': group['age_pansa'].iloc[0],",
         "detail": "app.app",
         "documentation": {}
     },
@@ -150,7 +159,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\nDATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\napp = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    \"\"\"\n    คำนวณปี พ.ศ. ปัจจุบัน โดยจะเปลี่ยนปีในวันที่ 1 มิถุนายนของทุกปี\n    และแปลงเป็นเลขไทย\n    \"\"\"\n    today = datetime.now()",
+        "peekOfCode": "PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\nDATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\napp = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1",
         "detail": "app.app",
         "documentation": {}
     },
@@ -159,7 +168,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "DATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\napp = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    \"\"\"\n    คำนวณปี พ.ศ. ปัจจุบัน โดยจะเปลี่ยนปีในวันที่ 1 มิถุนายนของทุกปี\n    และแปลงเป็นเลขไทย\n    \"\"\"\n    today = datetime.now()\n    buddhist_year = today.year + 543",
+        "peekOfCode": "DATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')\napp = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')",
         "detail": "app.app",
         "documentation": {}
     },
@@ -168,7 +177,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "app = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    \"\"\"\n    คำนวณปี พ.ศ. ปัจจุบัน โดยจะเปลี่ยนปีในวันที่ 1 มิถุนายนของทุกปี\n    และแปลงเป็นเลขไทย\n    \"\"\"\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    # ถ้าปัจจุบันยังไม่ถึงวันที่ 1 มิ.ย. ให้ใช้ปี พ.ศ. ของปีที่แล้ว",
+        "peekOfCode": "app = Flask(__name__)\ndf = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)",
         "detail": "app.app",
         "documentation": {}
     },
@@ -177,7 +186,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "df = None\ndef get_current_buddhist_year():\n    \"\"\"\n    คำนวณปี พ.ศ. ปัจจุบัน โดยจะเปลี่ยนปีในวันที่ 1 มิถุนายนของทุกปี\n    และแปลงเป็นเลขไทย\n    \"\"\"\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    # ถ้าปัจจุบันยังไม่ถึงวันที่ 1 มิ.ย. ให้ใช้ปี พ.ศ. ของปีที่แล้ว\n    if today < datetime(today.year, 6, 1):",
+        "peekOfCode": "df = None\ndef get_current_buddhist_year():\n    # (ฟังก์ชันนี้เหมือนเดิม)\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today < datetime(today.year, 6, 1):\n        buddhist_year -= 1\n    thai_digits = str.maketrans('0123456789', '๐๑๒๓๔๕๖๗๘๙')\n    return str(buddhist_year).translate(thai_digits)\ndef load_data():",
         "detail": "app.app",
         "documentation": {}
     },
