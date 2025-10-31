@@ -4,14 +4,24 @@ import pandas as pd
 from datetime import datetime
 import pytz
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_FILE = os.path.join(PROJECT_ROOT, 'data', 'pariyat_applicants_data.csv')
-TEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'templates')
+# --- จุดแก้ไขที่ 1: กำหนด Path แบบสัมบูรณ์ที่ทนทานที่สุด ---
+# สร้าง Path ไปยังโฟลเดอร์โปรเจกต์หลัก (อยู่เหนือโฟลเดอร์ 'app' ไป 1 ระดับ)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-app = Flask(__name__, template_folder=TEMPLATE_DIR) 
+# สร้าง Path ไปยังโฟลเดอร์ย่อยต่างๆ โดยอิงจาก BASE_DIR
+TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
+STATIC_DIR = os.path.join(BASE_DIR, 'app', 'static') # Static ยังคงอยู่ที่เดิม
+DATA_FILE = os.path.join(BASE_DIR, 'data', 'pariyat_applicants_data.csv')
+
+# --- จุดแก้ไขที่ 2: ตั้งค่า Flask ให้รู้จัก Path ใหม่ทั้งหมด ---
+app = Flask(__name__, 
+            template_folder=TEMPLATE_DIR,
+            static_folder=STATIC_DIR)
+
 df = None
 
 def get_current_buddhist_year():
+    # (ฟังก์ชันนี้สมบูรณ์แบบอยู่แล้ว ไม่ต้องแก้ไข)
     today = datetime.now()
     buddhist_year = today.year + 543
     if today < datetime(today.year, 6, 1):
@@ -21,22 +31,24 @@ def get_current_buddhist_year():
 
 def load_data():
     global df
+    print(f"--- [INFO] Attempting to load data from: {DATA_FILE}")
     try:
         df = pd.read_csv(DATA_FILE)
         df = df.astype(str)
+        print(f"--- [SUCCESS] Data loaded successfully. Records: {len(df)}")
     except FileNotFoundError:
         df = pd.DataFrame()
+        print(f"--- [CRITICAL ERROR] FileNotFoundError! Could not find: {DATA_FILE}")
+    except Exception as e:
+        df = pd.DataFrame()
+        print(f"--- [CRITICAL ERROR] An unexpected error occurred: {e}")
 
 def get_data_timestamp():
-    """ดึงเวลาล่าสุดของไฟล์ และแปลงเป็นเวลาไทย (UTC+7)"""
     try:
         utc_timestamp = os.path.getmtime(DATA_FILE)
         utc_datetime = datetime.fromtimestamp(utc_timestamp, tz=pytz.utc)
-        
         bangkok_tz = pytz.timezone("Asia/Bangkok")
-        
         bangkok_datetime = utc_datetime.astimezone(bangkok_tz)
-        
         return bangkok_datetime.strftime('%d/%m/%Y %H:%M:%S')
     except FileNotFoundError:
         return "ยังไม่มีข้อมูล"
@@ -46,12 +58,10 @@ def index():
     current_year = get_current_buddhist_year()
     return render_template('index.html', current_buddhist_year=current_year)
 
+# (ฟังก์ชัน /get_data_info และ /search เหมือนเดิม ไม่ต้องแก้ไข)
 @app.route('/get_data_info')
 def get_data_info():
-    return jsonify({
-        'timestamp': get_data_timestamp(),
-        'count': len(df) if df is not None else 0
-    })
+    return jsonify({'timestamp': get_data_timestamp(), 'count': len(df) if df is not None else 0})
 
 @app.route('/search')
 def search():
@@ -73,5 +83,6 @@ def search():
     return jsonify(final_results)
 
 load_data()
+
 if __name__ == '__main__':
     app.run(debug=True)
