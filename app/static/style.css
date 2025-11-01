@@ -116,3 +116,15 @@ body {
     font-weight: bold;
     color: #155724;
 }
+
+/* --- เพิ่มโค้ดนี้เข้าไปท้ายไฟล์ style.css --- */
+
+.registrations-list li {
+    position: relative;
+    padding-bottom: 10px; /* เพิ่มพื้นที่ด้านล่าง */
+}
+.center-name {
+    font-size: 0.9rem;
+    color: #6c757d; /* สีเทา */
+    padding-left: 20px; /* ย่อหน้าเล็กน้อย */
+}

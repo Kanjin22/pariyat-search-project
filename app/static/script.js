@@ -22,10 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsContainer.innerHTML = '';
             return;
         }
-
         const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
         const results = await response.json();
-        
         renderResults(results);
     });
 
@@ -43,7 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <ul class="registrations-list">
                     ${person.registrations.map(reg => `
-                        <li>- <strong>(ลำดับที่ ${reg.sequence})</strong> สมัครสอบ ${reg.class_name} (<span>${reg.reg_status}</span>)</li>
+                        <li>
+                            - <strong>(ลำดับที่ ${reg.sequence})</strong> สมัครสอบ ${reg.class_name} (<span>${reg.reg_status}</span>)
+                            <!-- เพิ่มการแสดงผล 'สังกัด' เข้ามา -->
+                            <div class="center-name">สังกัด: ${reg.center_name}</div>
+                        </li>
                     `).join('')}
                 </ul>
             </div>
