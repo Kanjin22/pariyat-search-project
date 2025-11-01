@@ -126,10 +126,6 @@ body {
     border-bottom: none;
 }
 
-.registrations-list span {
-    font-weight: bold;
-    color: #155724;
-}
 
 /* --- เพิ่มโค้ดนี้เข้าไปท้ายไฟล์ style.css --- */
 
@@ -147,16 +143,28 @@ body {
     /* ย่อหน้าเล็กน้อย */
 }
 
-/* --- เพิ่มโค้ดนี้เข้าไปท้ายไฟล์ style.css --- */
-.details-btn,
-.details-btn-reg {
+/* --- คัดลอกโค้ดนี้ไปวางทับส่วน .details-btn, .details-btn-reg เดิม --- */
+
+/* สไตล์สำหรับปุ่ม "ดูรายละเอียดเพิ่มเติม" ทั้งหมด */
+button.details-btn,
+button.details-btn-reg {
     background: none;
     border: none;
     color: #007bff;
+    /* สีน้ำเงินสำหรับปุ่ม */
     cursor: pointer;
     font-size: 0.9rem;
     padding: 0 5px;
     font-family: 'Sarabun', sans-serif;
+    font-weight: normal;
+    /* ทำให้น้ำหนักตัวอักษรเป็นปกติ */
+}
+
+/* เปลี่ยน Selector ให้เจาะจงไปที่ class .status-text เท่านั้น */
+.registrations-list .status-text {
+    font-weight: bold;
+    color: #155724;
+    /* สีเขียว */
 }
 
 .details,
@@ -185,4 +193,26 @@ body {
 /* --- เพิ่มโค้ดนี้เข้าไปท้ายไฟล์ style.css --- */
 .cert-details {
     padding-left: 20px;
+}
+
+/* --- เพิ่มโค้ดนี้เข้าไปท้ายไฟล์ style.css --- */
+
+.reg-item-visible {
+    display: flex;
+    justify-content: space-between;
+    /* จัดให้ข้อความและปุ่มอยู่คนละฝั่ง */
+    align-items: center;
+    /* จัดให้อยู่กึ่งกลางแนวตั้ง */
+    width: 100%;
+}
+
+.reg-info {
+    /* ปล่อยให้ข้อความยืดขยายได้ตามปกติ */
+}
+
+.details-btn-reg {
+    flex-shrink: 0;
+    /* ป้องกันไม่ให้ปุ่มถูกบีบเมื่อข้อความยาว */
+    margin-left: 10px;
+    /* เพิ่มระยะห่างซ้ายเล็กน้อย */
 }
