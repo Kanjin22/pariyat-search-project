@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `
                 <li class="reg-item">
                     - <strong>(ลำดับที่ ${reg.sequence})</strong> สมัครสอบ ${reg.class_name} (<span>${reg.reg_status}</span>)
-                    ${hasCert ? `<button class="details-btn-reg" data-target="details-reg-${personIndex}-${regIndex}">[ v ]</button>` : ''}
+                    ${hasCert ? `<button class="details-btn-reg" data-target="details-reg-${personIndex}-${regIndex}">[ v ดูรายละเอียดเพิ่มเติม ]</button>` : ''}
                     ${hasCert ? `<div class="details-reg" id="details-reg-${personIndex}-${regIndex}" style="display: none;">- เลขประกาศนียบัตรเดิม:<br><div class="cert-details">${nugdhamLine}${paliLine}</div></div>` : ''}
                 </li>`;
             }).join('');
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (button.classList.contains('details-btn')) {
                     button.textContent = isVisible ? '[ v ดูรายละเอียดเพิ่มเติม ]' : '[ ^ ซ่อนรายละเอียด ]';
                 } else {
-                    button.textContent = isVisible ? '[ v ]' : '[ ^ ]';
+                    button.textContent = isVisible ? '[ v ดูรายละเอียดเพิ่มเติม ]' : '[ ^ ซ่อนรายละเอียด ]';
                 }
             });
         });
