@@ -79,24 +79,38 @@ body {
     margin-top: 15px;
 }
 
+/* --- คัดลอกโค้ดนี้ไปวางทับส่วน .header เดิม --- */
 .result-group .header {
     border-bottom: 1px solid #dee2e6;
     padding-bottom: 10px;
     margin-bottom: 15px;
+    /* --- จุดแก้ไขที่ 1: เพิ่ม Flexbox --- */
+    display: flex;
+    justify-content: space-between;
+    /* จัดให้อยู่คนละฝั่ง */
+    align-items: center;
+    /* จัดให้อยู่กึ่งกลางแนวตั้ง */
+    flex-wrap: wrap;
+    /* ถ้าจอแคบให้ขึ้นบรรทัดใหม่ */
 }
 
 .result-group .header h3 {
     margin: 0;
     font-size: 1.4rem;
     color: #003366;
+    margin-right: 15px;
+    /* เพิ่มระยะห่างด้านขวาของชื่อ */
 }
 
-.result-group .header p {
-    margin: 5px 0 0;
-    color: #495057;
-    font-size: 1rem;
+.result-group .header .details-btn {
+    /* --- จุดแก้ไขที่ 2: จัดสไตล์ปุ่มใหม่ --- */
+    margin-top: 5px;
+    /* เพิ่มระยะห่างด้านบนเล็กน้อยเมื่อขึ้นบรรทัดใหม่ */
+    flex-shrink: 0;
+    /* ไม่ให้ปุ่มถูกบีบ */
 }
 
+/* --- ลบโค้ด .result-group .header p ทิ้งไปได้เลย เพราะเราไม่ได้ใช้แล้ว --- */
 .registrations-list {
     list-style: none;
     padding-left: 0;
@@ -121,10 +135,54 @@ body {
 
 .registrations-list li {
     position: relative;
-    padding-bottom: 10px; /* เพิ่มพื้นที่ด้านล่าง */
+    padding-bottom: 10px;
+    /* เพิ่มพื้นที่ด้านล่าง */
 }
+
 .center-name {
     font-size: 0.9rem;
-    color: #6c757d; /* สีเทา */
-    padding-left: 20px; /* ย่อหน้าเล็กน้อย */
+    color: #6c757d;
+    /* สีเทา */
+    padding-left: 20px;
+    /* ย่อหน้าเล็กน้อย */
+}
+
+/* --- เพิ่มโค้ดนี้เข้าไปท้ายไฟล์ style.css --- */
+.details-btn,
+.details-btn-reg {
+    background: none;
+    border: none;
+    color: #007bff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0 5px;
+    font-family: 'Sarabun', sans-serif;
+}
+
+.details,
+.details-reg {
+    background-color: #f0f8ff;
+    /* AliceBlue */
+    border-left: 3px solid #007bff;
+    padding: 10px 15px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+}
+
+.details-content {
+    padding-left: 20px;
+}
+
+.reg-item {
+    position: relative;
+}
+
+.details-reg {
+    margin-left: 20px;
+}
+
+/* --- เพิ่มโค้ดนี้เข้าไปท้ายไฟล์ style.css --- */
+.cert-details {
+    padding-left: 20px;
 }
