@@ -197,6 +197,8 @@ button.details-btn-reg {
 
 /* --- เพิ่มโค้ดนี้เข้าไปท้ายไฟล์ style.css --- */
 
+/* --- คัดลอกโค้ดนี้ไปวางทับส่วน .reg-item-visible เดิม --- */
+
 .reg-item-visible {
     display: flex;
     justify-content: space-between;
@@ -204,6 +206,20 @@ button.details-btn-reg {
     align-items: center;
     /* จัดให้อยู่กึ่งกลางแนวตั้ง */
     width: 100%;
+    flex-wrap: wrap;
+    /* --- จุดแก้ไขสำคัญ: อนุญาตให้ขึ้นบรรทัดใหม่ได้ --- */
+    gap: 5px 10px;
+    /* เพิ่มระยะห่าง (แนวตั้ง 5px, แนวนอน 10px) */
+}
+
+/* --- ไม่ต้องแก้ไขส่วนที่เหลือ --- */
+.reg-info {
+    /* ... */
+}
+
+.details-btn-reg {
+    flex-shrink: 0;
+    margin-left: 10px;
 }
 
 .reg-info {
