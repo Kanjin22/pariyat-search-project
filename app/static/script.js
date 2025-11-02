@@ -36,22 +36,22 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsContainer.innerHTML = results.map((person, personIndex) => {
             const regListHtml = person.registrations.map((reg, regIndex) => {
                 const hasCert = reg.cert_nugdham || reg.cert_pali;
-                const nugdhamLine = reg.cert_nugdham ? `- ${reg.cert_nugdham}<br>` : '';
-                const paliLine = reg.cert_pali ? `- ${reg.cert_pali}<br>` : '';
+
+                const nugdhamLine = reg.cert_nugdham ? `<span class="cert-label">- </span> ${reg.cert_nugdham}<br>` : '';
+                const paliLine = reg.cert_pali ? `<span class="cert-label">- </span> ${reg.cert_pali}<br>` : '';
 
                 return `
                 <li class="reg-item">
                     <div class="reg-item-visible">
                         <span class="reg-info">
-                            - <strong>(ลำดับที่ ${reg.sequence})</strong> สมัครสอบ ${reg.class_name} 
-                            (<span class="status-text">${reg.reg_status}</span>)
+                            - <strong>(ลำดับที่ ${reg.sequence})</strong> สมัครสอบ ${reg.class_name} (<span class="status-text">${reg.reg_status}</span>)
                         </span>
                         ${hasCert ? `<button class="details-btn-reg" data-target="details-reg-${personIndex}-${regIndex}">[ v ดูรายละเอียดเพิ่มเติม ]</button>` : ''}
                     </div>
                     
                     ${hasCert ? `
                     <div class="details-reg" id="details-reg-${personIndex}-${regIndex}" style="display: none;">
-                        - เลขประกาศนียบัตรเดิม:<br>
+                        <strong>เลขประกาศนียบัตรเดิม:</strong><br>
                         <div class="cert-details">
                             ${nugdhamLine}
                             ${paliLine}
@@ -84,7 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         }).join('');
 
-        // (Event Listener เหมือนเดิม)
         document.querySelectorAll('.details-btn, .details-btn-reg').forEach(button => {
             button.addEventListener('click', () => {
                 const targetId = button.dataset.target;

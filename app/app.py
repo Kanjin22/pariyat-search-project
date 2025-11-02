@@ -5,7 +5,6 @@ from datetime import datetime
 import pytz
 import requests
 
-# --- การตั้งค่า Path, Flask App, LEVEL_ID_MAP ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
 STATIC_DIR = os.path.join(BASE_DIR, 'app', 'static')
@@ -21,7 +20,6 @@ LEVEL_ID_MAP = {
 }
 
 
-# --- ฟังก์ชันผู้ช่วย ---
 def to_thai_digits(text):
     if text is None or pd.isna(text): return ''
     text = str(text)

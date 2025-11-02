@@ -79,19 +79,14 @@ body {
     margin-top: 15px;
 }
 
-/* --- คัดลอกโค้ดนี้ไปวางทับส่วน .header เดิม --- */
 .result-group .header {
     border-bottom: 1px solid #dee2e6;
     padding-bottom: 10px;
     margin-bottom: 15px;
-    /* --- จุดแก้ไขที่ 1: เพิ่ม Flexbox --- */
     display: flex;
     justify-content: space-between;
-    /* จัดให้อยู่คนละฝั่ง */
     align-items: center;
-    /* จัดให้อยู่กึ่งกลางแนวตั้ง */
     flex-wrap: wrap;
-    /* ถ้าจอแคบให้ขึ้นบรรทัดใหม่ */
 }
 
 .result-group .header h3 {
@@ -99,18 +94,13 @@ body {
     font-size: 1.4rem;
     color: #003366;
     margin-right: 15px;
-    /* เพิ่มระยะห่างด้านขวาของชื่อ */
 }
 
 .result-group .header .details-btn {
-    /* --- จุดแก้ไขที่ 2: จัดสไตล์ปุ่มใหม่ --- */
     margin-top: 5px;
-    /* เพิ่มระยะห่างด้านบนเล็กน้อยเมื่อขึ้นบรรทัดใหม่ */
     flex-shrink: 0;
-    /* ไม่ให้ปุ่มถูกบีบ */
 }
 
-/* --- ลบโค้ด .result-group .header p ทิ้งไปได้เลย เพราะเราไม่ได้ใช้แล้ว --- */
 .registrations-list {
     list-style: none;
     padding-left: 0;
@@ -126,51 +116,37 @@ body {
     border-bottom: none;
 }
 
-
-/* --- เพิ่มโค้ดนี้เข้าไปท้ายไฟล์ style.css --- */
-
 .registrations-list li {
     position: relative;
     padding-bottom: 10px;
-    /* เพิ่มพื้นที่ด้านล่าง */
 }
 
 .center-name {
     font-size: 0.9rem;
     color: #6c757d;
-    /* สีเทา */
     padding-left: 20px;
-    /* ย่อหน้าเล็กน้อย */
 }
 
-/* --- คัดลอกโค้ดนี้ไปวางทับส่วน .details-btn, .details-btn-reg เดิม --- */
-
-/* สไตล์สำหรับปุ่ม "ดูรายละเอียดเพิ่มเติม" ทั้งหมด */
 button.details-btn,
 button.details-btn-reg {
     background: none;
     border: none;
     color: #007bff;
-    /* สีน้ำเงินสำหรับปุ่ม */
     cursor: pointer;
     font-size: 0.9rem;
     padding: 0 5px;
     font-family: 'Sarabun', sans-serif;
     font-weight: normal;
-    /* ทำให้น้ำหนักตัวอักษรเป็นปกติ */
 }
 
-/* เปลี่ยน Selector ให้เจาะจงไปที่ class .status-text เท่านั้น */
 .registrations-list .status-text {
     font-weight: bold;
     color: #155724;
-    /* สีเขียว */
 }
 
 .details,
 .details-reg {
     background-color: #f0f8ff;
-    /* AliceBlue */
     border-left: 3px solid #007bff;
     padding: 10px 15px;
     margin-top: 10px;
@@ -190,45 +166,33 @@ button.details-btn-reg {
     margin-left: 20px;
 }
 
-/* --- เพิ่มโค้ดนี้เข้าไปท้ายไฟล์ style.css --- */
 .cert-details {
     padding-left: 20px;
 }
 
-/* --- เพิ่มโค้ดนี้เข้าไปท้ายไฟล์ style.css --- */
-
-/* --- คัดลอกโค้ดนี้ไปวางทับส่วน .reg-item-visible เดิม --- */
+.cert-details .cert-value {
+    font-weight: bold;
+}
 
 .reg-item-visible {
     display: flex;
     justify-content: space-between;
-    /* จัดให้ข้อความและปุ่มอยู่คนละฝั่ง */
     align-items: center;
-    /* จัดให้อยู่กึ่งกลางแนวตั้ง */
     width: 100%;
     flex-wrap: wrap;
-    /* --- จุดแก้ไขสำคัญ: อนุญาตให้ขึ้นบรรทัดใหม่ได้ --- */
     gap: 5px 10px;
-    /* เพิ่มระยะห่าง (แนวตั้ง 5px, แนวนอน 10px) */
 }
 
-/* --- ไม่ต้องแก้ไขส่วนที่เหลือ --- */
-.reg-info {
-    /* ... */
-}
+.reg-info {}
 
 .details-btn-reg {
     flex-shrink: 0;
     margin-left: 10px;
 }
 
-.reg-info {
-    /* ปล่อยให้ข้อความยืดขยายได้ตามปกติ */
-}
+.reg-info {}
 
 .details-btn-reg {
     flex-shrink: 0;
-    /* ป้องกันไม่ให้ปุ่มถูกบีบเมื่อข้อความยาว */
     margin-left: 10px;
-    /* เพิ่มระยะห่างซ้ายเล็กน้อย */
 }
