@@ -196,3 +196,23 @@ button.details-btn-reg {
     flex-shrink: 0;
     margin-left: 10px;
 }
+
+.status-valid {
+    color: #155724;
+    font-weight: bold;
+}
+
+.status-invalid {
+    color: #721c24;
+    font-weight: bold;
+}
+
+a.phone-link {
+    font-weight: bold;
+    color: #003366;
+    text-decoration: none;
+}
+
+a.phone-link:hover {
+    text-decoration: underline;
+}
