@@ -418,6 +418,136 @@ a.phone-link:hover {
     margin-top: 8px;
 }
 
+.form-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.staff-card {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 18px;
+    margin-top: 15px;
+}
+
+.staff-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.staff-card-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #003366;
+}
+
+.staff-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+.staff-badge.active {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.staff-badge.inactive {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.staff-card-body {
+    font-size: 0.95rem;
+    color: #495057;
+}
+
+.staff-info-row {
+    margin-bottom: 6px;
+}
+
+.staff-info-label {
+    font-weight: bold;
+    color: #343a40;
+}
+
+.staff-card-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.staff-btn {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 0.95rem;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.staff-btn.edit {
+    background-color: #2563eb;
+    color: white;
+}
+
+.staff-btn.toggle {
+    background-color: #059669;
+    color: white;
+}
+
+.staff-btn.toggle.inactive-btn {
+    background-color: #dc2626;
+}
+
+.staff-btn.delete {
+    background-color: #dc2626;
+    color: white;
+}
+
+.staff-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.edit-staff-form {
+    background-color: #e0f2fe;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 12px;
+}
+
+.edit-staff-form .form-row {
+    margin-bottom: 12px;
+}
+
+.edit-staff-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+}
+
+.staff-btn.cancel {
+    background-color: #6b7280;
+    color: white;
+}
+
 @media (max-width: 640px) {
     body {
         padding: 14px;
@@ -433,7 +563,13 @@ a.phone-link:hover {
     }
 
     .result-status-select,
-    .save-result-btn {
+    .save-result-btn,
+    .staff-btn {
         width: 100%;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 10px;
     }
 }

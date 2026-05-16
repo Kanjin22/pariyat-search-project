@@ -8,7 +8,7 @@ from datetime import datetime
 import pytz
 import requests
 from dotenv import load_dotenv
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
@@ -27,6 +27,7 @@ RESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์'
 RESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)
 RESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')
 RESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')
+STAFF_ACCOUNTS_FILE = os.path.join(RESULTS_DATA_DIR, 'staff_accounts.json')
 STAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()
 STAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')
 STAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()
@@ -106,19 +107,114 @@ def write_staff_log(action, outcome, username='', detail=''):
     get_staff_logger().info(log_message)
 
 
+def load_staff_accounts():
+    if not os.path.exists(STAFF_ACCOUNTS_FILE):
+        return []
+    try:
+        with open(STAFF_ACCOUNTS_FILE, 'r', encoding='utf-8') as f:
+            accounts = json.load(f)
+            if isinstance(accounts, list):
+                return accounts
+    except (OSError, json.JSONDecodeError):
+        pass
+    return []
+
+
+def save_staff_accounts(accounts):
+    os.makedirs(RESULTS_DATA_DIR, exist_ok=True)
+    with open(STAFF_ACCOUNTS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(accounts, f, ensure_ascii=False, indent=2)
+
+
+def find_staff_account(username):
+    accounts = load_staff_accounts()
+    for account in accounts:
+        if account.get('username') == username:
+            return account
+    return None
+
+
+def add_staff_account(username, password, full_name=''):
+    accounts = load_staff_accounts()
+    if find_staff_account(username):
+        return False, 'Username already exists'
+    new_account = {
+        'username': username,
+        'password_hash': generate_password_hash(password),
+        'full_name': full_name or username,
+        'created_at': datetime.now().isoformat(),
+        'active': True
+    }
+    accounts.append(new_account)
+    save_staff_accounts(accounts)
+    return True, 'Account created successfully'
+
+
+def update_staff_account(username, password=None, full_name=None, active=None):
+    accounts = load_staff_accounts()
+    for i, account in enumerate(accounts):
+        if account['username'] == username:
+            if password is not None:
+                accounts[i]['password_hash'] = generate_password_hash(password)
+            if full_name is not None:
+                accounts[i]['full_name'] = full_name
+            if active is not None:
+                accounts[i]['active'] = active
+            accounts[i]['updated_at'] = datetime.now().isoformat()
+            save_staff_accounts(accounts)
+            return True, 'Account updated successfully'
+    return False, 'Account not found'
+
+
+def delete_staff_account(username):
+    if username == session.get('staff_username'):
+        return False, 'Cannot delete your own account'
+    accounts = load_staff_accounts()
+    new_accounts = [acc for acc in accounts if acc['username'] != username]
+    if len(new_accounts) == len(accounts):
+        return False, 'Account not found'
+    save_staff_accounts(new_accounts)
+    return True, 'Account deleted successfully'
+
+
+def migrate_env_staff_to_json():
+    if STAFF_USERNAME and (STAFF_PASSWORD_HASH or STAFF_PASSWORD):
+        if not find_staff_account(STAFF_USERNAME):
+            password_hash = STAFF_PASSWORD_HASH
+            if not password_hash and STAFF_PASSWORD:
+                password_hash = generate_password_hash(STAFF_PASSWORD)
+            if password_hash:
+                accounts = load_staff_accounts()
+                accounts.append({
+                    'username': STAFF_USERNAME,
+                    'password_hash': password_hash,
+                    'full_name': STAFF_USERNAME,
+                    'created_at': datetime.now().isoformat(),
+                    'active': True
+                })
+                save_staff_accounts(accounts)
+                return True
+    return False
+
+
 def is_staff_auth_configured():
+    accounts = load_staff_accounts()
+    if accounts:
+        return True
     return bool(STAFF_USERNAME and (STAFF_PASSWORD_HASH or STAFF_PASSWORD))
 
 
 def is_security_hardened():
-    return bool(app.secret_key and app.secret_key != DEFAULT_SECRET_KEY and STAFF_PASSWORD_HASH)
+    accounts = load_staff_accounts()
+    return bool(app.secret_key and app.secret_key != DEFAULT_SECRET_KEY and (len(accounts) > 0 or STAFF_PASSWORD_HASH))
 
 
 def get_login_notice():
-    if not is_staff_auth_configured():
-        return 'ยังไม่ได้ตั้งค่าเจ้าหน้าที่ในไฟล์ .env'
-    if not STAFF_PASSWORD_HASH:
-        return 'กำลังใช้ STAFF_PASSWORD แบบข้อความตรง แนะนำให้เปลี่ยนเป็น STAFF_PASSWORD_HASH'
+    accounts = load_staff_accounts()
+    if not accounts and not is_staff_auth_configured():
+        return 'ยังไม่ได้ตั้งค่าเจ้าหน้าที่'
+    if not accounts and STAFF_PASSWORD:
+        return 'กำลังใช้ STAFF_PASSWORD แบบข้อความตรง แนะนำให้เพิ่มเจ้าหน้าที่ในระบบแทน'
     if app.secret_key == DEFAULT_SECRET_KEY:
         return 'กำลังใช้ secret key ค่าเริ่มต้น ควรเปลี่ยน FLASK_SECRET_KEY ในไฟล์ .env'
     return ''
@@ -132,11 +228,16 @@ def is_staff_logged_in():
     return session.get('staff_logged_in') is True
 
 
-def verify_staff_password(password):
-    if STAFF_PASSWORD_HASH:
-        return check_password_hash(STAFF_PASSWORD_HASH, password)
-    if STAFF_PASSWORD:
-        return password == STAFF_PASSWORD
+def verify_staff_password(username, password):
+    accounts = load_staff_accounts()
+    for account in accounts:
+        if account.get('username') == username and account.get('active', True):
+            return check_password_hash(account.get('password_hash', ''), password)
+    if username == STAFF_USERNAME:
+        if STAFF_PASSWORD_HASH:
+            return check_password_hash(STAFF_PASSWORD_HASH, password)
+        if STAFF_PASSWORD:
+            return password == STAFF_PASSWORD
     return False
 
 
@@ -382,6 +483,8 @@ def staff_login():
     if is_staff_logged_in():
         return redirect(url_for('manage_results'))
 
+    migrate_env_staff_to_json()
+
     error_message = ''
     next_url = request.args.get('next', '')
     if request.method == 'POST':
@@ -390,9 +493,9 @@ def staff_login():
         next_url = request.form.get('next', '')
 
         if not is_staff_auth_configured():
-            error_message = 'ระบบยังไม่ได้ตั้งค่าบัญชีเจ้าหน้าที่ในไฟล์ .env'
+            error_message = 'ระบบยังไม่ได้ตั้งค่าบัญชีเจ้าหน้าที่'
             write_staff_log(action='login', outcome='blocked', username=username, detail='missing_staff_config')
-        elif username == STAFF_USERNAME and verify_staff_password(password):
+        elif verify_staff_password(username, password):
             session['staff_logged_in'] = True
             session['staff_username'] = username
             write_staff_log(action='login', outcome='success', username=username, detail='staff_login')
@@ -410,6 +513,86 @@ def staff_login():
         next_url=next_url if is_safe_redirect_url(next_url) else '',
         login_notice=get_login_notice()
     )
+
+
+@app.route('/staff/manage')
+@staff_login_required()
+def staff_manage():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    accounts = load_staff_accounts()
+    return render_template(
+        'manage_staff.html',
+        current_buddhist_year=current_year_thai,
+        staff_accounts=accounts
+    )
+
+
+@app.route('/api/staff', methods=['GET'])
+@staff_login_required(api=True)
+def api_get_staff():
+    accounts = load_staff_accounts()
+    return jsonify({'success': True, 'accounts': accounts})
+
+
+@app.route('/api/staff', methods=['POST'])
+@staff_login_required(api=True)
+def api_add_staff():
+    payload = request.get_json(silent=True) or {}
+    username = (payload.get('username') or '').strip()
+    password = payload.get('password') or ''
+    full_name = (payload.get('full_name') or '').strip()
+
+    if not username or not password:
+        return jsonify({'success': False, 'message': 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน'}), 400
+
+    success, message = add_staff_account(username, password, full_name)
+    if success:
+        write_staff_log(
+            action='add_staff',
+            outcome='success',
+            username=session.get('staff_username', ''),
+            detail=f'added_username={username}'
+        )
+        return jsonify({'success': True, 'message': message})
+    else:
+        return jsonify({'success': False, 'message': message}), 400
+
+
+@app.route('/api/staff/<username>', methods=['PUT'])
+@staff_login_required(api=True)
+def api_update_staff(username):
+    payload = request.get_json(silent=True) or {}
+    password = payload.get('password')
+    full_name = payload.get('full_name')
+    active = payload.get('active')
+
+    success, message = update_staff_account(username, password, full_name, active)
+    if success:
+        write_staff_log(
+            action='update_staff',
+            outcome='success',
+            username=session.get('staff_username', ''),
+            detail=f'updated_username={username}'
+        )
+        return jsonify({'success': True, 'message': message})
+    else:
+        return jsonify({'success': False, 'message': message}), 400
+
+
+@app.route('/api/staff/<username>', methods=['DELETE'])
+@staff_login_required(api=True)
+def api_delete_staff(username):
+    success, message = delete_staff_account(username)
+    if success:
+        write_staff_log(
+            action='delete_staff',
+            outcome='success',
+            username=session.get('staff_username', ''),
+            detail=f'deleted_username={username}'
+        )
+        return jsonify({'success': True, 'message': message})
+    else:
+        return jsonify({'success': False, 'message': message}), 400
 
 
 @app.route('/staff/logout', methods=['POST'])

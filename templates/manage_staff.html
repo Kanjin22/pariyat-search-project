@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>จัดการเจ้าหน้าที่ ธรรม-บาลี</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>จัดการเจ้าหน้าที่ระบบ</h1>
+        <p>เพิ่ม แก้ไข และลบบัญชีเจ้าหน้าที่ที่มีสิทธิ์จัดการผลการสอบ</p>
+        <nav class="top-nav">
+          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
+          <a class="nav-link" href="{{ url_for('manage_results') }}">หน้าจัดการผลการสอบ</a>
+          <a class="nav-link active" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
+          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
+            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
+          </form>
+        </nav>
+      </header>
+
+      <main class="search-area">
+        <section class="page-intro">
+          <h2>เพิ่มเจ้าหน้าที่ใหม่</h2>
+        </section>
+
+        <form id="add-staff-form" class="login-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="new-username">ชื่อผู้ใช้</label>
+              <input class="form-input" type="text" id="new-username" name="username" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="new-fullname">ชื่อ-สกุล (ถ้ามี)</label>
+              <input class="form-input" type="text" id="new-fullname" name="full_name" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="new-password">รหัสผ่าน</label>
+            <input class="form-input" type="password" id="new-password" name="password" required />
+          </div>
+          <button type="submit" class="save-result-btn">เพิ่มเจ้าหน้าที่</button>
+        </form>
+
+        <div id="staff-message" class="save-message" aria-live="polite"></div>
+
+        <section class="staff-list-section">
+          <h2 style="margin-top: 30px; color: #003366;">รายชื่อเจ้าหน้าที่ทั้งหมด</h2>
+          <div id="staff-list-container"></div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      window.currentStaffUsername = {{ session.staff_username | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='staff_management.js') }}"></script>
+  </body>
+</html>
