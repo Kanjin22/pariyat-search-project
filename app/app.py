@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
@@ -6,19 +7,29 @@ import pandas as pd
 from datetime import datetime
 import pytz
 import requests
+from dotenv import load_dotenv
+from werkzeug.security import check_password_hash
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
 STATIC_DIR = os.path.join(BASE_DIR, 'app', 'static')
+ENV_FILE = os.path.join(BASE_DIR, '.env')
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+STAFF_ACTIVITY_LOG_FILE = os.path.join(LOGS_DIR, 'staff_activity.log')
+DEFAULT_SECRET_KEY = 'change-this-secret-in-production'
+
+load_dotenv(ENV_FILE)
+
 app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
-app.secret_key = os.getenv('FLASK_SECRET_KEY', 'change-this-secret-in-production')
+app.secret_key = os.getenv('FLASK_SECRET_KEY', DEFAULT_SECRET_KEY)
 df = None
 RESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']
 RESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)
 RESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')
 RESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')
-STAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')
-STAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')
+STAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()
+STAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')
+STAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()
 LEVEL_ID_MAP = {
     '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',
     '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',
@@ -65,6 +76,54 @@ def get_current_buddhist_year(numeric=False):
     return to_thai_digits(str(buddhist_year))
 
 
+def get_staff_logger():
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    logger = logging.getLogger('staff_activity')
+    if logger.handlers:
+        return logger
+
+    logger.setLevel(logging.INFO)
+    file_handler = logging.FileHandler(STAFF_ACTIVITY_LOG_FILE, encoding='utf-8')
+    file_handler.setFormatter(logging.Formatter('%(asctime)s | %(message)s'))
+    logger.addHandler(file_handler)
+    logger.propagate = False
+    return logger
+
+
+def get_client_ip():
+    forwarded_for = request.headers.get('X-Forwarded-For', '')
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+    return request.remote_addr or '-'
+
+
+def write_staff_log(action, outcome, username='', detail=''):
+    safe_detail = str(detail or '').replace('\n', ' ').strip()
+    log_message = (
+        f"action={action} | outcome={outcome} | username={username or '-'} "
+        f"| ip={get_client_ip()} | detail={safe_detail or '-'}"
+    )
+    get_staff_logger().info(log_message)
+
+
+def is_staff_auth_configured():
+    return bool(STAFF_USERNAME and (STAFF_PASSWORD_HASH or STAFF_PASSWORD))
+
+
+def is_security_hardened():
+    return bool(app.secret_key and app.secret_key != DEFAULT_SECRET_KEY and STAFF_PASSWORD_HASH)
+
+
+def get_login_notice():
+    if not is_staff_auth_configured():
+        return 'ยังไม่ได้ตั้งค่าเจ้าหน้าที่ในไฟล์ .env'
+    if not STAFF_PASSWORD_HASH:
+        return 'กำลังใช้ STAFF_PASSWORD แบบข้อความตรง แนะนำให้เปลี่ยนเป็น STAFF_PASSWORD_HASH'
+    if app.secret_key == DEFAULT_SECRET_KEY:
+        return 'กำลังใช้ secret key ค่าเริ่มต้น ควรเปลี่ยน FLASK_SECRET_KEY ในไฟล์ .env'
+    return ''
+
+
 def is_safe_redirect_url(target):
     return isinstance(target, str) and target.startswith('/') and not target.startswith('//')
 
@@ -73,12 +132,21 @@ def is_staff_logged_in():
     return session.get('staff_logged_in') is True
 
 
+def verify_staff_password(password):
+    if STAFF_PASSWORD_HASH:
+        return check_password_hash(STAFF_PASSWORD_HASH, password)
+    if STAFF_PASSWORD:
+        return password == STAFF_PASSWORD
+    return False
+
+
 def staff_login_required(api=False):
     def decorator(view_func):
         @wraps(view_func)
         def wrapped_view(*args, **kwargs):
             if is_staff_logged_in():
                 return view_func(*args, **kwargs)
+            write_staff_log(action='access_denied', outcome='blocked', username=session.get('staff_username', ''), detail=request.path)
             if api:
                 return jsonify({'success': False, 'message': 'กรุณาเข้าสู่ระบบเจ้าหน้าที่'}), 401
             return redirect(url_for('staff_login', next=request.path))
@@ -88,7 +156,10 @@ def staff_login_required(api=False):
 
 @app.context_processor
 def inject_auth_state():
-    return {'staff_logged_in': is_staff_logged_in()}
+    return {
+        'staff_logged_in': is_staff_logged_in(),
+        'security_hardened': is_security_hardened()
+    }
 
 
 def build_registration_key(row):
@@ -291,6 +362,12 @@ def update_exam_result():
     if df is not None and not df.empty and 'exam_result_status' in df.columns:
         df.loc[df['registration_key'] == registration_key, 'exam_result_status'] = exam_result_status
 
+    write_staff_log(
+        action='update_exam_result',
+        outcome='success',
+        username=session.get('staff_username', ''),
+        detail=f"registration_key={registration_key} status={exam_result_status or 'cleared'}"
+    )
     return jsonify({'success': True, 'message': 'บันทึกผลการสอบเรียบร้อยแล้ว'})
 
 
@@ -312,24 +389,32 @@ def staff_login():
         password = request.form.get('password') or ''
         next_url = request.form.get('next', '')
 
-        if username == STAFF_USERNAME and password == STAFF_PASSWORD:
+        if not is_staff_auth_configured():
+            error_message = 'ระบบยังไม่ได้ตั้งค่าบัญชีเจ้าหน้าที่ในไฟล์ .env'
+            write_staff_log(action='login', outcome='blocked', username=username, detail='missing_staff_config')
+        elif username == STAFF_USERNAME and verify_staff_password(password):
             session['staff_logged_in'] = True
             session['staff_username'] = username
+            write_staff_log(action='login', outcome='success', username=username, detail='staff_login')
             if is_safe_redirect_url(next_url):
                 return redirect(next_url)
             return redirect(url_for('manage_results'))
-        error_message = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'
+        else:
+            error_message = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'
+            write_staff_log(action='login', outcome='failed', username=username, detail='invalid_credentials')
 
     return render_template(
         'login.html',
         current_buddhist_year=get_current_buddhist_year(numeric=False),
         error_message=error_message,
-        next_url=next_url if is_safe_redirect_url(next_url) else ''
+        next_url=next_url if is_safe_redirect_url(next_url) else '',
+        login_notice=get_login_notice()
     )
 
 
 @app.route('/staff/logout', methods=['POST'])
 def staff_logout():
+    write_staff_log(action='logout', outcome='success', username=session.get('staff_username', ''), detail='staff_logout')
     session.clear()
     return redirect(url_for('index'))
 

@@ -25,6 +25,10 @@
           <p>เฉพาะเจ้าหน้าที่ที่มีสิทธิ์จัดการผลการสอบ</p>
         </section>
 
+        {% if login_notice %}
+        <div class="config-notice">{{ login_notice }}</div>
+        {% endif %}
+
         {% if error_message %}
         <div class="save-message error">{{ error_message }}</div>
         {% endif %}

@@ -1,1 +1,6 @@
 desktop.ini
+.env
+data/
+logs/
+__pycache__/
+*.pyc

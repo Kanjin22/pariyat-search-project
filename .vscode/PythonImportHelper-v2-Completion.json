@@ -9,6 +9,15 @@
         "documentation": {}
     },
     {
+        "label": "logging",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "logging",
+        "description": "logging",
+        "detail": "logging",
+        "documentation": {}
+    },
+    {
         "label": "os",
         "kind": 6,
         "isExtraImport": true,
@@ -117,6 +126,39 @@
         "documentation": {}
     },
     {
+        "label": "load_dotenv",
+        "importPath": "dotenv",
+        "description": "dotenv",
+        "isExtraImport": true,
+        "detail": "dotenv",
+        "documentation": {}
+    },
+    {
+        "label": "check_password_hash",
+        "importPath": "werkzeug.security",
+        "description": "werkzeug.security",
+        "isExtraImport": true,
+        "detail": "werkzeug.security",
+        "documentation": {}
+    },
+    {
+        "label": "generate_password_hash",
+        "importPath": "werkzeug.security",
+        "description": "werkzeug.security",
+        "isExtraImport": true,
+        "detail": "werkzeug.security",
+        "documentation": {}
+    },
+    {
+        "label": "sys",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "sys",
+        "description": "sys",
+        "detail": "sys",
+        "documentation": {}
+    },
+    {
         "label": "to_thai_digits",
         "kind": 2,
         "importPath": "app.app",
@@ -148,7 +190,61 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def get_current_buddhist_year(numeric=False):\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today >= datetime(today.year, 6, 1):\n        buddhist_year += 1\n    if numeric:\n        return buddhist_year\n    return to_thai_digits(str(buddhist_year))\ndef is_safe_redirect_url(target):\n    return isinstance(target, str) and target.startswith('/') and not target.startswith('//')",
+        "peekOfCode": "def get_current_buddhist_year(numeric=False):\n    today = datetime.now()\n    buddhist_year = today.year + 543\n    if today >= datetime(today.year, 6, 1):\n        buddhist_year += 1\n    if numeric:\n        return buddhist_year\n    return to_thai_digits(str(buddhist_year))\ndef get_staff_logger():\n    os.makedirs(LOGS_DIR, exist_ok=True)",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "get_staff_logger",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def get_staff_logger():\n    os.makedirs(LOGS_DIR, exist_ok=True)\n    logger = logging.getLogger('staff_activity')\n    if logger.handlers:\n        return logger\n    logger.setLevel(logging.INFO)\n    file_handler = logging.FileHandler(STAFF_ACTIVITY_LOG_FILE, encoding='utf-8')\n    file_handler.setFormatter(logging.Formatter('%(asctime)s | %(message)s'))\n    logger.addHandler(file_handler)\n    logger.propagate = False",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "get_client_ip",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def get_client_ip():\n    forwarded_for = request.headers.get('X-Forwarded-For', '')\n    if forwarded_for:\n        return forwarded_for.split(',')[0].strip()\n    return request.remote_addr or '-'\ndef write_staff_log(action, outcome, username='', detail=''):\n    safe_detail = str(detail or '').replace('\\n', ' ').strip()\n    log_message = (\n        f\"action={action} | outcome={outcome} | username={username or '-'} \"\n        f\"| ip={get_client_ip()} | detail={safe_detail or '-'}\"",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "write_staff_log",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def write_staff_log(action, outcome, username='', detail=''):\n    safe_detail = str(detail or '').replace('\\n', ' ').strip()\n    log_message = (\n        f\"action={action} | outcome={outcome} | username={username or '-'} \"\n        f\"| ip={get_client_ip()} | detail={safe_detail or '-'}\"\n    )\n    get_staff_logger().info(log_message)\ndef is_staff_auth_configured():\n    return bool(STAFF_USERNAME and (STAFF_PASSWORD_HASH or STAFF_PASSWORD))\ndef is_security_hardened():",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "is_staff_auth_configured",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def is_staff_auth_configured():\n    return bool(STAFF_USERNAME and (STAFF_PASSWORD_HASH or STAFF_PASSWORD))\ndef is_security_hardened():\n    return bool(app.secret_key and app.secret_key != DEFAULT_SECRET_KEY and STAFF_PASSWORD_HASH)\ndef get_login_notice():\n    if not is_staff_auth_configured():\n        return 'ยังไม่ได้ตั้งค่าเจ้าหน้าที่ในไฟล์ .env'\n    if not STAFF_PASSWORD_HASH:\n        return 'กำลังใช้ STAFF_PASSWORD แบบข้อความตรง แนะนำให้เปลี่ยนเป็น STAFF_PASSWORD_HASH'\n    if app.secret_key == DEFAULT_SECRET_KEY:",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "is_security_hardened",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def is_security_hardened():\n    return bool(app.secret_key and app.secret_key != DEFAULT_SECRET_KEY and STAFF_PASSWORD_HASH)\ndef get_login_notice():\n    if not is_staff_auth_configured():\n        return 'ยังไม่ได้ตั้งค่าเจ้าหน้าที่ในไฟล์ .env'\n    if not STAFF_PASSWORD_HASH:\n        return 'กำลังใช้ STAFF_PASSWORD แบบข้อความตรง แนะนำให้เปลี่ยนเป็น STAFF_PASSWORD_HASH'\n    if app.secret_key == DEFAULT_SECRET_KEY:\n        return 'กำลังใช้ secret key ค่าเริ่มต้น ควรเปลี่ยน FLASK_SECRET_KEY ในไฟล์ .env'\n    return ''",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "get_login_notice",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def get_login_notice():\n    if not is_staff_auth_configured():\n        return 'ยังไม่ได้ตั้งค่าเจ้าหน้าที่ในไฟล์ .env'\n    if not STAFF_PASSWORD_HASH:\n        return 'กำลังใช้ STAFF_PASSWORD แบบข้อความตรง แนะนำให้เปลี่ยนเป็น STAFF_PASSWORD_HASH'\n    if app.secret_key == DEFAULT_SECRET_KEY:\n        return 'กำลังใช้ secret key ค่าเริ่มต้น ควรเปลี่ยน FLASK_SECRET_KEY ในไฟล์ .env'\n    return ''\ndef is_safe_redirect_url(target):\n    return isinstance(target, str) and target.startswith('/') and not target.startswith('//')",
         "detail": "app.app",
         "documentation": {}
     },
@@ -157,7 +253,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def is_safe_redirect_url(target):\n    return isinstance(target, str) and target.startswith('/') and not target.startswith('//')\ndef is_staff_logged_in():\n    return session.get('staff_logged_in') is True\ndef staff_login_required(api=False):\n    def decorator(view_func):\n        @wraps(view_func)\n        def wrapped_view(*args, **kwargs):\n            if is_staff_logged_in():\n                return view_func(*args, **kwargs)",
+        "peekOfCode": "def is_safe_redirect_url(target):\n    return isinstance(target, str) and target.startswith('/') and not target.startswith('//')\ndef is_staff_logged_in():\n    return session.get('staff_logged_in') is True\ndef verify_staff_password(password):\n    if STAFF_PASSWORD_HASH:\n        return check_password_hash(STAFF_PASSWORD_HASH, password)\n    if STAFF_PASSWORD:\n        return password == STAFF_PASSWORD\n    return False",
         "detail": "app.app",
         "documentation": {}
     },
@@ -166,7 +262,16 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def is_staff_logged_in():\n    return session.get('staff_logged_in') is True\ndef staff_login_required(api=False):\n    def decorator(view_func):\n        @wraps(view_func)\n        def wrapped_view(*args, **kwargs):\n            if is_staff_logged_in():\n                return view_func(*args, **kwargs)\n            if api:\n                return jsonify({'success': False, 'message': 'กรุณาเข้าสู่ระบบเจ้าหน้าที่'}), 401",
+        "peekOfCode": "def is_staff_logged_in():\n    return session.get('staff_logged_in') is True\ndef verify_staff_password(password):\n    if STAFF_PASSWORD_HASH:\n        return check_password_hash(STAFF_PASSWORD_HASH, password)\n    if STAFF_PASSWORD:\n        return password == STAFF_PASSWORD\n    return False\ndef staff_login_required(api=False):\n    def decorator(view_func):",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "verify_staff_password",
+        "kind": 2,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "def verify_staff_password(password):\n    if STAFF_PASSWORD_HASH:\n        return check_password_hash(STAFF_PASSWORD_HASH, password)\n    if STAFF_PASSWORD:\n        return password == STAFF_PASSWORD\n    return False\ndef staff_login_required(api=False):\n    def decorator(view_func):\n        @wraps(view_func)\n        def wrapped_view(*args, **kwargs):",
         "detail": "app.app",
         "documentation": {}
     },
@@ -175,7 +280,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def staff_login_required(api=False):\n    def decorator(view_func):\n        @wraps(view_func)\n        def wrapped_view(*args, **kwargs):\n            if is_staff_logged_in():\n                return view_func(*args, **kwargs)\n            if api:\n                return jsonify({'success': False, 'message': 'กรุณาเข้าสู่ระบบเจ้าหน้าที่'}), 401\n            return redirect(url_for('staff_login', next=request.path))\n        return wrapped_view",
+        "peekOfCode": "def staff_login_required(api=False):\n    def decorator(view_func):\n        @wraps(view_func)\n        def wrapped_view(*args, **kwargs):\n            if is_staff_logged_in():\n                return view_func(*args, **kwargs)\n            write_staff_log(action='access_denied', outcome='blocked', username=session.get('staff_username', ''), detail=request.path)\n            if api:\n                return jsonify({'success': False, 'message': 'กรุณาเข้าสู่ระบบเจ้าหน้าที่'}), 401\n            return redirect(url_for('staff_login', next=request.path))",
         "detail": "app.app",
         "documentation": {}
     },
@@ -184,7 +289,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def inject_auth_state():\n    return {'staff_logged_in': is_staff_logged_in()}\ndef build_registration_key(row):\n    key_parts = [\n        row.get('display_name', ''),\n        row.get('class_name', ''),\n        row.get('school_name', ''),\n        row.get('group_name', ''),\n        row.get('id_card', ''),\n        str(row.get('sequence', ''))",
+        "peekOfCode": "def inject_auth_state():\n    return {\n        'staff_logged_in': is_staff_logged_in(),\n        'security_hardened': is_security_hardened()\n    }\ndef build_registration_key(row):\n    key_parts = [\n        row.get('display_name', ''),\n        row.get('class_name', ''),\n        row.get('school_name', ''),",
         "detail": "app.app",
         "documentation": {}
     },
@@ -283,7 +388,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def staff_login():\n    if is_staff_logged_in():\n        return redirect(url_for('manage_results'))\n    error_message = ''\n    next_url = request.args.get('next', '')\n    if request.method == 'POST':\n        username = (request.form.get('username') or '').strip()\n        password = request.form.get('password') or ''\n        next_url = request.form.get('next', '')\n        if username == STAFF_USERNAME and password == STAFF_PASSWORD:",
+        "peekOfCode": "def staff_login():\n    if is_staff_logged_in():\n        return redirect(url_for('manage_results'))\n    error_message = ''\n    next_url = request.args.get('next', '')\n    if request.method == 'POST':\n        username = (request.form.get('username') or '').strip()\n        password = request.form.get('password') or ''\n        next_url = request.form.get('next', '')\n        if not is_staff_auth_configured():",
         "detail": "app.app",
         "documentation": {}
     },
@@ -292,7 +397,7 @@
         "kind": 2,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "def staff_logout():\n    session.clear()\n    return redirect(url_for('index'))\n@app.route('/manage-results')\n@staff_login_required()\ndef manage_results():\n    current_year_thai = get_current_buddhist_year(numeric=False)\n    status_options = [status for status in RESULT_STATUS_OPTIONS if status]\n    return render_template(\n        'manage_results.html',",
+        "peekOfCode": "def staff_logout():\n    write_staff_log(action='logout', outcome='success', username=session.get('staff_username', ''), detail='staff_logout')\n    session.clear()\n    return redirect(url_for('index'))\n@app.route('/manage-results')\n@staff_login_required()\ndef manage_results():\n    current_year_thai = get_current_buddhist_year(numeric=False)\n    status_options = [status for status in RESULT_STATUS_OPTIONS if status]\n    return render_template(",
         "detail": "app.app",
         "documentation": {}
     },
@@ -328,7 +433,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\nTEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')\nSTATIC_DIR = os.path.join(BASE_DIR, 'app', 'static')\napp = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', 'change-this-secret-in-production')\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')",
+        "peekOfCode": "BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\nTEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')\nSTATIC_DIR = os.path.join(BASE_DIR, 'app', 'static')\nENV_FILE = os.path.join(BASE_DIR, '.env')\nLOGS_DIR = os.path.join(BASE_DIR, 'logs')\nSTAFF_ACTIVITY_LOG_FILE = os.path.join(LOGS_DIR, 'staff_activity.log')\nDEFAULT_SECRET_KEY = 'change-this-secret-in-production'\nload_dotenv(ENV_FILE)\napp = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', DEFAULT_SECRET_KEY)",
         "detail": "app.app",
         "documentation": {}
     },
@@ -337,7 +442,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')\nSTATIC_DIR = os.path.join(BASE_DIR, 'app', 'static')\napp = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', 'change-this-secret-in-production')\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')",
+        "peekOfCode": "TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')\nSTATIC_DIR = os.path.join(BASE_DIR, 'app', 'static')\nENV_FILE = os.path.join(BASE_DIR, '.env')\nLOGS_DIR = os.path.join(BASE_DIR, 'logs')\nSTAFF_ACTIVITY_LOG_FILE = os.path.join(LOGS_DIR, 'staff_activity.log')\nDEFAULT_SECRET_KEY = 'change-this-secret-in-production'\nload_dotenv(ENV_FILE)\napp = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', DEFAULT_SECRET_KEY)\ndf = None",
         "detail": "app.app",
         "documentation": {}
     },
@@ -346,7 +451,43 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "STATIC_DIR = os.path.join(BASE_DIR, 'app', 'static')\napp = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', 'change-this-secret-in-production')\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')",
+        "peekOfCode": "STATIC_DIR = os.path.join(BASE_DIR, 'app', 'static')\nENV_FILE = os.path.join(BASE_DIR, '.env')\nLOGS_DIR = os.path.join(BASE_DIR, 'logs')\nSTAFF_ACTIVITY_LOG_FILE = os.path.join(LOGS_DIR, 'staff_activity.log')\nDEFAULT_SECRET_KEY = 'change-this-secret-in-production'\nload_dotenv(ENV_FILE)\napp = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', DEFAULT_SECRET_KEY)\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "ENV_FILE",
+        "kind": 5,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "ENV_FILE = os.path.join(BASE_DIR, '.env')\nLOGS_DIR = os.path.join(BASE_DIR, 'logs')\nSTAFF_ACTIVITY_LOG_FILE = os.path.join(LOGS_DIR, 'staff_activity.log')\nDEFAULT_SECRET_KEY = 'change-this-secret-in-production'\nload_dotenv(ENV_FILE)\napp = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', DEFAULT_SECRET_KEY)\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "LOGS_DIR",
+        "kind": 5,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "LOGS_DIR = os.path.join(BASE_DIR, 'logs')\nSTAFF_ACTIVITY_LOG_FILE = os.path.join(LOGS_DIR, 'staff_activity.log')\nDEFAULT_SECRET_KEY = 'change-this-secret-in-production'\nload_dotenv(ENV_FILE)\napp = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', DEFAULT_SECRET_KEY)\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "STAFF_ACTIVITY_LOG_FILE",
+        "kind": 5,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "STAFF_ACTIVITY_LOG_FILE = os.path.join(LOGS_DIR, 'staff_activity.log')\nDEFAULT_SECRET_KEY = 'change-this-secret-in-production'\nload_dotenv(ENV_FILE)\napp = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', DEFAULT_SECRET_KEY)\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "DEFAULT_SECRET_KEY",
+        "kind": 5,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "DEFAULT_SECRET_KEY = 'change-this-secret-in-production'\nload_dotenv(ENV_FILE)\napp = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', DEFAULT_SECRET_KEY)\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()",
         "detail": "app.app",
         "documentation": {}
     },
@@ -355,7 +496,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', 'change-this-secret-in-production')\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')\nLEVEL_ID_MAP = {",
+        "peekOfCode": "app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)\napp.secret_key = os.getenv('FLASK_SECRET_KEY', DEFAULT_SECRET_KEY)\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')\nSTAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()",
         "detail": "app.app",
         "documentation": {}
     },
@@ -364,7 +505,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "app.secret_key = os.getenv('FLASK_SECRET_KEY', 'change-this-secret-in-production')\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',",
+        "peekOfCode": "app.secret_key = os.getenv('FLASK_SECRET_KEY', DEFAULT_SECRET_KEY)\ndf = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')\nSTAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()\nLEVEL_ID_MAP = {",
         "detail": "app.app",
         "documentation": {}
     },
@@ -373,7 +514,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "df = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',",
+        "peekOfCode": "df = None\nRESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')\nSTAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',",
         "detail": "app.app",
         "documentation": {}
     },
@@ -382,7 +523,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "RESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',",
+        "peekOfCode": "RESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']\nRESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')\nSTAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',",
         "detail": "app.app",
         "documentation": {}
     },
@@ -391,7 +532,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "RESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',\n    '5013': 'บ.ศ.๘', '5014': 'บ.ศ.๙', '5015': 'ป.๑-๒', '5016': 'ป.ธ.๓',",
+        "peekOfCode": "RESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)\nRESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')\nSTAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',",
         "detail": "app.app",
         "documentation": {}
     },
@@ -400,7 +541,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "RESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',\n    '5013': 'บ.ศ.๘', '5014': 'บ.ศ.๙', '5015': 'ป.๑-๒', '5016': 'ป.ธ.๓',\n    '5017': 'ป.ธ.๔', '5018': 'ป.ธ.๕', '5019': 'ป.ธ.๖', '5020': 'ป.ธ.๗',",
+        "peekOfCode": "RESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')\nRESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')\nSTAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',\n    '5013': 'บ.ศ.๘', '5014': 'บ.ศ.๙', '5015': 'ป.๑-๒', '5016': 'ป.ธ.๓',",
         "detail": "app.app",
         "documentation": {}
     },
@@ -409,7 +550,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "RESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',\n    '5013': 'บ.ศ.๘', '5014': 'บ.ศ.๙', '5015': 'ป.๑-๒', '5016': 'ป.ธ.๓',\n    '5017': 'ป.ธ.๔', '5018': 'ป.ธ.๕', '5019': 'ป.ธ.๖', '5020': 'ป.ธ.๗',\n    '5021': 'ป.ธ.๘', '5022': 'ป.ธ.๙'",
+        "peekOfCode": "RESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')\nSTAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')\nSTAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',\n    '5013': 'บ.ศ.๘', '5014': 'บ.ศ.๙', '5015': 'ป.๑-๒', '5016': 'ป.ธ.๓',\n    '5017': 'ป.ธ.๔', '5018': 'ป.ธ.๕', '5019': 'ป.ธ.๖', '5020': 'ป.ธ.๗',",
         "detail": "app.app",
         "documentation": {}
     },
@@ -418,7 +559,7 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "STAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',\n    '5013': 'บ.ศ.๘', '5014': 'บ.ศ.๙', '5015': 'ป.๑-๒', '5016': 'ป.ธ.๓',\n    '5017': 'ป.ธ.๔', '5018': 'ป.ธ.๕', '5019': 'ป.ธ.๖', '5020': 'ป.ธ.๗',\n    '5021': 'ป.ธ.๘', '5022': 'ป.ธ.๙'\n}",
+        "peekOfCode": "STAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()\nSTAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')\nSTAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',\n    '5013': 'บ.ศ.๘', '5014': 'บ.ศ.๙', '5015': 'ป.๑-๒', '5016': 'ป.ธ.๓',\n    '5017': 'ป.ธ.๔', '5018': 'ป.ธ.๕', '5019': 'ป.ธ.๖', '5020': 'ป.ธ.๗',\n    '5021': 'ป.ธ.๘', '5022': 'ป.ธ.๙'",
         "detail": "app.app",
         "documentation": {}
     },
@@ -427,7 +568,16 @@
         "kind": 5,
         "importPath": "app.app",
         "description": "app.app",
-        "peekOfCode": "STAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',\n    '5013': 'บ.ศ.๘', '5014': 'บ.ศ.๙', '5015': 'ป.๑-๒', '5016': 'ป.ธ.๓',\n    '5017': 'ป.ธ.๔', '5018': 'ป.ธ.๕', '5019': 'ป.ธ.๖', '5020': 'ป.ธ.๗',\n    '5021': 'ป.ธ.๘', '5022': 'ป.ธ.๙'\n}\ndef to_thai_digits(text):",
+        "peekOfCode": "STAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')\nSTAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',\n    '5013': 'บ.ศ.๘', '5014': 'บ.ศ.๙', '5015': 'ป.๑-๒', '5016': 'ป.ธ.๓',\n    '5017': 'ป.ธ.๔', '5018': 'ป.ธ.๕', '5019': 'ป.ธ.๖', '5020': 'ป.ธ.๗',\n    '5021': 'ป.ธ.๘', '5022': 'ป.ธ.๙'\n}",
+        "detail": "app.app",
+        "documentation": {}
+    },
+    {
+        "label": "STAFF_PASSWORD_HASH",
+        "kind": 5,
+        "importPath": "app.app",
+        "description": "app.app",
+        "peekOfCode": "STAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()\nLEVEL_ID_MAP = {\n    '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',\n    '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',\n    '5009': 'บ.ศ.๔', '5010': 'บ.ศ.๕', '5011': 'บ.ศ.๖', '5012': 'บ.ศ.๗',\n    '5013': 'บ.ศ.๘', '5014': 'บ.ศ.๙', '5015': 'ป.๑-๒', '5016': 'ป.ธ.๓',\n    '5017': 'ป.ธ.๔', '5018': 'ป.ธ.๕', '5019': 'ป.ธ.๖', '5020': 'ป.ธ.๗',\n    '5021': 'ป.ธ.๘', '5022': 'ป.ธ.๙'\n}\ndef to_thai_digits(text):",
         "detail": "app.app",
         "documentation": {}
     },
@@ -456,6 +606,15 @@
         "description": "scraper.debug_scraper",
         "peekOfCode": "HEADERS = {\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'\n}\nprint(f\"กำลังเริ่มชันสูตร URL: {URL_TO_DEBUG}\")\ntry:\n    response = requests.get(URL_TO_DEBUG, headers=HEADERS)\n    response.raise_for_status()\n    with open(\"debug_page.html\", \"wb\") as f: \n        f.write(response.content)\n    print(\"\\n✅ ชันสูตรสำเร็จ!\")",
         "detail": "scraper.debug_scraper",
+        "documentation": {}
+    },
+    {
+        "label": "main",
+        "kind": 2,
+        "importPath": "scripts.generate_password_hash",
+        "description": "scripts.generate_password_hash",
+        "peekOfCode": "def main():\n    if len(sys.argv) != 2 or not sys.argv[1].strip():\n        print('Usage: python scripts/generate_password_hash.py \"<password>\"')\n        raise SystemExit(1)\n    password = sys.argv[1]\n    print(generate_password_hash(password))\nif __name__ == '__main__':\n    main()",
+        "detail": "scripts.generate_password_hash",
         "documentation": {}
     }
 ]
