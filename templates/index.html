@@ -14,6 +14,17 @@
       <header class="main-header">
         <h1>ระบบค้นหารายชื่อผู้สมัครสอบ ธรรม-บาลีสนามหลวง</h1>
         <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ current_buddhist_year }}</p>
+        <nav class="top-nav">
+          <a class="nav-link active" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
+          {% if staff_logged_in %}
+          <a class="nav-link" href="{{ url_for('manage_results') }}">หน้าจัดการผลการสอบ</a>
+          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
+            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
+          </form>
+          {% else %}
+          <a class="nav-link" href="{{ url_for('staff_login', next=url_for('manage_results')) }}">เข้าสู่ระบบเจ้าหน้าที่</a>
+          {% endif %}
+        </nav>
       </header>
 
       <section class="data-info-section">

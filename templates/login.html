@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>เข้าสู่ระบบเจ้าหน้าที่</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>เข้าสู่ระบบเจ้าหน้าที่</h1>
+        <p>สำหรับจัดการผลการสอบ ธรรม-บาลีสนามหลวง ประจำปี พ.ศ. {{ current_buddhist_year }}</p>
+        <nav class="top-nav">
+          <a class="nav-link" href="{{ url_for('index') }}">กลับหน้าค้นหารายชื่อ</a>
+        </nav>
+      </header>
+
+      <main class="search-area login-area">
+        <section class="page-intro">
+          <h2>ยืนยันตัวตนก่อนเข้าใช้งาน</h2>
+          <p>เฉพาะเจ้าหน้าที่ที่มีสิทธิ์จัดการผลการสอบ</p>
+        </section>
+
+        {% if error_message %}
+        <div class="save-message error">{{ error_message }}</div>
+        {% endif %}
+
+        <form method="post" class="login-form">
+          <input type="hidden" name="next" value="{{ next_url }}" />
+
+          <label class="form-label" for="username">ชื่อผู้ใช้</label>
+          <input class="form-input" type="text" id="username" name="username" autocomplete="username" required />
+
+          <label class="form-label" for="password">รหัสผ่าน</label>
+          <input class="form-input" type="password" id="password" name="password" autocomplete="current-password" required />
+
+          <button type="submit" class="save-result-btn login-submit-btn">เข้าสู่ระบบ</button>
+        </form>
+      </main>
+    </div>
+  </body>
+</html>

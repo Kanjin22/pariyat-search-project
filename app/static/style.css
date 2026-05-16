@@ -30,6 +30,41 @@ body {
     font-size: 1.1rem;
 }
 
+.top-nav {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.nav-link {
+    display: inline-block;
+    padding: 8px 14px;
+    border-radius: 999px;
+    text-decoration: none;
+    color: #1a237e;
+    background-color: #e8edff;
+    border: 1px solid #c7d2fe;
+    font-weight: bold;
+}
+
+.inline-form {
+    margin: 0;
+}
+
+.nav-button {
+    cursor: pointer;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 1rem;
+}
+
+.nav-link.active {
+    color: #ffffff;
+    background-color: #1a237e;
+    border-color: #1a237e;
+}
+
 .data-info-section {
     background-color: #ffffff;
     padding: 15px 20px;
@@ -52,6 +87,25 @@ body {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
+.page-intro {
+    margin-bottom: 20px;
+}
+
+.page-intro h2 {
+    margin: 0 0 8px;
+    color: #003366;
+}
+
+.page-intro p {
+    margin: 0;
+    color: #555;
+}
+
+.login-area {
+    max-width: 520px;
+    margin: 0 auto;
+}
+
 .search-box input {
     width: 100%;
     padding: 15px;
@@ -68,6 +122,10 @@ body {
 }
 
 #results-container {
+    margin-top: 20px;
+}
+
+#result-management-container {
     margin-top: 20px;
 }
 
@@ -190,13 +248,6 @@ button.details-btn-reg {
     margin-left: 10px;
 }
 
-.reg-info {}
-
-.details-btn-reg {
-    flex-shrink: 0;
-    margin-left: 10px;
-}
-
 .status-valid {
     color: #155724;
     font-weight: bold;
@@ -215,4 +266,164 @@ a.phone-link {
 
 a.phone-link:hover {
     text-decoration: underline;
+}
+
+.status-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.status-chip,
+.saved-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background-color: #eef2ff;
+    color: #1e3a8a;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.save-message {
+    min-height: 24px;
+    margin-top: 18px;
+    font-weight: bold;
+}
+
+.save-message.success {
+    color: #155724;
+}
+
+.save-message.error {
+    color: #721c24;
+}
+
+.empty-state {
+    color: #666;
+    padding: 10px 0;
+}
+
+.manage-card .header {
+    align-items: flex-start;
+}
+
+.person-subtitle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    color: #495057;
+    font-size: 0.95rem;
+}
+
+.manage-list {
+    margin-top: 12px;
+}
+
+.result-manage-item {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 0;
+}
+
+.result-manage-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.result-manage-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.status-note {
+    color: #666;
+}
+
+.result-manage-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.result-status-select {
+    min-width: 220px;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 1rem;
+    background-color: #ffffff;
+}
+
+.save-result-btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background-color: #1d4ed8;
+    color: #ffffff;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.save-result-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.form-label {
+    font-weight: bold;
+    color: #003366;
+}
+
+.form-input {
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 1rem;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #4a90e2;
+}
+
+.login-submit-btn {
+    margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+    body {
+        padding: 14px;
+    }
+
+    .search-area {
+        padding: 20px;
+    }
+
+    .result-group .header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .result-status-select,
+    .save-result-btn {
+        width: 100%;
+    }
 }

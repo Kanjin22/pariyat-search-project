@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>จัดการผลการสอบ ธรรม-บาลี</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>หน้าจัดการผลการสอบ ธรรม-บาลีสนามหลวง</h1>
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ current_buddhist_year }}</p>
+        <nav class="top-nav">
+          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
+          <a class="nav-link active" href="{{ url_for('manage_results') }}">หน้าจัดการผลการสอบ</a>
+          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
+            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
+          </form>
+        </nav>
+      </header>
+
+      <main class="search-area">
+        <section class="page-intro">
+          <h2>ค้นหาและอัปเดตผลการสอบ</h2>
+          <p>เลือกสถานะผลการสอบสำหรับแต่ละรายการสมัครสอบ แล้วกดบันทึกเป็นรายรายการ</p>
+        </section>
+
+        <div class="search-box">
+          <input type="text" id="result-search-input" placeholder="พิมพ์ชื่อ-ฉายา หรือนามสกุล เพื่อจัดการผลการสอบ..." />
+        </div>
+
+        <div class="status-legend">
+          {% for status in result_status_options %}
+          <span class="status-chip">{{ status }}</span>
+          {% endfor %}
+        </div>
+
+        <div id="result-message" class="save-message" aria-live="polite"></div>
+        <div id="result-management-container"></div>
+      </main>
+    </div>
+
+    <script>
+      window.RESULT_STATUS_OPTIONS = {{ result_status_options | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='results_management.js') }}"></script>
+  </body>
+</html>

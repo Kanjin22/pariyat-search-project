@@ -1,5 +1,7 @@
+import json
 import os
-from flask import Flask, render_template, jsonify, request
+from functools import wraps
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 import pandas as pd
 from datetime import datetime
 import pytz
@@ -9,7 +11,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
 STATIC_DIR = os.path.join(BASE_DIR, 'app', 'static')
 app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'change-this-secret-in-production')
 df = None
+RESULT_STATUS_OPTIONS = ['', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']
+RESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)
+RESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')
+RESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')
+STAFF_USERNAME = os.getenv('STAFF_USERNAME', 'staff')
+STAFF_PASSWORD = os.getenv('STAFF_PASSWORD', 'pariyat123')
 LEVEL_ID_MAP = {
     '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',
     '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',
@@ -56,6 +65,44 @@ def get_current_buddhist_year(numeric=False):
     return to_thai_digits(str(buddhist_year))
 
 
+def is_safe_redirect_url(target):
+    return isinstance(target, str) and target.startswith('/') and not target.startswith('//')
+
+
+def is_staff_logged_in():
+    return session.get('staff_logged_in') is True
+
+
+def staff_login_required(api=False):
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped_view(*args, **kwargs):
+            if is_staff_logged_in():
+                return view_func(*args, **kwargs)
+            if api:
+                return jsonify({'success': False, 'message': 'กรุณาเข้าสู่ระบบเจ้าหน้าที่'}), 401
+            return redirect(url_for('staff_login', next=request.path))
+        return wrapped_view
+    return decorator
+
+
+@app.context_processor
+def inject_auth_state():
+    return {'staff_logged_in': is_staff_logged_in()}
+
+
+def build_registration_key(row):
+    key_parts = [
+        row.get('display_name', ''),
+        row.get('class_name', ''),
+        row.get('school_name', ''),
+        row.get('group_name', ''),
+        row.get('id_card', ''),
+        str(row.get('sequence', ''))
+    ]
+    return "|".join(str(part or '').strip() for part in key_parts)
+
+
 def format_display_name(row):
     prefix = row.get('prefix_title', '') or ''
     fname = row.get('firstname', '') or ''
@@ -68,6 +115,33 @@ def format_display_name(row):
         return display_name
     else:
         return " ".join(part for part in [full_first_name, lname] if part)
+
+
+def load_exam_results():
+    if not os.path.exists(RESULTS_FILE):
+        return {}
+    try:
+        with open(RESULTS_FILE, 'r', encoding='utf-8') as result_file:
+            loaded_data = json.load(result_file)
+        if isinstance(loaded_data, dict):
+            return loaded_data
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {}
+
+
+def save_exam_results(result_map):
+    os.makedirs(RESULTS_DATA_DIR, exist_ok=True)
+    with open(RESULTS_FILE, 'w', encoding='utf-8') as result_file:
+        json.dump(result_map, result_file, ensure_ascii=False, indent=2)
+
+
+def apply_exam_results(dataframe):
+    if dataframe is None or dataframe.empty:
+        return dataframe
+    result_map = load_exam_results()
+    dataframe['exam_result_status'] = dataframe['registration_key'].map(result_map).fillna('')
+    return dataframe
 
 
 def load_data_from_api():
@@ -101,10 +175,12 @@ def load_data_from_api():
             raw_df['sequence'] = raw_df.groupby('class_name').cumcount() + 1
             raw_df['sequence_thai'] = raw_df['sequence'].apply(to_thai_digits)
             raw_df = raw_df.rename(columns={'status': 'reg_status', 'bureau': 'school_name', 'postx_type': 'group_name', 'card_id': 'id_card', 'mobile': 'tel'})
-            required_columns = ['sequence_thai', 'display_name', 'age_pansa', 'reg_status', 'class_name', 'school_name', 'group_name', 'cert_nugdham_text', 'cert_pali_text', 'id_card', 'tel']
+            raw_df['registration_key'] = raw_df.apply(build_registration_key, axis=1)
+            required_columns = ['sequence_thai', 'display_name', 'age_pansa', 'reg_status', 'class_name', 'school_name', 'group_name', 'cert_nugdham_text', 'cert_pali_text', 'id_card', 'tel', 'registration_key']
             for col in required_columns:
                 if col not in raw_df.columns: raw_df[col] = ''
             df = raw_df[required_columns].astype(str)
+            df = apply_exam_results(df)
             print(f"--- [SUCCESS] Data processed. Final records: {len(df)}")
     except Exception as e:
         df = pd.DataFrame()
@@ -157,10 +233,117 @@ def search():
     return jsonify(final_results)
 
 
+@app.route('/search_exam_results')
+@staff_login_required(api=True)
+def search_exam_results():
+    query = request.args.get('q', '').strip()
+    if df is None or df.empty or query == '':
+        return jsonify([])
+
+    results_df = df[df['display_name'].str.contains(query, case=False, na=False)]
+    if results_df.empty:
+        return jsonify([])
+
+    grouped = results_df.groupby('display_name')
+    final_results = []
+    for name, group in grouped:
+        first_row = group.iloc[0]
+        person_data = {
+            'name': name,
+            'age_pansa': first_row['age_pansa'],
+            'school_name': to_thai_digits(first_row['school_name']),
+            'group_name': to_thai_digits(first_row['group_name']),
+            'registrations': [
+                {
+                    'registration_key': row['registration_key'],
+                    'class_name': row['class_name'],
+                    'reg_status': row['reg_status'],
+                    'sequence': row['sequence_thai'],
+                    'exam_result_status': row.get('exam_result_status', '')
+                }
+                for _, row in group.iterrows()
+            ]
+        }
+        final_results.append(person_data)
+    return jsonify(final_results)
+
+
+@app.route('/update_exam_result', methods=['POST'])
+@staff_login_required(api=True)
+def update_exam_result():
+    global df
+    payload = request.get_json(silent=True) or {}
+    registration_key = (payload.get('registration_key') or '').strip()
+    exam_result_status = (payload.get('exam_result_status') or '').strip()
+
+    if not registration_key:
+        return jsonify({'success': False, 'message': 'ไม่พบรหัสรายการสมัครสอบ'}), 400
+    if exam_result_status not in RESULT_STATUS_SET:
+        return jsonify({'success': False, 'message': 'สถานะผลสอบไม่ถูกต้อง'}), 400
+
+    result_map = load_exam_results()
+    if exam_result_status:
+        result_map[registration_key] = exam_result_status
+    else:
+        result_map.pop(registration_key, None)
+    save_exam_results(result_map)
+
+    if df is not None and not df.empty and 'exam_result_status' in df.columns:
+        df.loc[df['registration_key'] == registration_key, 'exam_result_status'] = exam_result_status
+
+    return jsonify({'success': True, 'message': 'บันทึกผลการสอบเรียบร้อยแล้ว'})
+
+
 @app.route('/')
 def index():
     current_year_thai = get_current_buddhist_year(numeric=False)
     return render_template('index.html', current_buddhist_year=current_year_thai)
+
+
+@app.route('/staff/login', methods=['GET', 'POST'])
+def staff_login():
+    if is_staff_logged_in():
+        return redirect(url_for('manage_results'))
+
+    error_message = ''
+    next_url = request.args.get('next', '')
+    if request.method == 'POST':
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
+        next_url = request.form.get('next', '')
+
+        if username == STAFF_USERNAME and password == STAFF_PASSWORD:
+            session['staff_logged_in'] = True
+            session['staff_username'] = username
+            if is_safe_redirect_url(next_url):
+                return redirect(next_url)
+            return redirect(url_for('manage_results'))
+        error_message = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'
+
+    return render_template(
+        'login.html',
+        current_buddhist_year=get_current_buddhist_year(numeric=False),
+        error_message=error_message,
+        next_url=next_url if is_safe_redirect_url(next_url) else ''
+    )
+
+
+@app.route('/staff/logout', methods=['POST'])
+def staff_logout():
+    session.clear()
+    return redirect(url_for('index'))
+
+
+@app.route('/manage-results')
+@staff_login_required()
+def manage_results():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    status_options = [status for status in RESULT_STATUS_OPTIONS if status]
+    return render_template(
+        'manage_results.html',
+        current_buddhist_year=current_year_thai,
+        result_status_options=status_options
+    )
 
 
 @app.route('/get_data_info')
