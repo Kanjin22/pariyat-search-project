@@ -16,6 +16,7 @@
         <p>สำหรับจัดการผลการสอบ ธรรม-บาลีสนามหลวง ประจำปี พ.ศ. {{ current_buddhist_year }}</p>
         <nav class="top-nav">
           <a class="nav-link" href="{{ url_for('index') }}">กลับหน้าค้นหารายชื่อ</a>
+          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
         </nav>
       </header>
 
@@ -46,5 +47,6 @@
         </form>
       </main>
     </div>
+    <script src="{{ url_for('static', filename='theme.js') }}"></script>
   </body>
 </html>

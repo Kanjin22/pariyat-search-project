@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ประวัติการทำงานเจ้าหน้าที่</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>ประวัติการทำงานเจ้าหน้าที่</h1>
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ current_buddhist_year }}</p>
+        <nav class="top-nav">
+          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
+          <a class="nav-link" href="{{ url_for('manage_results') }}">หน้าจัดการผลการสอบ</a>
+          <a class="nav-link" href="{{ url_for('staff_statistics') }}">สถิติ</a>
+          <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
+          <a class="nav-link active" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
+          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
+          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
+            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
+          </form>
+        </nav>
+      </header>
+
+      <main class="search-area">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0; color: #003366;">ประวัติการทำงานล่าสุด</h2>
+          <button id="backup-btn" class="save-result-btn">สำรองข้อมูลตอนนี้</button>
+        </div>
+
+        <div id="log-message" class="save-message" aria-live="polite"></div>
+
+        <div id="activity-log-container">
+          {% if log_entries %}
+          <div class="log-list">
+            {% for entry in log_entries %}
+            <div class="log-entry">
+              <div class="log-time">{{ entry.get('asctime', '-') }}</div>
+              <div class="log-details">
+                <span class="log-badge log-{{ entry.get('outcome', 'unknown') }}">
+                  {{ entry.get('action', '-') }}
+                </span>
+                <span class="log-username">
+                  ผู้ใช้: {{ entry.get('username', '-') }}
+                </span>
+                <span class="log-ip">
+                  IP: {{ entry.get('ip', '-') }}
+                </span>
+                <span class="log-detail">
+                  รายละเอียด: {{ entry.get('detail', '-') }}
+                </span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="empty-state">ยังไม่มีประวัติการทำงาน</p>
+          {% endif %}
+        </div>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='activity_log.js') }}"></script>
+  </body>
+</html>

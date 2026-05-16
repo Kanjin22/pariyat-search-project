@@ -4,7 +4,7 @@ import os
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 import requests
 from dotenv import load_dotenv
@@ -28,9 +28,13 @@ RESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)
 RESULTS_DATA_DIR = os.path.join(BASE_DIR, 'data')
 RESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')
 STAFF_ACCOUNTS_FILE = os.path.join(RESULTS_DATA_DIR, 'staff_accounts.json')
+LOGIN_ATTEMPTS_FILE = os.path.join(RESULTS_DATA_DIR, 'login_attempts.json')
+BACKUPS_DIR = os.path.join(BASE_DIR, 'backups')
 STAFF_USERNAME = os.getenv('STAFF_USERNAME', '').strip()
 STAFF_PASSWORD = os.getenv('STAFF_PASSWORD', '')
 STAFF_PASSWORD_HASH = os.getenv('STAFF_PASSWORD_HASH', '').strip()
+MAX_LOGIN_ATTEMPTS = 5
+LOCKOUT_MINUTES = 15
 LEVEL_ID_MAP = {
     '5001': 'น.ธ.ตรี', '5002': 'น.ธ.โท', '5003': 'น.ธ.เอก', '5004': 'ธ.ศ.ตรี',
     '5005': 'ธ.ศ.โท', '5006': 'ธ.ศ.เอก', '5007': 'บ.ศ.๑-๒', '5008': 'บ.ศ.๓',
@@ -134,7 +138,7 @@ def find_staff_account(username):
     return None
 
 
-def add_staff_account(username, password, full_name=''):
+def add_staff_account(username, password, full_name='', role='staff'):
     accounts = load_staff_accounts()
     if find_staff_account(username):
         return False, 'Username already exists'
@@ -142,6 +146,7 @@ def add_staff_account(username, password, full_name=''):
         'username': username,
         'password_hash': generate_password_hash(password),
         'full_name': full_name or username,
+        'role': role,
         'created_at': datetime.now().isoformat(),
         'active': True
     }
@@ -150,7 +155,7 @@ def add_staff_account(username, password, full_name=''):
     return True, 'Account created successfully'
 
 
-def update_staff_account(username, password=None, full_name=None, active=None):
+def update_staff_account(username, password=None, full_name=None, active=None, role=None):
     accounts = load_staff_accounts()
     for i, account in enumerate(accounts):
         if account['username'] == username:
@@ -160,10 +165,124 @@ def update_staff_account(username, password=None, full_name=None, active=None):
                 accounts[i]['full_name'] = full_name
             if active is not None:
                 accounts[i]['active'] = active
+            if role is not None:
+                accounts[i]['role'] = role
             accounts[i]['updated_at'] = datetime.now().isoformat()
             save_staff_accounts(accounts)
             return True, 'Account updated successfully'
     return False, 'Account not found'
+
+
+def load_login_attempts():
+    if not os.path.exists(LOGIN_ATTEMPTS_FILE):
+        return {}
+    try:
+        with open(LOGIN_ATTEMPTS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_login_attempts(attempts):
+    os.makedirs(RESULTS_DATA_DIR, exist_ok=True)
+    with open(LOGIN_ATTEMPTS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(attempts, f, ensure_ascii=False, indent=2)
+
+
+def is_account_locked(username):
+    attempts = load_login_attempts()
+    user_attempts = attempts.get(username, {})
+    if not user_attempts:
+        return False
+    if user_attempts.get('locked_until'):
+        try:
+            locked_until = datetime.fromisoformat(user_attempts['locked_until'])
+            if datetime.now() < locked_until:
+                return True
+            else:
+                del attempts[username]
+                save_login_attempts(attempts)
+        except:
+            pass
+    return False
+
+
+def record_login_attempt(username, success):
+    attempts = load_login_attempts()
+    user_attempts = attempts.get(username, {'count': 0, 'locked_until': None})
+    
+    if success:
+        if username in attempts:
+            del attempts[username]
+            save_login_attempts(attempts)
+    else:
+        user_attempts['count'] = user_attempts.get('count', 0) + 1
+        if user_attempts['count'] >= MAX_LOGIN_ATTEMPTS:
+            locked_until = datetime.now() + timedelta(minutes=LOCKOUT_MINUTES)
+            user_attempts['locked_until'] = locked_until.isoformat()
+        attempts[username] = user_attempts
+        save_login_attempts(attempts)
+
+
+def is_admin(username):
+    account = find_staff_account(username)
+    if account:
+        return account.get('role') == 'admin'
+    if username == STAFF_USERNAME:
+        return True
+    return False
+
+
+def admin_required(api=False):
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped_view(*args, **kwargs):
+            if not is_staff_logged_in():
+                write_staff_log(action='access_denied', outcome='blocked', username=session.get('staff_username', ''), detail=request.path)
+                if api:
+                    return jsonify({'success': False, 'message': 'กรุณาเข้าสู่ระบบเจ้าหน้าที่'}), 401
+                return redirect(url_for('staff_login', next=request.path))
+            if not is_admin(session.get('staff_username')):
+                write_staff_log(action='access_denied', outcome='blocked', username=session.get('staff_username', ''), detail=request.path)
+                if api:
+                    return jsonify({'success': False, 'message': 'คุณไม่มีสิทธิ์เข้าถึงส่วนนี้'}), 403
+                return redirect(url_for('manage_results'))
+            return view_func(*args, **kwargs)
+        return wrapped_view
+    return decorator
+
+
+def create_backup():
+    os.makedirs(BACKUPS_DIR, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    files_to_backup = [
+        (RESULTS_FILE, f'exam_results_{timestamp}.json'),
+        (STAFF_ACCOUNTS_FILE, f'staff_accounts_{timestamp}.json')
+    ]
+    
+    for source, dest_name in files_to_backup:
+        if os.path.exists(source):
+            dest_path = os.path.join(BACKUPS_DIR, dest_name)
+            import shutil
+            shutil.copy2(source, dest_path)
+    
+    return True
+
+
+def get_statistics():
+    stats = {}
+    if df is not None and not df.empty:
+        stats['total_registrations'] = len(df)
+        stats['unique_people'] = df['display_name'].nunique()
+        
+        if 'exam_result_status' in df.columns:
+            status_counts = df['exam_result_status'].value_counts().to_dict()
+            stats['by_status'] = {k: v for k, v in status_counts.items() if k}
+        
+        stats['by_class'] = df['class_name'].value_counts().to_dict()
+    
+    return stats
 
 
 def delete_staff_account(username):
@@ -189,6 +308,7 @@ def migrate_env_staff_to_json():
                     'username': STAFF_USERNAME,
                     'password_hash': password_hash,
                     'full_name': STAFF_USERNAME,
+                    'role': 'admin',
                     'created_at': datetime.now().isoformat(),
                     'active': True
                 })
@@ -495,14 +615,20 @@ def staff_login():
         if not is_staff_auth_configured():
             error_message = 'ระบบยังไม่ได้ตั้งค่าบัญชีเจ้าหน้าที่'
             write_staff_log(action='login', outcome='blocked', username=username, detail='missing_staff_config')
+        elif is_account_locked(username):
+            error_message = f'บัญชีถูกล็อกชั่วคราว โปรดลองอีกครั้งใน {LOCKOUT_MINUTES} นาที'
+            write_staff_log(action='login', outcome='blocked', username=username, detail='account_locked')
         elif verify_staff_password(username, password):
+            record_login_attempt(username, True)
             session['staff_logged_in'] = True
             session['staff_username'] = username
             write_staff_log(action='login', outcome='success', username=username, detail='staff_login')
+            create_backup()
             if is_safe_redirect_url(next_url):
                 return redirect(next_url)
             return redirect(url_for('manage_results'))
         else:
+            record_login_attempt(username, False)
             error_message = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'
             write_staff_log(action='login', outcome='failed', username=username, detail='invalid_credentials')
 
@@ -516,42 +642,85 @@ def staff_login():
 
 
 @app.route('/staff/manage')
-@staff_login_required()
+@admin_required()
 def staff_manage():
     current_year_thai = get_current_buddhist_year(numeric=False)
     accounts = load_staff_accounts()
     return render_template(
         'manage_staff.html',
         current_buddhist_year=current_year_thai,
-        staff_accounts=accounts
+        staff_accounts=accounts,
+        is_admin=is_admin(session.get('staff_username', ''))
+    )
+
+
+@app.route('/staff/statistics')
+@staff_login_required()
+def staff_statistics():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    stats = get_statistics()
+    return render_template(
+        'statistics.html',
+        current_buddhist_year=current_year_thai,
+        statistics=stats
+    )
+
+
+@app.route('/staff/activity')
+@admin_required()
+def staff_activity():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    log_entries = []
+    if os.path.exists(STAFF_ACTIVITY_LOG_FILE):
+        with open(STAFF_ACTIVITY_LOG_FILE, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            for line in reversed(lines[-200:]):
+                line = line.strip()
+                if not line:
+                    continue
+                entry = {'raw': line}
+                try:
+                    parts = line.split(' | ')
+                    for part in parts:
+                        if '=' in part:
+                            key, value = part.split('=', 1)
+                            entry[key.strip()] = value.strip()
+                except:
+                    pass
+                log_entries.append(entry)
+    return render_template(
+        'activity_log.html',
+        current_buddhist_year=current_year_thai,
+        log_entries=log_entries
     )
 
 
 @app.route('/api/staff', methods=['GET'])
-@staff_login_required(api=True)
+@admin_required(api=True)
 def api_get_staff():
     accounts = load_staff_accounts()
     return jsonify({'success': True, 'accounts': accounts})
 
 
 @app.route('/api/staff', methods=['POST'])
-@staff_login_required(api=True)
+@admin_required(api=True)
 def api_add_staff():
     payload = request.get_json(silent=True) or {}
     username = (payload.get('username') or '').strip()
     password = payload.get('password') or ''
     full_name = (payload.get('full_name') or '').strip()
+    role = payload.get('role', 'staff')
 
     if not username or not password:
         return jsonify({'success': False, 'message': 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน'}), 400
 
-    success, message = add_staff_account(username, password, full_name)
+    success, message = add_staff_account(username, password, full_name, role)
     if success:
         write_staff_log(
             action='add_staff',
             outcome='success',
             username=session.get('staff_username', ''),
-            detail=f'added_username={username}'
+            detail=f'added_username={username} role={role}'
         )
         return jsonify({'success': True, 'message': message})
     else:
@@ -559,14 +728,15 @@ def api_add_staff():
 
 
 @app.route('/api/staff/<username>', methods=['PUT'])
-@staff_login_required(api=True)
+@admin_required(api=True)
 def api_update_staff(username):
     payload = request.get_json(silent=True) or {}
     password = payload.get('password')
     full_name = payload.get('full_name')
     active = payload.get('active')
+    role = payload.get('role')
 
-    success, message = update_staff_account(username, password, full_name, active)
+    success, message = update_staff_account(username, password, full_name, active, role)
     if success:
         write_staff_log(
             action='update_staff',
@@ -580,7 +750,7 @@ def api_update_staff(username):
 
 
 @app.route('/api/staff/<username>', methods=['DELETE'])
-@staff_login_required(api=True)
+@admin_required(api=True)
 def api_delete_staff(username):
     success, message = delete_staff_account(username)
     if success:
@@ -593,6 +763,28 @@ def api_delete_staff(username):
         return jsonify({'success': True, 'message': message})
     else:
         return jsonify({'success': False, 'message': message}), 400
+
+
+@app.route('/api/statistics', methods=['GET'])
+@staff_login_required(api=True)
+def api_get_statistics():
+    return jsonify({'success': True, 'statistics': get_statistics()})
+
+
+@app.route('/api/backup', methods=['POST'])
+@admin_required(api=True)
+def api_create_backup():
+    try:
+        create_backup()
+        write_staff_log(
+            action='create_backup',
+            outcome='success',
+            username=session.get('staff_username', ''),
+            detail='manual_backup'
+        )
+        return jsonify({'success': True, 'message': 'สำรองข้อมูลสำเร็จ'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/staff/logout', methods=['POST'])

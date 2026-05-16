@@ -1,6 +1,44 @@
 let staffAccounts = [];
 let editingUsername = null;
 
+function showToast(message, type = 'success', title = '') {
+    const container = document.querySelector('.toast-container') || createToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const icons = {
+        success: '✅',
+        error: '❌',
+        info: 'ℹ️'
+    };
+    
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || '📢'}</span>
+        <div class="toast-content">
+            ${title ? `<div class="toast-title">${title}</div>` : ''}
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+    `;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 5000);
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+    return container;
+}
+
 function showMessage(text, isError = false) {
     const messageEl = document.getElementById('staff-message');
     messageEl.textContent = text;
@@ -61,11 +99,15 @@ function renderStaffList() {
         const isActive = account.active !== false;
         const isOwnAccount = account.username === (window.currentStaffUsername || '');
         const isEditing = editingUsername === account.username;
+        const role = account.role || 'staff';
 
         return `
             <div class="staff-card" data-username="${escapeHtml(account.username)}">
                 <div class="staff-card-header">
-                    <h3>${escapeHtml(account.full_name || account.username)}</h3>
+                    <div style="display: flex; align-items: center; flex-wrap: wrap;">
+                        <h3>${escapeHtml(account.full_name || account.username)}</h3>
+                        <span class="role-badge ${role}">${role === 'admin' ? 'Admin' : 'Staff'}</span>
+                    </div>
                     <span class="staff-badge ${isActive ? 'active' : 'inactive'}">
                         ${isActive ? 'ใช้งานอยู่' : 'ปิดใช้งาน'}
                     </span>
@@ -108,6 +150,7 @@ function renderStaffList() {
 }
 
 function renderEditForm(account) {
+    const role = account.role || 'staff';
     return `
         <form class="edit-staff-form" onsubmit="saveEdit(event, '${escapeHtml(account.username)}')">
             <div class="form-row">
@@ -115,6 +158,13 @@ function renderEditForm(account) {
                     <label class="form-label" for="edit-fullname-${escapeHtml(account.username)}">ชื่อ-สกุล</label>
                     <input class="form-input" type="text" id="edit-fullname-${escapeHtml(account.username)}" 
                            value="${escapeHtml(account.full_name || '')}" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit-role-${escapeHtml(account.username)}">สิทธิ์การเข้าถึง</label>
+                    <select class="form-input" id="edit-role-${escapeHtml(account.username)}">
+                        <option value="staff" ${role === 'staff' ? 'selected' : ''}>Staff (จัดการผลสอบ)</option>
+                        <option value="admin" ${role === 'admin' ? 'selected' : ''}>Admin (จัดการทุกอย่าง)</option>
+                    </select>
                 </div>
             </div>
             <div class="form-group">
@@ -143,10 +193,12 @@ async function saveEdit(event, username) {
     event.preventDefault();
     const fullName = document.getElementById(`edit-fullname-${username}`)?.value?.trim() || null;
     const password = document.getElementById(`edit-password-${username}`)?.value || null;
+    const role = document.getElementById(`edit-role-${username}`)?.value;
 
     const payload = {};
     if (fullName !== null) payload.full_name = fullName;
     if (password) payload.password = password;
+    if (role) payload.role = role;
 
     try {
         const response = await fetch(`/api/staff/${encodeURIComponent(username)}`, {
@@ -156,15 +208,15 @@ async function saveEdit(event, username) {
         });
         const data = await response.json();
         if (data.success) {
-            showMessage(data.message);
+            showToast(data.message, 'success', 'บันทึกสำเร็จ!');
             editingUsername = null;
             loadStaff();
         } else {
-            showMessage(data.message || 'เกิดข้อผิดพลาด', true);
+            showToast(data.message || 'เกิดข้อผิดพลาด', 'error', 'ผิดพลาด!');
         }
     } catch (error) {
         console.error('Error updating staff:', error);
-        showMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ', true);
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error', 'ผิดพลาด!');
     }
 }
 
@@ -177,14 +229,14 @@ async function toggleStaff(username, active) {
         });
         const data = await response.json();
         if (data.success) {
-            showMessage(data.message);
+            showToast(data.message, 'success');
             loadStaff();
         } else {
-            showMessage(data.message || 'เกิดข้อผิดพลาด', true);
+            showToast(data.message || 'เกิดข้อผิดพลาด', 'error');
         }
     } catch (error) {
         console.error('Error toggling staff:', error);
-        showMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ', true);
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
     }
 }
 
@@ -199,14 +251,14 @@ async function deleteStaff(username) {
         });
         const data = await response.json();
         if (data.success) {
-            showMessage(data.message);
+            showToast(data.message, 'success', 'ลบสำเร็จ!');
             loadStaff();
         } else {
-            showMessage(data.message || 'เกิดข้อผิดพลาด', true);
+            showToast(data.message || 'เกิดข้อผิดพลาด', 'error', 'ผิดพลาด!');
         }
     } catch (error) {
         console.error('Error deleting staff:', error);
-        showMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ', true);
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error', 'ผิดพลาด!');
     }
 }
 
@@ -215,9 +267,10 @@ document.getElementById('add-staff-form')?.addEventListener('submit', async (eve
     const username = document.getElementById('new-username')?.value?.trim();
     const fullName = document.getElementById('new-fullname')?.value?.trim();
     const password = document.getElementById('new-password')?.value;
+    const role = document.getElementById('new-role')?.value || 'staff';
 
     if (!username || !password) {
-        showMessage('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน', true);
+        showToast('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน', 'error', 'ผิดพลาด!');
         return;
     }
 
@@ -225,22 +278,23 @@ document.getElementById('add-staff-form')?.addEventListener('submit', async (eve
         const response = await fetch('/api/staff', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, full_name: fullName, password })
+            body: JSON.stringify({ username, full_name: fullName, password, role })
         });
         const data = await response.json();
         if (data.success) {
-            showMessage(data.message);
+            showToast(data.message, 'success', 'เพิ่มสำเร็จ!');
             document.getElementById('add-staff-form').reset();
             loadStaff();
         } else {
-            showMessage(data.message || 'เกิดข้อผิดพลาด', true);
+            showToast(data.message || 'เกิดข้อผิดพลาด', 'error', 'ผิดพลาด!');
         }
     } catch (error) {
         console.error('Error adding staff:', error);
-        showMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ', true);
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error', 'ผิดพลาด!');
     }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+    createToastContainer();
     loadStaff();
 });

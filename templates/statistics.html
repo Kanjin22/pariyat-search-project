@@ -3,21 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>จัดการผลการสอบ ธรรม-บาลี</title>
+    <title>สถิติผลการสอบ ธรรม-บาลี</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   </head>
   <body>
     <div class="container">
       <header class="main-header">
-        <h1>หน้าจัดการผลการสอบ ธรรม-บาลีสนามหลวง</h1>
+        <h1>สถิติภาพรวมผลการสอบ</h1>
         <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ current_buddhist_year }}</p>
         <nav class="top-nav">
           <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
-          <a class="nav-link active" href="{{ url_for('manage_results') }}">หน้าจัดการผลการสอบ</a>
-          <a class="nav-link" href="{{ url_for('staff_statistics') }}">สถิติ</a>
+          <a class="nav-link" href="{{ url_for('manage_results') }}">หน้าจัดการผลการสอบ</a>
+          <a class="nav-link active" href="{{ url_for('staff_statistics') }}">สถิติ</a>
           {% if session.staff_logged_in and session.staff_username %}
           <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
           <a class="nav-link" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
@@ -30,30 +31,34 @@
       </header>
 
       <main class="search-area">
-        <section class="page-intro">
-          <h2>ค้นหาและอัปเดตผลการสอบ</h2>
-          <p>เลือกสถานะผลการสอบสำหรับแต่ละรายการสมัครสอบ แล้วกดบันทึกเป็นรายรายการ</p>
+        <section class="stats-cards">
+          <div class="stat-card">
+            <div class="stat-number">{{ statistics.total_registrations or 0 }}</div>
+            <div class="stat-label">รายการสมัครทั้งหมด</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">{{ statistics.unique_people or 0 }}</div>
+            <div class="stat-label">ผู้สมัครที่ไม่ซ้ำกัน</div>
+          </div>
         </section>
 
-        <div class="search-box">
-          <input type="text" id="result-search-input" placeholder="พิมพ์ชื่อ-ฉายา หรือนามสกุล เพื่อจัดการผลการสอบ..." />
+        <div class="charts-container">
+          <div class="chart-wrapper">
+            <h3 class="chart-title">สถิติผลการสอบ</h3>
+            <canvas id="statusChart"></canvas>
+          </div>
+          <div class="chart-wrapper">
+            <h3 class="chart-title">สถิติตามชั้นเรียน</h3>
+            <canvas id="classChart"></canvas>
+          </div>
         </div>
-
-        <div class="status-legend">
-          {% for status in result_status_options %}
-          <span class="status-chip">{{ status }}</span>
-          {% endfor %}
-        </div>
-
-        <div id="result-message" class="save-message" aria-live="polite"></div>
-        <div id="result-management-container"></div>
       </main>
     </div>
 
     <script>
-      window.RESULT_STATUS_OPTIONS = {{ result_status_options | tojson }};
+      const statistics = {{ statistics | tojson }};
     </script>
     <script src="{{ url_for('static', filename='theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='results_management.js') }}"></script>
+    <script src="{{ url_for('static', filename='statistics.js') }}"></script>
   </body>
 </html>
