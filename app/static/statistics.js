@@ -7,15 +7,23 @@ function renderCharts() {
 
     const statusCtx = document.getElementById('statusChart');
     if (statusCtx && stats.by_status) {
-        const statusLabels = Object.keys(stats.by_status);
-        const statusData = Object.values(stats.by_status);
-        const colors = [
-            '#ef4444',
-            '#f59e0b',
-            '#22c55e',
-            '#3b82f6',
-            '#8b5cf6'
+        const statusOrder = ['สอบได้', 'สอบซ่อมได้', 'สอบซ่อม', 'สอบตก', 'ขาดสอบ', 'ขาดสิทธิ์', 'ยังไม่บันทึกผล'];
+        const statusColorMap = {
+            'สอบได้': '#22c55e',
+            'สอบซ่อมได้': '#3b82f6',
+            'สอบซ่อม': '#f59e0b',
+            'สอบตก': '#9ca3af',
+            'ขาดสอบ': '#ef4444',
+            'ขาดสิทธิ์': '#8b5cf6',
+            'ยังไม่บันทึกผล': '#cbd5e1'
+        };
+        const statusEntries = stats.by_status || {};
+        const statusLabels = [
+            ...statusOrder.filter((name) => Object.prototype.hasOwnProperty.call(statusEntries, name)),
+            ...Object.keys(statusEntries).filter((name) => !statusOrder.includes(name))
         ];
+        const statusData = statusLabels.map((label) => statusEntries[label]);
+        const colors = statusLabels.map((label) => statusColorMap[label] || '#64748b');
 
         new Chart(statusCtx, {
             type: 'doughnut',
@@ -23,7 +31,7 @@ function renderCharts() {
                 labels: statusLabels,
                 datasets: [{
                     data: statusData,
-                    backgroundColor: colors.slice(0, statusLabels.length),
+                    backgroundColor: colors,
                     borderWidth: 2,
                     borderColor: '#ffffff'
                 }]

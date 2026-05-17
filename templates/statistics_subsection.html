@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>สถิติผลการสอบ ธรรม-บาลี</title>
+    <title>สถิติ{{ subsection.name }} - {{ department.name }} - ธรรม-บาลี</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -14,11 +14,11 @@
   <body>
     <div class="container">
       <header class="main-header">
-        <h1>สถิติภาพรวมผลการสอบ</h1>
+        <h1>สถิติ{{ subsection.name }} - {{ department.name }}</h1>
         <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ to_thai_digits(selected_year) if selected_year else current_buddhist_year }}</p>
         <nav class="top-nav">
           <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
-          <a class="nav-link active" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
+          <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
           <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
           {% if staff_logged_in %}
           <a class="nav-link" href="{{ url_for('manage_results') }}">จัดการผลการสอบ</a>
@@ -37,10 +37,6 @@
       </header>
 
       <main class="search-area">
-        <section class="page-intro">
-          <h2>เลือกแผนกที่ต้องการดูสถิติ</h2>
-        </section>
-
         <section class="pass-list-filters">
           <div class="filter-group">
             <label for="year-filter">ปี พ.ศ.</label>
@@ -54,16 +50,19 @@
           </div>
         </section>
 
-        <section class="department-nav">
-          <a href="{{ url_for('staff_statistics_tham', year=selected_year) }}" class="department-card">
-            <h3>📚 แผนกธรรม</h3>
-            <p>ดูสถิติของแผนกธรรม</p>
-          </a>
-          <a href="{{ url_for('staff_statistics_bali', year=selected_year) }}" class="department-card">
-            <h3>📖 แผนกบาลี</h3>
-            <p>ดูสถิติของแผนกบาลี</p>
-          </a>
-        </section>
+        <nav class="subsection-nav">
+          {% for key, sub in department.subsections.items() %}
+            {% if department_key == 'tham' %}
+              <a href="{{ url_for('staff_statistics_tham_subsection', subsection=key, year=selected_year) }}" class="{{ 'active' if key == subsection_key else '' }}">
+                {{ sub.name }}
+              </a>
+            {% else %}
+              <a href="{{ url_for('staff_statistics_bali_subsection', subsection=key, year=selected_year) }}" class="{{ 'active' if key == subsection_key else '' }}">
+                {{ sub.name }}
+              </a>
+            {% endif %}
+          {% endfor %}
+        </nav>
 
         <section class="stats-cards">
           <div class="stat-card">
@@ -73,10 +72,6 @@
           <div class="stat-card">
             <div class="stat-number">{{ statistics.unique_people or 0 }}</div>
             <div class="stat-label">ผู้สมัครที่ไม่ซ้ำกัน</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number">{{ statistics.people_both_departments or 0 }}</div>
-            <div class="stat-label">สมัครทั้งธรรม+บาลี</div>
           </div>
         </section>
 
@@ -144,6 +139,9 @@
 
     <script>
       const statistics = {{ statistics | tojson }};
+      const department = "{{ department_key }}";
+      const subsection = "{{ subsection_key }}";
+      const selectedYear = {{ selected_year }};
     </script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
@@ -151,11 +149,11 @@
         if (!yearFilter) return;
         yearFilter.addEventListener('change', function() {
           const year = yearFilter.value;
-          window.location.href = '{{ url_for("staff_statistics") }}?year=' + encodeURIComponent(year);
+          window.location.href = '{{ url_for("staff_statistics_" ~ department_key ~ "_subsection", subsection=subsection_key) }}?year=' + encodeURIComponent(year);
         });
       });
     </script>
     <script src="{{ static_asset_url('theme.js') }}"></script>
-    <script src="{{ static_asset_url('statistics.js') }}"></script>
+    <script src="{{ static_asset_url('statistics_subsection.js') }}"></script>
   </body>
 </html>

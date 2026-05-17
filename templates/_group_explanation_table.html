@@ -1,0 +1,23 @@
+{% set group_descriptions = group_descriptions if group_descriptions is defined else {} %}
+{% set groups = ['กลุ่ม ๑', 'กลุ่ม ๒', 'กลุ่ม ๓', 'กลุ่ม ๔', 'กลุ่ม ๕', 'กลุ่ม ๖', 'กลุ่ม ๗', 'ไม่ระบุ'] %}
+<section class="group-explanation">
+  <h3>คำอธิบายกลุ่ม</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>กลุ่ม</th>
+        <th>คำอธิบาย</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for group in groups %}
+        {% set desc = group_descriptions.get(group) if group_descriptions else None %}
+        {% set desc_text = desc if desc else '-' %}
+        <tr class="{{ 'alt-row' if loop.index is even else '' }}">
+          <td class="group-name">{{ group }}</td>
+          <td>{{ desc_text|replace(' - ', '<br>- ')|safe }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

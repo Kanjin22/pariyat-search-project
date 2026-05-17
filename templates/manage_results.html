@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>จัดการผลการสอบ ธรรม-บาลี</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
@@ -13,12 +14,14 @@
     <div class="container">
       <header class="main-header">
         <h1>หน้าจัดการผลการสอบ ธรรม-บาลีสนามหลวง</h1>
-        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ current_buddhist_year }}</p>
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ to_thai_digits(selected_year) if selected_year else current_buddhist_year }}</p>
         <nav class="top-nav">
           <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
-          <a class="nav-link active" href="{{ url_for('manage_results') }}">หน้าจัดการผลการสอบ</a>
-          <a class="nav-link" href="{{ url_for('staff_statistics') }}">สถิติ</a>
-          {% if session.staff_logged_in and session.staff_username %}
+          <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
+          <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
+          <a class="nav-link active" href="{{ url_for('manage_results') }}">จัดการผลการสอบ</a>
+          <a class="nav-link" href="{{ url_for('staff_bali_summary') }}">สรุปสถิติบาลี</a>
+          {% if session.staff_username and is_admin(session.staff_username) %}
           <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
           <a class="nav-link" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
           {% endif %}
@@ -35,13 +38,47 @@
           <p>เลือกสถานะผลการสอบสำหรับแต่ละรายการสมัครสอบ แล้วกดบันทึกเป็นรายรายการ</p>
         </section>
 
+        <section class="pass-list-filters">
+          <div class="filter-group">
+            <label for="year-filter">ปี พ.ศ.</label>
+            <select id="year-filter" class="filter-select">
+              {% for year in available_years %}
+                <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>
+                  {{ to_thai_digits(year) }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </section>
+
         <div class="search-box">
           <input type="text" id="result-search-input" placeholder="พิมพ์ชื่อ-ฉายา หรือนามสกุล เพื่อจัดการผลการสอบ..." />
+        </div>
+        
+        <div class="filter-group manage-class-filter">
+          <label for="class-filter">ชั้นเรียน</label>
+          <select id="class-filter" class="filter-select">
+            <option value="">ทุกชั้น</option>
+          </select>
         </div>
 
         <div class="status-legend">
           {% for status in result_status_options %}
-          <span class="status-chip">{{ status }}</span>
+          {% set status_class = 'status-empty' %}
+          {% if status == 'สอบได้' %}
+          {% set status_class = 'status-exam-pass' %}
+          {% elif status == 'สอบตก' %}
+          {% set status_class = 'status-fail' %}
+          {% elif status == 'สอบซ่อมได้' %}
+          {% set status_class = 'status-remedial-pass' %}
+          {% elif status == 'สอบซ่อม' %}
+          {% set status_class = 'status-remedial' %}
+          {% elif status == 'ขาดสอบ' %}
+          {% set status_class = 'status-absent' %}
+          {% elif status == 'ขาดสิทธิ์' %}
+          {% set status_class = 'status-disqualified' %}
+          {% endif %}
+          <span class="status-chip {{ status_class }}">{{ status }}</span>
           {% endfor %}
         </div>
 
@@ -52,8 +89,9 @@
 
     <script>
       window.RESULT_STATUS_OPTIONS = {{ result_status_options | tojson }};
+      window.SELECTED_YEAR = {{ selected_year | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='results_management.js') }}"></script>
+    <script src="{{ static_asset_url('theme.js') }}"></script>
+    <script src="{{ static_asset_url('results_management.js') }}"></script>
   </body>
 </html>

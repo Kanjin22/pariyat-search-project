@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ค้นหารายชื่อผู้สมัครสอบ ธรรม-บาลี</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
@@ -16,14 +17,21 @@
         <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ current_buddhist_year }}</p>
         <nav class="top-nav">
           <a class="nav-link active" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
+          <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
+          <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
           {% if staff_logged_in %}
-          <a class="nav-link" href="{{ url_for('manage_results') }}">หน้าจัดการผลการสอบ</a>
+          <a class="nav-link" href="{{ url_for('manage_results') }}">จัดการผลการสอบ</a>
+          {% if session.staff_username and is_admin(session.staff_username) %}
+          <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
+          <a class="nav-link" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
+          {% endif %}
           <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
             <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
           </form>
           {% else %}
           <a class="nav-link" href="{{ url_for('staff_login', next=url_for('manage_results')) }}">เข้าสู่ระบบเจ้าหน้าที่</a>
           {% endif %}
+          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
         </nav>
       </header>
 
@@ -41,6 +49,7 @@
         <div id="results-container"></div>
       </main>
     </div>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ static_asset_url('theme.js') }}"></script>
+    <script src="{{ static_asset_url('script.js') }}"></script>
   </body>
 </html>

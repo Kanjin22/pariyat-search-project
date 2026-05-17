@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>รายชื่อผู้สอบได้ - ธรรม-บาลี</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container container-wide">
+      <header class="main-header">
+        <h1>รายชื่อผู้สอบได้</h1>
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ to_thai_digits(selected_year) if selected_year else current_buddhist_year }}</p>
+        <nav class="top-nav">
+          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
+          <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
+          <a class="nav-link active" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
+          {% if staff_logged_in %}
+          <a class="nav-link" href="{{ url_for('manage_results') }}">จัดการผลการสอบ</a>
+          {% if session.staff_username and is_admin(session.staff_username) %}
+          <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
+          <a class="nav-link" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
+          {% endif %}
+          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
+            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
+          </form>
+          {% else %}
+          <a class="nav-link" href="{{ url_for('staff_login', next=url_for('manage_results')) }}">เข้าสู่ระบบเจ้าหน้าที่</a>
+          {% endif %}
+          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
+        </nav>
+      </header>
+
+      <main class="search-area">
+        <section class="page-intro">
+          <h2>ค้นหารายชื่อผู้สอบ</h2>
+          <p>เลือกปี, ชั้น, หน่วยงาน, กลุ่ม และสถานะเพื่อแสดงรายชื่อผู้สอบ</p>
+          <p class="page-explanation"><strong>คำอธิบาย:</strong> "กลุ่ม" หมายถึงกลุ่มการเรียน เช่น กลุ่ม ๑-๗ หรือกลุ่มพิเศษ เช่น พระนิสิตปัจจุบันสถาบันธรรมชัย, พระมหาเปรียญธรรม, สามเณรเปรียญธรรม</p>
+        </section>
+
+        <section class="pass-list-filters">
+          <div class="filter-group">
+            <label for="year-filter">ปี พ.ศ.</label>
+            <select id="year-filter" class="filter-select">
+              {% for year in available_years %}
+                <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>
+                  {{ to_thai_digits(year) }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="level-filter">ชั้น</label>
+            <select id="level-filter" class="filter-select">
+              <option value="">ทุกชั้น</option>
+              {% for level in available_levels %}
+                <option value="{{ level }}" {{ 'selected' if selected_level == level else '' }}>
+                  {{ level }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="school-filter">หน่วยงาน</label>
+            <select id="school-filter" class="filter-select">
+              <option value="">ทุกหน่วยงาน</option>
+              {% for school in available_schools %}
+                <option value="{{ school }}" {{ 'selected' if selected_school == school else '' }}>
+                  {{ school }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="group-filter">กลุ่ม</label>
+            <select id="group-filter" class="filter-select">
+              <option value="">ทุกกลุ่ม</option>
+              {% for group in available_groups %}
+                <option value="{{ group }}" {{ 'selected' if selected_group == group else '' }}>
+                  {{ group }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="status-filter">สถานะ</label>
+            <select id="status-filter" class="filter-select">
+              <option value="">ทุกสถานะ</option>
+              {% for status in available_statuses %}
+                <option value="{{ status }}" {{ 'selected' if selected_status == status else '' }}>
+                  {{ status }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="sort-by">เรียงตาม</label>
+            <select id="sort-by" class="filter-select">
+              <option value="ordination" {{ 'selected' if sort_by == 'ordination' else '' }}>วันอุปสมบท</option>
+              <option value="sequence" {{ 'selected' if sort_by == 'sequence' else '' }}>ลำดับ</option>
+              <option value="name" {{ 'selected' if sort_by == 'name' else '' }}>ชื่อ-ฉายา</option>
+              <option value="class_name" {{ 'selected' if sort_by == 'class_name' else '' }}>ชั้น</option>
+              <option value="school_name" {{ 'selected' if sort_by == 'school_name' else '' }}>หน่วยงาน</option>
+              <option value="group_name" {{ 'selected' if sort_by == 'group_name' else '' }}>กลุ่ม</option>
+              <option value="status" {{ 'selected' if sort_by == 'status' else '' }}>สถานะ</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="pass-list-stats">
+          {% if pass_summary %}
+            <div class="pass-list-summary">
+              <h3 class="class-title">สรุปสถิติ {{ pass_summary.class_name }}</h3>
+              <div class="summary-table-wrapper">
+                <table class="summary-table">
+                  <thead>
+                    <tr>
+                      <th>กลุ่ม</th>
+                      <th>ส่งสอบ</th>
+                      <th>คงสอบ</th>
+                      <th>สอบได้</th>
+                      <th>% สอบได้</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for group, group_data in pass_summary.class_data.groups.items() %}
+                      <tr>
+                        <td class="group-name">{{ group }}</td>
+                        <td class="number-cell">{{ group_data.get('ส่งสอบ', 0) }}</td>
+                        <td class="number-cell">{{ group_data.get('คงสอบ', 0) }}</td>
+                        <td class="number-cell pass-cell">{{ group_data.get('สอบได้', 0) }}</td>
+                        <td class="number-cell percentage-cell">
+                          {% if group_data.get('ส่งสอบ', 0) > 0 %}
+                            {{ "%.2f"|format((group_data.get('สอบได้', 0) / group_data.get('ส่งสอบ', 0) * 100)) }}%
+                          {% else %}
+                            -
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                      <td class="group-name"><strong>รวม</strong></td>
+                      <td class="number-cell"><strong>{{ pass_summary.class_data.total.get('ส่งสอบ', 0) }}</strong></td>
+                      <td class="number-cell"><strong>{{ pass_summary.class_data.total.get('คงสอบ', 0) }}</strong></td>
+                      <td class="number-cell pass-cell"><strong>{{ pass_summary.class_data.total.get('สอบได้', 0) }}</strong></td>
+                      <td class="number-cell percentage-cell">
+                        {% if pass_summary.class_data.total.get('ส่งสอบ', 0) > 0 %}
+                          <strong>{{ "%.2f"|format((pass_summary.class_data.total.get('สอบได้', 0) / pass_summary.class_data.total.get('ส่งสอบ', 0) * 100)) }}%</strong>
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% else %}
+            <div class="stat-card pass-stat-card">
+              <div class="stat-number">{{ pass_results|length }}</div>
+              <div class="stat-label">ผู้สอบทั้งหมด</div>
+            </div>
+          {% endif %}
+        </section>
+
+        {% if pass_results %}
+          <div class="pass-list-table-wrapper">
+            <table class="pass-list-table">
+              <thead>
+                <tr>
+                  <th>ลำดับ</th>
+                  <th>ชื่อ-ฉายา (สกุล)</th>
+                  <th>อายุ</th>
+                  <th>พรรษา</th>
+                  <th>ชั้น</th>
+                  <th>หน่วยงาน</th>
+                  <th>กลุ่ม</th>
+                  <th>สถานะ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for result in pass_results %}
+                  <tr>
+                    <td class="number-cell">{{ loop.index }}</td>
+                    <td class="name-cell">
+                      <div>{{ result.name }}</div>
+                      {% if result.exam_name and result.exam_name != result.name %}
+                        <div class="exam-name">ชื่อในปีสอบ: {{ result.exam_name }}</div>
+                      {% endif %}
+                    </td>
+                    <td class="number-cell">{{ result.age }}</td>
+                    <td class="number-cell">{{ result.pansa }}</td>
+                    <td class="level-cell">{{ result.class_name }}</td>
+                    <td class="school-cell">{{ result.school_name }}</td>
+                    <td class="group-cell">{{ result.group_name }}</td>
+                    <td class="status-cell">
+                      {% set status_class = 'status-empty' %}
+                      {% if result.result_status == 'สอบได้' %}
+                        {% set status_class = 'status-exam-pass' %}
+                      {% elif result.result_status == 'สอบตก' %}
+                        {% set status_class = 'status-fail' %}
+                      {% elif result.result_status == 'สอบซ่อมได้' %}
+                        {% set status_class = 'status-remedial-pass' %}
+                      {% elif result.result_status == 'สอบซ่อม' %}
+                        {% set status_class = 'status-remedial' %}
+                      {% elif result.result_status == 'ขาดสอบ' %}
+                        {% set status_class = 'status-absent' %}
+                      {% elif result.result_status == 'ขาดสิทธิ์' %}
+                        {% set status_class = 'status-disqualified' %}
+                      {% endif %}
+                      <span class="pass-status-badge {{ status_class }}">{{ result.result_status or '-' }}</span>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="no-data">
+            <p>ไม่พบรายชื่อผู้สอบ</p>
+          </div>
+        {% endif %}
+        
+        {% include "_group_explanation_table.html" %}
+      </main>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const yearFilter = document.getElementById('year-filter');
+        const levelFilter = document.getElementById('level-filter');
+        const schoolFilter = document.getElementById('school-filter');
+        const groupFilter = document.getElementById('group-filter');
+        const statusFilter = document.getElementById('status-filter');
+        const sortBySelect = document.getElementById('sort-by');
+        
+        function updateFilters() {
+          const year = yearFilter.value;
+          const level = levelFilter.value;
+          const school = schoolFilter.value;
+          const group = groupFilter.value;
+          const status = statusFilter.value;
+          const sortBy = sortBySelect.value;
+          
+          let url = '{{ url_for("pass_list") }}?year=' + encodeURIComponent(year);
+          if (level) {
+            url += '&level=' + encodeURIComponent(level);
+          }
+          if (school) {
+            url += '&school=' + encodeURIComponent(school);
+          }
+          if (group) {
+            url += '&group=' + encodeURIComponent(group);
+          }
+          if (status) {
+            url += '&status=' + encodeURIComponent(status);
+          }
+          if (sortBy) {
+            url += '&sort_by=' + encodeURIComponent(sortBy);
+          }
+          
+          window.location.href = url;
+        }
+        
+        yearFilter.addEventListener('change', updateFilters);
+        levelFilter.addEventListener('change', updateFilters);
+        schoolFilter.addEventListener('change', updateFilters);
+        groupFilter.addEventListener('change', updateFilters);
+        statusFilter.addEventListener('change', updateFilters);
+        sortBySelect.addEventListener('change', updateFilters);
+      });
+    </script>
+    <script src="{{ static_asset_url('theme.js') }}"></script>
+  </body>
+</html>

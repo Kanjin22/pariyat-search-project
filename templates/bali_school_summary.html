@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>สรุปสถิติบาลี (แยกหน่วยงาน) - ธรรม-บาลี</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>สรุปสถิติบาลี (แยกหน่วยงาน)</h1>
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ to_thai_digits(selected_year) if selected_year else current_buddhist_year }}</p>
+        <nav class="top-nav">
+          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
+          <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
+          <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
+          {% if staff_logged_in %}
+          <a class="nav-link" href="{{ url_for('manage_results') }}">จัดการผลการสอบ</a>
+          <a class="nav-link active" href="{{ url_for('staff_bali_school_summary') }}">สรุปสถิติบาลี (แยกหน่วยงาน)</a>
+          {% if session.staff_username and is_admin(session.staff_username) %}
+          <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
+          <a class="nav-link" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
+          {% endif %}
+          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
+            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
+          </form>
+          {% else %}
+          <a class="nav-link active" href="{{ url_for('staff_bali_school_summary') }}">สรุปสถิติบาลี (แยกหน่วยงาน)</a>
+          <a class="nav-link" href="{{ url_for('staff_login', next=url_for('manage_results')) }}">เข้าสู่ระบบเจ้าหน้าที่</a>
+          {% endif %}
+          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
+        </nav>
+      </header>
+
+      <main class="search-area">
+        <section class="pass-list-filters">
+          <div class="filter-group">
+            <label for="year-filter">ปี พ.ศ.</label>
+            <select id="year-filter" class="filter-select">
+              {% for year in available_years %}
+                <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>
+                  {{ to_thai_digits(year) }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </section>
+
+        {% if summary %}
+          {% for class_name, class_data in summary.classes.items() %}
+            <section class="summary-class-section">
+              <h3 class="class-title">{{ class_name }}</h3>
+              <div class="summary-table-wrapper">
+                <table class="summary-table">
+                  <thead>
+                    <tr>
+                      <th>หน่วยงาน</th>
+                      <th>ส่งสอบ</th>
+                      <th>คงสอบ</th>
+                      <th>สอบได้</th>
+                      <th>% สอบได้</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for unit_data in class_data.units %}
+                      <tr>
+                        <td class="group-name">{{ unit_data.name }}</td>
+                        <td class="number-cell">{{ unit_data.get('ส่งสอบ', 0) }}</td>
+                        <td class="number-cell">{{ unit_data.get('คงสอบ', 0) }}</td>
+                        <td class="number-cell pass-cell">{{ unit_data.get('สอบได้', 0) }}</td>
+                        <td class="number-cell percentage-cell">
+                          {% if unit_data.get('ส่งสอบ', 0) > 0 %}
+                            {{ "%.2f"|format((unit_data.get('สอบได้', 0) / unit_data.get('ส่งสอบ', 0) * 100)) }}%
+                          {% else %}
+                            -
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                      <td class="group-name"><strong>รวม</strong></td>
+                      <td class="number-cell"><strong>{{ class_data.total.get('ส่งสอบ', 0) }}</strong></td>
+                      <td class="number-cell"><strong>{{ class_data.total.get('คงสอบ', 0) }}</strong></td>
+                      <td class="number-cell pass-cell"><strong>{{ class_data.total.get('สอบได้', 0) }}</strong></td>
+                      <td class="number-cell percentage-cell">
+                        {% if class_data.total.get('ส่งสอบ', 0) > 0 %}
+                          <strong>{{ "%.2f"|format((class_data.total.get('สอบได้', 0) / class_data.total.get('ส่งสอบ', 0) * 100)) }}%</strong>
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          {% endfor %}
+
+          <section class="summary-grand-total">
+            <h3 class="class-title">รวมทุกชั้น</h3>
+            <div class="summary-table-wrapper">
+              <table class="summary-table">
+                <thead>
+                  <tr>
+                    <th>หน่วยงาน</th>
+                    <th>ส่งสอบ</th>
+                    <th>คงสอบ</th>
+                    <th>สอบได้</th>
+                    <th>% สอบได้</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for unit_data in summary.grand_total.units %}
+                    <tr>
+                      <td class="group-name">{{ unit_data.name }}</td>
+                      <td class="number-cell">{{ unit_data.get('ส่งสอบ', 0) }}</td>
+                      <td class="number-cell">{{ unit_data.get('คงสอบ', 0) }}</td>
+                      <td class="number-cell pass-cell">{{ unit_data.get('สอบได้', 0) }}</td>
+                      <td class="number-cell percentage-cell">
+                        {% if unit_data.get('ส่งสอบ', 0) > 0 %}
+                          {{ "%.2f"|format((unit_data.get('สอบได้', 0) / unit_data.get('ส่งสอบ', 0) * 100)) }}%
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                  <tr class="total-row">
+                    <td class="group-name"><strong>รวมทุกหน่วยงาน</strong></td>
+                    <td class="number-cell"><strong>{{ summary.grand_total.total.get('ส่งสอบ', 0) }}</strong></td>
+                    <td class="number-cell"><strong>{{ summary.grand_total.total.get('คงสอบ', 0) }}</strong></td>
+                    <td class="number-cell pass-cell"><strong>{{ summary.grand_total.total.get('สอบได้', 0) }}</strong></td>
+                    <td class="number-cell percentage-cell">
+                      {% if summary.grand_total.total.get('ส่งสอบ', 0) > 0 %}
+                        <strong>{{ "%.2f"|format((summary.grand_total.total.get('สอบได้', 0) / summary.grand_total.total.get('ส่งสอบ', 0) * 100)) }}%</strong>
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        {% else %}
+          <div class="no-data">
+            <p>ไม่พบข้อมูลสรุปสถิติบาลี</p>
+          </div>
+        {% endif %}
+      </main>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const yearFilter = document.getElementById('year-filter');
+        if (!yearFilter) return;
+        yearFilter.addEventListener('change', function() {
+          const year = yearFilter.value;
+          window.location.href = '{{ url_for("staff_bali_school_summary") }}?year=' + encodeURIComponent(year);
+        });
+      });
+    </script>
+    <script src="{{ static_asset_url('theme.js') }}"></script>
+  </body>
+</html>

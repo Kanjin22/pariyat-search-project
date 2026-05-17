@@ -1,9 +1,40 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const searchInput = document.getElementById('result-search-input');
+    const classFilter = document.getElementById('class-filter');
+    const yearFilter = document.getElementById('year-filter');
     const resultsContainer = document.getElementById('result-management-container');
     const messageBox = document.getElementById('result-message');
     const statusOptions = Array.isArray(window.RESULT_STATUS_OPTIONS) ? window.RESULT_STATUS_OPTIONS : [];
     const loginUrl = '/staff/login?next=%2Fmanage-results';
+    const selectedYear = String(window.SELECTED_YEAR ?? '').trim();
+
+    if (yearFilter) {
+        yearFilter.addEventListener('change', () => {
+            const year = yearFilter.value;
+            window.location.href = `/manage-results?year=${encodeURIComponent(year)}`;
+        });
+    }
+
+    const loadClasses = async () => {
+        try {
+            const response = await fetch(`/get_classes?year=${encodeURIComponent(selectedYear)}`);
+            if (response.status === 401) {
+                window.location.href = loginUrl;
+                return;
+            }
+            const classes = await response.json();
+            classes.forEach((className) => {
+                const option = document.createElement('option');
+                option.value = className;
+                option.textContent = className;
+                classFilter.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Failed to load classes:', error);
+        }
+    };
+    
+    await loadClasses();
 
     const escapeHtml = (value) => String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -11,6 +42,25 @@ document.addEventListener('DOMContentLoaded', () => {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+
+    const getStatusBadgeClass = (status) => {
+        switch (status) {
+        case 'สอบได้':
+            return 'status-exam-pass';
+        case 'สอบตก':
+            return 'status-fail';
+        case 'สอบซ่อมได้':
+            return 'status-remedial-pass';
+        case 'สอบซ่อม':
+            return 'status-remedial';
+        case 'ขาดสอบ':
+            return 'status-absent';
+        case 'ขาดสิทธิ์':
+            return 'status-disqualified';
+        default:
+            return 'status-empty';
+        }
+    };
 
     const showMessage = (message, isError = false) => {
         messageBox.textContent = message;
@@ -47,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span>สมัครสอบ ${escapeHtml(registration.class_name)}</span>
                             <span class="status-note">(${escapeHtml(registration.reg_status)})</span>
                         </div>
-                        ${registration.exam_result_status ? `<span class="saved-badge">${escapeHtml(registration.exam_result_status)}</span>` : ''}
+                        ${registration.exam_result_status ? `<span class="saved-badge ${getStatusBadgeClass(registration.exam_result_status)}">${escapeHtml(registration.exam_result_status)}</span>` : ''}
                     </div>
                     <div class="result-manage-actions">
                         <select class="result-status-select" data-registration-key="${encodedRegistrationKey}">
@@ -66,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="header">
                     <h3>${escapeHtml(person.name)}</h3>
                     <div class="person-subtitle">
+                        ${person.exam_name && person.exam_name !== person.name ? `<span>ชื่อในปีสอบ ${escapeHtml(person.exam_name)}</span>` : ''}
                         <span>อายุ/พรรษา ${escapeHtml(person.age_pansa || '-')}</span>
                         <span>สังกัด ${escapeHtml(person.school_name || '-')}</span>
                         <span>กลุ่ม ${escapeHtml(person.group_name || '-')}</span>
@@ -97,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
+                            year: selectedYear,
                             registration_key: registrationKey,
                             exam_result_status: examResultStatus
                         })
@@ -138,18 +190,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (existingBadge) {
             existingBadge.textContent = examResultStatus;
+            existingBadge.className = `saved-badge ${getStatusBadgeClass(examResultStatus)}`;
             return;
         }
 
         const header = item.querySelector('.result-manage-head');
         if (header) {
-            header.insertAdjacentHTML('beforeend', `<span class="saved-badge">${escapeHtml(examResultStatus)}</span>`);
+            header.insertAdjacentHTML('beforeend', `<span class="saved-badge ${getStatusBadgeClass(examResultStatus)}">${escapeHtml(examResultStatus)}</span>`);
         }
     };
 
     const searchResults = async (query) => {
         try {
-            const response = await fetch(`/search_exam_results?q=${encodeURIComponent(query)}`);
+            const selectedClass = classFilter.value;
+            let url = '/search_exam_results';
+            const params = new URLSearchParams();
+            if (selectedYear) {
+                params.append('year', selectedYear);
+            }
+            if (query) {
+                params.append('q', query);
+            }
+            if (selectedClass) {
+                params.append('class', selectedClass);
+            }
+            if (params.toString()) {
+                url += '?' + params.toString();
+            }
+            const response = await fetch(url);
             if (response.status === 401) {
                 window.location.href = loginUrl;
                 return;
@@ -162,17 +230,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    searchInput.addEventListener('input', async (event) => {
-        const query = event.target.value.trim();
+    const performSearch = async () => {
+        const query = searchInput.value.trim();
+        const selectedClass = classFilter.value;
         clearMessage();
 
-        if (query.length < 2) {
+        if (!query && !selectedClass) {
+            resultsContainer.innerHTML = '<p class="empty-state">พิมพ์ชื่อหรือเลือกชั้นเพื่อค้นหารายชื่อ</p>';
+            return;
+        }
+
+        if (query && query.length < 2 && !selectedClass) {
             resultsContainer.innerHTML = '<p class="empty-state">พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหารายชื่อ</p>';
             return;
         }
 
         await searchResults(query);
-    });
+    };
 
-    resultsContainer.innerHTML = '<p class="empty-state">พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหารายชื่อ</p>';
+    searchInput.addEventListener('input', performSearch);
+    classFilter.addEventListener('change', performSearch);
+
+    resultsContainer.innerHTML = '<p class="empty-state">พิมพ์ชื่อหรือเลือกชั้นเพื่อค้นหารายชื่อ</p>';
 });

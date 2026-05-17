@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     
                     ${hasCertToShow ? `
-                    <div class="details-reg" id="details-reg-${personIndex}-${regIndex}" style="display: none;">
+                    <div class="details-reg hidden" id="details-reg-${personIndex}-${regIndex}">
                         <strong>เลขประกาศนียบัตรเดิม:</strong><br>
                         <div class="cert-details">
                             ${nugdhamLine}
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h3>${person.name}</h3>
                     <button class="details-btn" data-target="details-${personIndex}">[ v ดูรายละเอียดเพิ่มเติม ]</button>
                 </div>
-                <div class="details" id="details-${personIndex}" style="display: none;">
+                <div class="details hidden" id="details-${personIndex}">
                     <strong>ข้อมูลส่วนตัว:</strong><br>
                     <div class="details-content">
                         - อายุ: ${person.age_pansa.split('/')[0] || '-'}<br>
@@ -105,9 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
             button.addEventListener('click', () => {
                 const targetId = button.dataset.target;
                 const targetElement = document.getElementById(targetId);
-                const isVisible = targetElement.style.display === 'block';
+                const isVisible = !targetElement.classList.contains('hidden');
 
-                targetElement.style.display = isVisible ? 'none' : 'block';
+                targetElement.classList.toggle('hidden');
                 if (button.classList.contains('details-btn')) {
                     button.textContent = isVisible ? '[ v ดูรายละเอียดเพิ่มเติม ]' : '[ ^ ซ่อนรายละเอียด ]';
                 } else {

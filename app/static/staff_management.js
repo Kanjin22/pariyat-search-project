@@ -104,7 +104,7 @@ function renderStaffList() {
         return `
             <div class="staff-card" data-username="${escapeHtml(account.username)}">
                 <div class="staff-card-header">
-                    <div style="display: flex; align-items: center; flex-wrap: wrap;">
+                    <div class="staff-card-name-container">
                         <h3>${escapeHtml(account.full_name || account.username)}</h3>
                         <span class="role-badge ${role}">${role === 'admin' ? 'Admin' : 'Staff'}</span>
                     </div>

@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>จัดการเจ้าหน้าที่ ธรรม-บาลี</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
@@ -62,7 +63,7 @@
         <div id="staff-message" class="save-message" aria-live="polite"></div>
 
         <section class="staff-list-section">
-          <h2 style="margin-top: 30px; color: #003366;">รายชื่อเจ้าหน้าที่ทั้งหมด</h2>
+          <h2 class="staff-section-title">รายชื่อเจ้าหน้าที่ทั้งหมด</h2>
           <div id="staff-list-container"></div>
         </section>
       </main>
@@ -71,7 +72,7 @@
     <script>
       window.currentStaffUsername = {{ session.staff_username | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='staff_management.js') }}"></script>
+    <script src="{{ static_asset_url('theme.js') }}"></script>
+    <script src="{{ static_asset_url('staff_management.js') }}"></script>
   </body>
 </html>
