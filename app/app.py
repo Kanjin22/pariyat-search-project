@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from functools import wraps
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for, Response
 import pandas as pd
 from datetime import datetime, timedelta
 import pytz
@@ -81,6 +81,11 @@ DEPARTMENT_LEVELS = {
         }
     }
 }
+
+
+@app.route('/@vite/client')
+def vite_client_stub():
+    return Response('', status=204, mimetype='application/javascript')
 
 
 def to_thai_digits(text):
