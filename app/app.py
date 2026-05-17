@@ -1677,14 +1677,12 @@ def api_delete_staff(username):
 
 
 @app.route('/api/statistics', methods=['GET'])
-@staff_login_required(api=True)
 def api_get_statistics():
     selected_year = get_selected_year()
     return jsonify({'success': True, 'statistics': get_statistics(year=selected_year)})
 
 
 @app.route('/api/statistics/<department>/<subsection>', methods=['GET'])
-@staff_login_required(api=True)
 def api_get_department_statistics(department, subsection):
     if department not in DEPARTMENT_LEVELS:
         return jsonify({'success': False, 'message': 'Invalid department'}), 400
