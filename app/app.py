@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import sqlite3
+import uuid
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, Response
 import pandas as pd
@@ -33,6 +35,10 @@ RESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')
 STAFF_ACCOUNTS_FILE = os.path.join(RESULTS_DATA_DIR, 'staff_accounts.json')
 BALI_SUMMARY_FILE = os.path.join(RESULTS_DATA_DIR, 'bali_summary_2569.json')
 API_SNAPSHOT_MAX_AGE_HOURS = int(os.getenv('API_SNAPSHOT_MAX_AGE_HOURS', '24') or 24)
+ANALYTICS_DB_FILE = os.path.join(RESULTS_DATA_DIR, 'analytics.sqlite3')
+VISITOR_COOKIE_NAME = 'ps_vid'
+VISITOR_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 5
+VISITOR_COUNTER_CACHE = {'ts': None, 'date': None, 'data': None}
 
 bali_summary_data = None
 LOGIN_ATTEMPTS_FILE = os.path.join(RESULTS_DATA_DIR, 'login_attempts.json')
@@ -86,6 +92,136 @@ DEPARTMENT_LEVELS = {
 @app.route('/@vite/client')
 def vite_client_stub():
     return Response('', status=204, mimetype='application/javascript')
+
+
+def get_bangkok_now():
+    timezone = pytz.timezone('Asia/Bangkok')
+    return datetime.now(timezone)
+
+
+def get_today_date_key():
+    return get_bangkok_now().date().isoformat()
+
+
+def ensure_analytics_db():
+    os.makedirs(RESULTS_DATA_DIR, exist_ok=True)
+    conn = sqlite3.connect(ANALYTICS_DB_FILE, timeout=10)
+    try:
+        conn.execute('PRAGMA journal_mode=WAL')
+        conn.execute('PRAGMA synchronous=NORMAL')
+        conn.execute('CREATE TABLE IF NOT EXISTS totals (key TEXT PRIMARY KEY, value INTEGER NOT NULL)')
+        conn.execute('CREATE TABLE IF NOT EXISTS all_seen (visitor_id TEXT PRIMARY KEY, first_seen TEXT NOT NULL)')
+        conn.execute('CREATE TABLE IF NOT EXISTS daily_seen (date TEXT NOT NULL, visitor_id TEXT NOT NULL, PRIMARY KEY(date, visitor_id))')
+        conn.execute('CREATE TABLE IF NOT EXISTS daily_stats (date TEXT PRIMARY KEY, pageviews INTEGER NOT NULL, unique_visitors INTEGER NOT NULL)')
+        conn.execute("INSERT OR IGNORE INTO totals(key, value) VALUES ('total_pageviews', 0)")
+        conn.execute("INSERT OR IGNORE INTO totals(key, value) VALUES ('total_unique_visitors', 0)")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def should_count_request(response):
+    if request.method != 'GET':
+        return False
+    if response.status_code != 200:
+        return False
+    if not (response.mimetype or '').startswith('text/html'):
+        return False
+    path = request.path or ''
+    if path.startswith('/static') or path.startswith('/api') or path.startswith('/@vite'):
+        return False
+    agent = (request.headers.get('User-Agent') or '').lower()
+    bot_keywords = ['bot', 'spider', 'crawl', 'slackbot', 'facebookexternalhit', 'whatsapp', 'telegrambot', 'preview']
+    if any(keyword in agent for keyword in bot_keywords):
+        return False
+    return True
+
+
+def record_visit(visitor_id):
+    ensure_analytics_db()
+    today = get_today_date_key()
+    now_iso = get_bangkok_now().isoformat()
+
+    conn = sqlite3.connect(ANALYTICS_DB_FILE, timeout=10)
+    try:
+        conn.execute('PRAGMA journal_mode=WAL')
+        conn.execute('PRAGMA synchronous=NORMAL')
+        cur = conn.cursor()
+        cur.execute('BEGIN IMMEDIATE')
+        cur.execute("UPDATE totals SET value = value + 1 WHERE key = 'total_pageviews'")
+        cur.execute(
+            "INSERT INTO daily_stats(date, pageviews, unique_visitors) VALUES (?, 1, 0) "
+            "ON CONFLICT(date) DO UPDATE SET pageviews = pageviews + 1",
+            (today,)
+        )
+        cur.execute("INSERT OR IGNORE INTO daily_seen(date, visitor_id) VALUES (?, ?)", (today, visitor_id))
+        if cur.rowcount == 1:
+            cur.execute("UPDATE daily_stats SET unique_visitors = unique_visitors + 1 WHERE date = ?", (today,))
+        cur.execute("INSERT OR IGNORE INTO all_seen(visitor_id, first_seen) VALUES (?, ?)", (visitor_id, now_iso))
+        if cur.rowcount == 1:
+            cur.execute("UPDATE totals SET value = value + 1 WHERE key = 'total_unique_visitors'")
+        conn.commit()
+    finally:
+        conn.close()
+    VISITOR_COUNTER_CACHE['ts'] = None
+
+
+def get_visitor_counts():
+    today = get_today_date_key()
+    cache_ts = VISITOR_COUNTER_CACHE.get('ts')
+    if cache_ts and VISITOR_COUNTER_CACHE.get('date') == today:
+        age_seconds = (get_bangkok_now() - cache_ts).total_seconds()
+        if age_seconds < 30 and isinstance(VISITOR_COUNTER_CACHE.get('data'), dict):
+            return VISITOR_COUNTER_CACHE['data']
+
+    ensure_analytics_db()
+    conn = sqlite3.connect(ANALYTICS_DB_FILE, timeout=10)
+    try:
+        conn.execute('PRAGMA journal_mode=WAL')
+        cur = conn.cursor()
+        cur.execute("SELECT value FROM totals WHERE key = 'total_unique_visitors'")
+        total_unique = int((cur.fetchone() or [0])[0] or 0)
+        cur.execute("SELECT value FROM totals WHERE key = 'total_pageviews'")
+        total_pageviews = int((cur.fetchone() or [0])[0] or 0)
+        cur.execute("SELECT unique_visitors FROM daily_stats WHERE date = ?", (today,))
+        row = cur.fetchone()
+        today_unique = int(row[0] or 0) if row else 0
+    finally:
+        conn.close()
+
+    data = {
+        'visitors_today': today_unique,
+        'total_unique_visitors': total_unique,
+        'total_pageviews': total_pageviews
+    }
+    VISITOR_COUNTER_CACHE['ts'] = get_bangkok_now()
+    VISITOR_COUNTER_CACHE['date'] = today
+    VISITOR_COUNTER_CACHE['data'] = data
+    return data
+
+
+@app.after_request
+def track_visitors(response):
+    visitor_id = request.cookies.get(VISITOR_COOKIE_NAME)
+    new_visitor_id = None
+    if not visitor_id:
+        new_visitor_id = uuid.uuid4().hex
+        visitor_id = new_visitor_id
+
+    if visitor_id and should_count_request(response):
+        try:
+            record_visit(visitor_id)
+        except Exception:
+            logging.exception('visitor analytics error')
+
+    if new_visitor_id:
+        response.set_cookie(
+            VISITOR_COOKIE_NAME,
+            new_visitor_id,
+            max_age=VISITOR_COOKIE_MAX_AGE_SECONDS,
+            samesite='Lax'
+        )
+    return response
 
 
 def to_thai_digits(text):
@@ -688,7 +824,8 @@ def inject_auth_state():
         'is_admin': is_admin,
         'static_asset_url': static_asset_url,
         'group_descriptions': group_descriptions,
-        'to_thai_digits': to_thai_digits
+        'to_thai_digits': to_thai_digits,
+        'visitor_counter': get_visitor_counts()
     }
 
 
