@@ -68,6 +68,24 @@
             </div>
           </section>
 
+          <section class="pass-list-filters">
+            <div class="filter-group">
+              <label for="mode-input">โหมดไฟล์</label>
+              <select id="mode-input" name="import_mode" class="filter-select">
+                <option value="normal" {{ 'selected' if selected_import_mode == 'normal' else '' }}>ปกติ (มีผลสอบในไฟล์)</option>
+                <option value="list_only" {{ 'selected' if selected_import_mode == 'list_only' else '' }}>รายชื่ออย่างเดียว (กำหนดสถานะให้ทั้งหมด)</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="fixed-status-input">สถานะ (ใช้เมื่อเป็นโหมดรายชื่ออย่างเดียว)</label>
+              <select id="fixed-status-input" name="fixed_status" class="filter-select">
+                {% for status in fixed_status_options %}
+                  <option value="{{ status }}" {{ 'selected' if selected_fixed_status == status else '' }}>{{ status }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </section>
+
           <div class="filter-group">
             <label for="file-input">ไฟล์ Excel (.xlsx)</label>
             <input id="file-input" class="form-input" type="file" name="excel_file" accept=".xlsx" required />

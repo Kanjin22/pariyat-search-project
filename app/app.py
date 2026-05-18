@@ -2281,7 +2281,28 @@ def excel_build_display_name(row):
         return f'{first_name} {last_name}'
     if first_name and pali_name:
         return f'{first_name} {pali_name}'
-    return first_name
+    if first_name:
+        return first_name
+
+    fallback_columns = [
+        'ชื่อ-ฉายา (สกุล)',
+        'ชื่อ-ฉายา(สกุล)',
+        'ชื่อ-ฉายา',
+        'ชื่อฉายา',
+        'ชื่อ-นามสกุล',
+        'display_name',
+        'ชื่อ',
+    ]
+    for col in fallback_columns:
+        if col in row.index:
+            value = excel_normalize_text(row.get(col))
+            if value:
+                return value
+    if len(row.index) == 1:
+        value = excel_normalize_text(row.iloc[0])
+        if value:
+            return value
+    return ''
 
 
 def excel_resolve_sheet_status(row):
@@ -2387,6 +2408,7 @@ def staff_import_excel():
     if year_value not in available_years:
         available_years.append(year_value)
         available_years = sorted(available_years)
+    fixed_status_options = ['สอบได้', 'ขาดสอบ', 'สอบซ่อม', 'สอบซ่อมได้']
     return render_template(
         'import_excel.html',
         current_buddhist_year=current_year_thai,
@@ -2394,7 +2416,10 @@ def staff_import_excel():
         selected_year=year_value,
         available_years=available_years,
         available_classes=CLASS_NAME_ORDER,
-        default_sheet=''
+        default_sheet='',
+        fixed_status_options=fixed_status_options,
+        selected_import_mode='normal',
+        selected_fixed_status='สอบได้'
     )
 
 
@@ -2404,11 +2429,14 @@ def staff_import_excel_preview():
     year_value = normalize_year_value(request.form.get('year')) or get_selected_year()
     class_name = str(request.form.get('class_name') or '').strip()
     sheet_name = str(request.form.get('sheet_name') or '').strip()
+    import_mode = str(request.form.get('import_mode') or 'normal').strip() or 'normal'
+    fixed_status = str(request.form.get('fixed_status') or 'สอบได้').strip() or 'สอบได้'
     current_year_thai = get_current_buddhist_year(numeric=False)
     available_years = list_available_years()
     if year_value not in available_years:
         available_years.append(year_value)
         available_years = sorted(available_years)
+    fixed_status_options = ['สอบได้', 'ขาดสอบ', 'สอบซ่อม', 'สอบซ่อมได้']
 
     def render_error(message):
         return render_template(
@@ -2421,6 +2449,9 @@ def staff_import_excel_preview():
             selected_class=class_name,
             selected_sheet=sheet_name,
             default_sheet='',
+            fixed_status_options=fixed_status_options,
+            selected_import_mode=import_mode,
+            selected_fixed_status=fixed_status,
             error_message=message
         )
 
@@ -2434,6 +2465,10 @@ def staff_import_excel_preview():
         return render_error('ชั้นเรียนไม่ถูกต้อง'), 400
     if not sheet_name:
         return render_error('กรุณาระบุชื่อชีทในไฟล์'), 400
+    if import_mode not in {'normal', 'list_only'}:
+        return render_error('โหมดไฟล์ไม่ถูกต้อง'), 400
+    if import_mode == 'list_only' and fixed_status not in fixed_status_options:
+        return render_error('สถานะที่เลือกไม่ถูกต้อง'), 400
 
     token = uuid.uuid4().hex
     temp_dir = os.path.join(RESULTS_DATA_DIR, 'tmp_uploads')
@@ -2459,7 +2494,10 @@ def staff_import_excel_preview():
         return render_error('ชีทนี้ไม่มีข้อมูล'), 400
 
     excel_df['display_name'] = excel_df.apply(excel_build_display_name, axis=1)
-    excel_df['resolved_result'] = excel_df.apply(excel_resolve_sheet_status, axis=1)
+    if import_mode == 'list_only':
+        excel_df['resolved_result'] = fixed_status
+    else:
+        excel_df['resolved_result'] = excel_df.apply(excel_resolve_sheet_status, axis=1)
 
     unknown_statuses = sorted(
         {
@@ -2560,6 +2598,8 @@ def staff_import_excel_preview():
         'class_name': class_name,
         'sheet_name': sheet_name,
         'filename': filename,
+        'import_mode': import_mode,
+        'fixed_status': fixed_status if import_mode == 'list_only' else '',
         'total_rows': int(len(excel_df)),
         'matched_rows': int(len(updates)),
         'pending_rows': int(len(pending_items)),

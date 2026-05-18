@@ -32,6 +32,9 @@
         <section class="page-intro">
           <h2>สรุปพรีวิว</h2>
           <p>ไฟล์: {{ preview.filename }} | ชั้น: {{ preview.class_name }} | ชีท: {{ preview.sheet_name }}</p>
+          {% if preview.import_mode == 'list_only' %}
+          <p>โหมด: รายชื่ออย่างเดียว | สถานะที่ใช้: {{ preview.fixed_status }}</p>
+          {% endif %}
         </section>
 
         <div class="data-info-section">
