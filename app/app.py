@@ -700,13 +700,12 @@ def get_statistics(level_ids=None, year=None):
         total_sent = 0
         total_active = 0
         total_pass = 0
-        total_fail = 0
         for class_name in ordered_classes:
             class_df = filtered_df[filtered_df['class_name'] == class_name]
             sent_count = len(class_df)
             active_count = len(class_df[~class_df['exam_result_status'].isin(PASS_SUMMARY_ABSENT_STATUSES)])
             pass_count = len(class_df[class_df['exam_result_status'].isin(PASS_SUMMARY_PASS_STATUSES)])
-            fail_count = len(class_df[class_df['exam_result_status'] == 'สอบตก'])
+            fail_count = max(int(active_count) - int(pass_count), 0)
             pass_rate = (pass_count / sent_count * 100) if sent_count > 0 else None
             summary_rows.append({
                 'class_name': class_name,
@@ -719,14 +718,13 @@ def get_statistics(level_ids=None, year=None):
             total_sent += sent_count
             total_active += active_count
             total_pass += pass_count
-            total_fail += fail_count
 
         stats['pass_summary'] = {
             'rows': summary_rows,
             'total': {
                 'sent': int(total_sent),
                 'active': int(total_active),
-                'fail': int(total_fail),
+                'fail': max(int(total_active) - int(total_pass), 0),
                 'pass': int(total_pass),
                 'pass_rate': (total_pass / total_sent * 100) if total_sent > 0 else None
             }
@@ -918,14 +916,13 @@ def build_pass_summary(summary_df, class_name):
     total_sent = 0
     total_active = 0
     total_pass = 0
-    total_fail = 0
 
     for group_name in PASS_SUMMARY_GROUP_ORDER:
         group_df = summary_df[summary_df['summary_group'] == group_name]
         sent_count = len(group_df)
         active_count = len(group_df[~group_df['exam_result_status'].isin(PASS_SUMMARY_ABSENT_STATUSES)])
         pass_count = len(group_df[group_df['exam_result_status'].isin(PASS_SUMMARY_PASS_STATUSES)])
-        fail_count = len(group_df[group_df['exam_result_status'] == 'สอบตก'])
+        fail_count = max(int(active_count) - int(pass_count), 0)
 
         group_rows[group_name] = {
             'ส่งสอบ': int(sent_count),
@@ -936,7 +933,6 @@ def build_pass_summary(summary_df, class_name):
         total_sent += sent_count
         total_active += active_count
         total_pass += pass_count
-        total_fail += fail_count
 
     return {
         'class_name': class_name,
@@ -945,7 +941,7 @@ def build_pass_summary(summary_df, class_name):
             'total': {
                 'ส่งสอบ': int(total_sent),
                 'คงสอบ': int(total_active),
-                'สอบตก': int(total_fail),
+                'สอบตก': max(int(total_active) - int(total_pass), 0),
                 'สอบได้': int(total_pass)
             }
         }
