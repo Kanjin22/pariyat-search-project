@@ -37,6 +37,10 @@ RESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')
 STAFF_ACCOUNTS_FILE = os.path.join(RESULTS_DATA_DIR, 'staff_accounts.json')
 BALI_SUMMARY_FILE = os.path.join(RESULTS_DATA_DIR, 'bali_summary_2569.json')
 API_SNAPSHOT_MAX_AGE_HOURS = int(os.getenv('API_SNAPSHOT_MAX_AGE_HOURS', '24') or 24)
+try:
+    API_SNAPSHOT_LOCK_MAX_YEAR = int((os.getenv('API_SNAPSHOT_LOCK_MAX_YEAR') or '').strip() or 0) or None
+except ValueError:
+    API_SNAPSHOT_LOCK_MAX_YEAR = None
 ANALYTICS_DB_FILE = os.path.join(RESULTS_DATA_DIR, 'analytics.sqlite3')
 VISITOR_COOKIE_NAME = 'ps_vid'
 VISITOR_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 5
@@ -1243,19 +1247,21 @@ def load_data_from_api(year=None, store_global=True, force_refresh=False):
     target_year_numeric = int(year or CURRENT_YEAR_NUMERIC)
     PARAMS = {'user': API_USER, 'pass': API_PASS, 'filter_year': target_year_numeric}
     runtime_current_year = get_runtime_current_year_numeric()
+    snapshot_lock_max_year = API_SNAPSHOT_LOCK_MAX_YEAR
+    locked_year = (snapshot_lock_max_year is not None and target_year_numeric <= snapshot_lock_max_year) or (target_year_numeric < runtime_current_year)
     
     try:
         snapshot = None
-        if not force_refresh or target_year_numeric < runtime_current_year:
+        if locked_year or not force_refresh:
             snapshot = load_api_snapshot(target_year_numeric)
             if snapshot:
-                if target_year_numeric < runtime_current_year or is_snapshot_fresh(snapshot):
+                if locked_year or is_snapshot_fresh(snapshot):
                     result_df = build_processed_df_from_api_rows(snapshot.get('data') or [], target_year_numeric, store_global)
                     print(f"--- [SUCCESS] Data loaded from snapshot (fresh). Final records: {len(result_df)}")
                     return result_df
 
-        if target_year_numeric < runtime_current_year and snapshot:
-            raise RuntimeError('Past year snapshot is locked; not refreshing from API')
+        if locked_year and snapshot:
+            raise RuntimeError('Snapshot is locked for this year; not refreshing from API')
 
         if not API_USER or not API_PASS:
             raise RuntimeError('Missing PARIYAT_API_USER or PARIYAT_API_PASS')
@@ -1285,7 +1291,7 @@ def load_data_from_api(year=None, store_global=True, force_refresh=False):
 def get_df_for_year(year):
     year_value = normalize_year_value(year) or CURRENT_YEAR_NUMERIC
     if year_value in DF_CACHE:
-        if int(year_value) < int(get_runtime_current_year_numeric()):
+        if (API_SNAPSHOT_LOCK_MAX_YEAR is not None and int(year_value) <= int(API_SNAPSHOT_LOCK_MAX_YEAR)) or int(year_value) < int(get_runtime_current_year_numeric()):
             return DF_CACHE[year_value]
         cache_meta = DF_CACHE_META.get(year_value) or {}
         if API_SNAPSHOT_MAX_AGE_HOURS <= 0:
