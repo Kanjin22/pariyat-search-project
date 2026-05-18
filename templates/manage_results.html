@@ -55,6 +55,14 @@
           </div>
         </section>
 
+        {% if selected_year %}
+        <div class="config-notice">
+          เลือกปี {{ to_thai_digits(selected_year) }}<br />
+          - แผนกธรรม สอบปี {{ to_thai_digits((selected_year|int) - 1) }}<br />
+          - แผนกบาลี สอบปี {{ to_thai_digits(selected_year) }}
+        </div>
+        {% endif %}
+
         <div class="search-box">
           <input type="text" id="result-search-input" placeholder="พิมพ์ชื่อ-ฉายา หรือนามสกุล เพื่อจัดการผลการสอบ..." />
         </div>
