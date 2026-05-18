@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>พรีวิวนำเข้าผลสอบจาก Excel - ธรรม-บาลี</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container container-wide">
+      <header class="main-header">
+        <h1>พรีวิวนำเข้าผลสอบจาก Excel</h1>
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ to_thai_digits(selected_year) if selected_year else current_buddhist_year }}</p>
+        <nav class="top-nav">
+          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
+          <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
+          <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
+          <a class="nav-link active" href="{{ url_for('manage_results') }}">จัดการผลการสอบ</a>
+          <a class="nav-link" href="{{ url_for('staff_import_excel', year=selected_year) }}">อัปโหลด Excel</a>
+          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
+          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
+            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
+          </form>
+        </nav>
+      </header>
+
+      <main class="search-area">
+        <section class="page-intro">
+          <h2>สรุปพรีวิว</h2>
+          <p>ไฟล์: {{ preview.filename }} | ชั้น: {{ preview.class_name }} | ชีท: {{ preview.sheet_name }}</p>
+        </section>
+
+        <div class="data-info-section">
+          <div class="info-text">
+            ทั้งหมด: {{ to_thai_digits(preview.total_rows) }} แถว
+            |
+            match ได้: {{ to_thai_digits(preview.matched_rows) }} แถว
+            |
+            เข้า pending: {{ to_thai_digits(preview.pending_rows) }} แถว
+          </div>
+        </div>
+
+        <section class="pass-list-table-wrapper">
+          <table class="pass-list-table">
+            <thead>
+              <tr>
+                <th>สถานะ</th>
+                <th>จำนวน</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for status_name, count in (preview.status_summary or {}).items() %}
+              <tr>
+                <td>{{ status_name }}</td>
+                <td>{{ to_thai_digits(count) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </section>
+
+        {% if preview.pending_rows %}
+        <section class="page-intro" style="margin-top: 18px;">
+          <h2>รายการที่ไม่ match (แสดงสูงสุด 200 รายชื่อ)</h2>
+        </section>
+        <div class="result-group">
+          <ul class="registrations-list">
+            {% for name in preview.pending_names %}
+            <li>{{ name }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('staff_import_excel_confirm') }}" style="margin-top: 18px;">
+          <input type="hidden" name="token" value="{{ preview.token }}" />
+          <button type="submit" class="save-result-btn">ยืนยันนำเข้า</button>
+          <a class="nav-link" href="{{ url_for('staff_import_excel', year=selected_year) }}">ย้อนกลับ</a>
+        </form>
+      </main>
+
+      {% include '_site_footer.html' %}
+    </div>
+    <script src="{{ static_asset_url('theme.js') }}"></script>
+  </body>
+</html>

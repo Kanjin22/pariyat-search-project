@@ -49,6 +49,9 @@
               {% endfor %}
             </select>
           </div>
+          <div class="filter-group" style="display:flex; align-items:flex-end;">
+            <a class="nav-link" href="{{ url_for('staff_import_excel', year=selected_year) }}">นำเข้าจาก Excel</a>
+          </div>
         </section>
 
         <div class="search-box">

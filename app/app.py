@@ -24,6 +24,7 @@ load_dotenv(ENV_FILE)
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', DEFAULT_SECRET_KEY)
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
 df = None
 DF_CACHE = {}
 DF_CACHE_META = {}
@@ -128,7 +129,7 @@ def should_count_request(response):
     if not (response.mimetype or '').startswith('text/html'):
         return False
     path = request.path or ''
-    if path.startswith('/static') or path.startswith('/api') or path.startswith('/@vite'):
+    if path.startswith('/static') or path.startswith('/api') or path.startswith('/@vite') or path.startswith('/staff') or path.startswith('/manage-results'):
         return False
     agent = (request.headers.get('User-Agent') or '').lower()
     bot_keywords = ['bot', 'spider', 'crawl', 'slackbot', 'facebookexternalhit', 'whatsapp', 'telegrambot', 'preview']
@@ -289,6 +290,17 @@ def build_base_name_key_from_display_name(display_name):
     first_name = strip_thai_title_prefix(parts[0])
     last_name = parts[-1]
     return normalize_name_key(f'{first_name}{last_name}')
+
+
+def extract_last_name_from_display_name(display_name):
+    text = str(display_name or '').strip()
+    if not text:
+        return ''
+    match = pd.Series([text]).str.extract(r'\(([^)]+)\)')[0].iloc[0]
+    if isinstance(match, str) and match.strip():
+        return match.strip()
+    parts = [part for part in text.split() if part]
+    return parts[-1] if len(parts) >= 2 else ''
 
 
 def build_result_key(row):
@@ -1008,6 +1020,38 @@ def save_exam_results_for_year(year, result_map):
     result_file = get_exam_results_file(year)
     with open(result_file, 'w', encoding='utf-8') as fp:
         json.dump(result_map, fp, ensure_ascii=False, indent=2)
+
+
+def get_pending_exam_results_file(year):
+    return os.path.join(RESULTS_DATA_DIR, f'pending_exam_results_{int(year)}.json')
+
+
+def load_pending_exam_results_for_year(year):
+    pending_file = get_pending_exam_results_file(year)
+    if not os.path.exists(pending_file):
+        return {'version': 1, 'items': {}}
+    try:
+        with open(pending_file, 'r', encoding='utf-8') as fp:
+            payload = json.load(fp)
+        if isinstance(payload, dict) and isinstance(payload.get('items'), dict):
+            payload.setdefault('version', 1)
+            return payload
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {'version': 1, 'items': {}}
+
+
+def write_json_atomic(file_path, payload):
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    temp_path = f'{file_path}.tmp'
+    with open(temp_path, 'w', encoding='utf-8') as fp:
+        json.dump(payload, fp, ensure_ascii=False, indent=2)
+    os.replace(temp_path, file_path)
+
+
+def save_pending_exam_results_for_year(year, payload):
+    pending_file = get_pending_exam_results_file(year)
+    write_json_atomic(pending_file, payload)
 
 
 def apply_exam_results(dataframe, year=None):
@@ -2203,6 +2247,403 @@ def manage_results():
         available_years=available_years,
         result_status_options=status_options
     )
+
+
+EXCEL_IMPORT_STATUS_MAP = {
+    '': 'สอบตก',
+    'ผ่าน': 'สอบได้',
+    'ไม่ผ่าน': 'สอบตก',
+    'สอบตก': 'สอบตก',
+    'ขาดสอบ': 'ขาดสอบ',
+    'ขาดสิทธิ์': 'ขาดสิทธิ์',
+    'สอบได้': 'สอบได้',
+    'สอบซ่อม': 'สอบซ่อม',
+    'สอบซ่อมได้': 'สอบซ่อมได้',
+}
+
+
+def excel_normalize_text(value):
+    if value is None:
+        return ''
+    if pd.isna(value):
+        return ''
+    return str(value).strip()
+
+
+def excel_build_display_name(row):
+    first_name = excel_normalize_text(row.get('ชื่อ'))
+    pali_name = excel_normalize_text(row.get('ฉายา'))
+    last_name = excel_normalize_text(row.get('นามสกุล'))
+
+    if first_name and pali_name and last_name:
+        return f'{first_name} {pali_name} ({last_name})'
+    if first_name and last_name:
+        return f'{first_name} {last_name}'
+    if first_name and pali_name:
+        return f'{first_name} {pali_name}'
+    return first_name
+
+
+def excel_resolve_sheet_status(row):
+    if 'ผลการสอบ' in row.index:
+        return excel_normalize_text(row.get('ผลการสอบ'))
+
+    if 'ผลสอบ' in row.index or 'ผลสอบซ่อม' in row.index:
+        result_1 = excel_normalize_text(row.get('ผลสอบ'))
+        result_2 = excel_normalize_text(row.get('ผลสอบซ่อม'))
+
+        if result_1 == 'สอบซ่อม' and result_2 == 'ผ่าน':
+            return 'สอบซ่อมได้'
+        if result_1 == 'สอบซ่อม':
+            return 'สอบซ่อม'
+        if result_1:
+            return result_1
+        if result_2 == 'ผ่าน':
+            return 'สอบได้'
+        return result_2
+
+    result_1 = excel_normalize_text(row.get('ผลสอบ 1'))
+    result_2 = excel_normalize_text(row.get('ผลสอบ 2'))
+
+    if result_1 == 'สอบซ่อม' and result_2 == 'ผ่าน':
+        return 'สอบซ่อมได้'
+    if result_1 == 'สอบซ่อม':
+        return 'สอบซ่อม'
+    if result_1:
+        return result_1
+    if result_2 == 'ผ่าน':
+        return 'สอบได้'
+    return result_2
+
+
+def excel_build_name_candidates(row):
+    first_name = excel_normalize_text(row.get('ชื่อ'))
+    pali_name = excel_normalize_text(row.get('ฉายา'))
+    last_name = excel_normalize_text(row.get('นามสกุล'))
+
+    candidates = []
+    if first_name and pali_name and last_name:
+        candidates.append(f'{first_name} {pali_name} ({last_name})')
+    if first_name and pali_name:
+        candidates.append(f'{first_name} {pali_name}')
+    if first_name and last_name:
+        candidates.append(f'{first_name} {last_name}')
+        candidates.append(f'{first_name} ({last_name})')
+    if first_name:
+        candidates.append(first_name)
+
+    seen = {}
+    for candidate in candidates:
+        if candidate and candidate not in seen:
+            seen[candidate] = True
+    return list(seen.keys())
+
+
+def excel_build_base_name_key_from_row(row):
+    first_name_raw = excel_normalize_text(row.get('ชื่อ'))
+    last_name = excel_normalize_text(row.get('นามสกุล'))
+    if not first_name_raw or not last_name:
+        return ''
+    first_name = strip_thai_title_prefix(first_name_raw)
+    return normalize_name_key(f'{first_name}{last_name}')
+
+
+def get_excel_import_preview_file(token):
+    return os.path.join(RESULTS_DATA_DIR, 'import_previews', f'{token}.json')
+
+
+def save_excel_import_preview(token, payload):
+    preview_file = get_excel_import_preview_file(token)
+    write_json_atomic(preview_file, payload)
+
+
+def load_excel_import_preview(token):
+    preview_file = get_excel_import_preview_file(token)
+    if not os.path.exists(preview_file):
+        return None
+    try:
+        with open(preview_file, 'r', encoding='utf-8') as fp:
+            payload = json.load(fp)
+        return payload if isinstance(payload, dict) else None
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def delete_excel_import_preview(token):
+    preview_file = get_excel_import_preview_file(token)
+    try:
+        if os.path.exists(preview_file):
+            os.remove(preview_file)
+    except OSError:
+        pass
+
+
+@app.route('/manage-results/import-excel', methods=['GET'])
+@staff_login_required()
+def staff_import_excel():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    available_years = list_available_years()
+    year_value = normalize_year_value(request.args.get('year')) or get_selected_year()
+    if year_value not in available_years:
+        available_years.append(year_value)
+        available_years = sorted(available_years)
+    return render_template(
+        'import_excel.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        selected_year=year_value,
+        available_years=available_years,
+        available_classes=CLASS_NAME_ORDER,
+        default_sheet=''
+    )
+
+
+@app.route('/manage-results/import-excel/preview', methods=['POST'])
+@staff_login_required()
+def staff_import_excel_preview():
+    year_value = normalize_year_value(request.form.get('year')) or get_selected_year()
+    class_name = str(request.form.get('class_name') or '').strip()
+    sheet_name = str(request.form.get('sheet_name') or '').strip()
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    available_years = list_available_years()
+    if year_value not in available_years:
+        available_years.append(year_value)
+        available_years = sorted(available_years)
+
+    def render_error(message):
+        return render_template(
+            'import_excel.html',
+            current_buddhist_year=current_year_thai,
+            current_year_numeric=CURRENT_YEAR_NUMERIC,
+            selected_year=year_value,
+            available_years=available_years,
+            available_classes=CLASS_NAME_ORDER,
+            selected_class=class_name,
+            selected_sheet=sheet_name,
+            default_sheet='',
+            error_message=message
+        )
+
+    uploaded = request.files.get('excel_file')
+    if not uploaded or not getattr(uploaded, 'filename', ''):
+        return render_error('กรุณาเลือกไฟล์ Excel'), 400
+    filename = str(uploaded.filename)
+    if not filename.lower().endswith('.xlsx'):
+        return render_error('รองรับเฉพาะไฟล์ .xlsx'), 400
+    if class_name not in CLASS_NAME_ORDER:
+        return render_error('ชั้นเรียนไม่ถูกต้อง'), 400
+    if not sheet_name:
+        return render_error('กรุณาระบุชื่อชีทในไฟล์'), 400
+
+    token = uuid.uuid4().hex
+    temp_dir = os.path.join(RESULTS_DATA_DIR, 'tmp_uploads')
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_path = os.path.join(temp_dir, f'{token}.xlsx')
+    uploaded.save(temp_path)
+
+    try:
+        excel_df = pd.read_excel(temp_path, sheet_name=sheet_name).fillna('')
+    except Exception as e:
+        try:
+            os.remove(temp_path)
+        except OSError:
+            pass
+        return render_error(f'อ่านไฟล์ไม่สำเร็จ: {e}'), 400
+
+    try:
+        os.remove(temp_path)
+    except OSError:
+        pass
+
+    if excel_df is None or excel_df.empty:
+        return render_error('ชีทนี้ไม่มีข้อมูล'), 400
+
+    excel_df['display_name'] = excel_df.apply(excel_build_display_name, axis=1)
+    excel_df['resolved_result'] = excel_df.apply(excel_resolve_sheet_status, axis=1)
+
+    unknown_statuses = sorted(
+        {
+            excel_normalize_text(value)
+            for value in excel_df['resolved_result'].tolist()
+            if excel_normalize_text(value) not in EXCEL_IMPORT_STATUS_MAP
+        }
+    )
+    if unknown_statuses:
+        return render_error(f'พบค่าผลการสอบที่ไม่รู้จัก: {unknown_statuses}'), 400
+
+    app_df = get_df_for_year(year_value)
+    key_column = 'result_key' if 'result_key' in app_df.columns else 'registration_key'
+    class_df = app_df[app_df['class_name'] == class_name][['display_name', key_column]].copy()
+    duplicate_names = class_df[class_df.duplicated('display_name', keep=False)]['display_name'].tolist()
+    if duplicate_names:
+        return render_error(f'พบชื่อซ้ำในข้อมูลระบบของชั้น {class_name}: {sorted(set(duplicate_names))}'), 400
+
+    registration_map = dict(zip(class_df['display_name'], class_df[key_column]))
+    normalized_registration_map = {}
+    base_registration_map = {}
+    last_name_map = {}
+    for _, class_row in class_df.iterrows():
+        normalized_name = normalize_name_key(class_row['display_name'])
+        if normalized_name and normalized_name not in normalized_registration_map:
+            normalized_registration_map[normalized_name] = class_row[key_column]
+        base_name_key = build_base_name_key_from_display_name(class_row['display_name'])
+        if base_name_key:
+            if base_name_key in base_registration_map and base_registration_map[base_name_key] != class_row[key_column]:
+                base_registration_map[base_name_key] = ''
+            elif base_name_key not in base_registration_map:
+                base_registration_map[base_name_key] = class_row[key_column]
+        last_name_key = normalize_name_key(extract_last_name_from_display_name(class_row['display_name']))
+        if last_name_key:
+            if last_name_key in last_name_map and last_name_map[last_name_key] != class_row[key_column]:
+                last_name_map[last_name_key] = ''
+            elif last_name_key not in last_name_map:
+                last_name_map[last_name_key] = class_row[key_column]
+
+    updates = []
+    status_summary = {}
+    pending_items = {}
+    pending_names = []
+
+    for idx, row in excel_df.iterrows():
+        display_name = str(row.get('display_name') or '').strip()
+        if not display_name:
+            continue
+
+        match_key = registration_map.get(display_name, '')
+        if not match_key:
+            for candidate_name in excel_build_name_candidates(row):
+                match_key = registration_map.get(candidate_name, '')
+                if match_key:
+                    break
+                normalized_candidate = normalize_name_key(candidate_name)
+                match_key = normalized_registration_map.get(normalized_candidate, '')
+                if match_key:
+                    break
+        if not match_key:
+            base_key = excel_build_base_name_key_from_row(row)
+            if base_key:
+                candidate_key = base_registration_map.get(base_key, '')
+                if candidate_key:
+                    match_key = candidate_key
+        if not match_key:
+            last_name_key = normalize_name_key(excel_normalize_text(row.get('นามสกุล')))
+            if last_name_key:
+                candidate_key = last_name_map.get(last_name_key, '')
+                if candidate_key:
+                    match_key = candidate_key
+
+        source_status = excel_normalize_text(row.get('resolved_result'))
+        mapped_status = EXCEL_IMPORT_STATUS_MAP.get(source_status, '')
+
+        if match_key:
+            updates.append({'key': match_key, 'status': mapped_status, 'display_name': display_name})
+            status_summary[mapped_status] = status_summary.get(mapped_status, 0) + 1
+        else:
+            name_key = normalize_name_key(display_name)
+            pending_key = f'{class_name}|{name_key or display_name}|{sheet_name}|{idx}'
+            pending_items[pending_key] = {
+                'class_name': class_name,
+                'display_name': display_name,
+                'display_name_key': name_key,
+                'base_name_key': excel_build_base_name_key_from_row(row),
+                'exam_result_status': mapped_status,
+                'source_status': source_status,
+                'sheet': sheet_name,
+                'workbook': filename,
+                'imported_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+            }
+            pending_names.append(display_name)
+
+    preview_payload = {
+        'token': token,
+        'year': int(year_value),
+        'class_name': class_name,
+        'sheet_name': sheet_name,
+        'filename': filename,
+        'total_rows': int(len(excel_df)),
+        'matched_rows': int(len(updates)),
+        'pending_rows': int(len(pending_items)),
+        'status_summary': status_summary,
+        'pending_names': pending_names[:200],
+        'updates': updates,
+        'pending_items': pending_items,
+        'created_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+    }
+    save_excel_import_preview(token, preview_payload)
+    write_staff_log(
+        action='import_excel_preview',
+        outcome='success',
+        username=session.get('staff_username', ''),
+        detail=f'year={year_value}|class={class_name}|sheet={sheet_name}|matched={len(updates)}|pending={len(pending_items)}'
+    )
+
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    available_years = list_available_years()
+    if year_value not in available_years:
+        available_years.append(year_value)
+        available_years = sorted(available_years)
+    return render_template(
+        'import_excel_preview.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        selected_year=year_value,
+        available_years=available_years,
+        preview=preview_payload
+    )
+
+
+@app.route('/manage-results/import-excel/confirm', methods=['POST'])
+@staff_login_required()
+def staff_import_excel_confirm():
+    global df
+    token = str(request.form.get('token') or '').strip()
+    preview = load_excel_import_preview(token)
+    if not preview:
+        return jsonify({'success': False, 'message': 'ไม่พบข้อมูลพรีวิว หรือพรีวิวหมดอายุ'}), 400
+
+    year_value = int(preview.get('year') or get_selected_year())
+    updates = preview.get('updates') or []
+    pending_items = preview.get('pending_items') or {}
+
+    result_map = load_exam_results_for_year(year_value)
+    names_map = load_exam_names_for_year(year_value)
+
+    updated_count = 0
+    for item in updates:
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get('key') or '').strip()
+        status_value = str(item.get('status') or '').strip()
+        display_name = str(item.get('display_name') or '').strip()
+        if not key:
+            continue
+        result_map[key] = status_value
+        if display_name:
+            names_map[key] = display_name
+        updated_count += 1
+
+    write_json_atomic(get_exam_results_file(year_value), result_map)
+    write_json_atomic(get_exam_names_file(year_value), names_map)
+
+    pending_payload = load_pending_exam_results_for_year(year_value)
+    pending_payload.setdefault('version', 1)
+    pending_payload.setdefault('items', {})
+    pending_payload['items'].update(pending_items if isinstance(pending_items, dict) else {})
+    save_pending_exam_results_for_year(year_value, pending_payload)
+
+    if int(year_value) in DF_CACHE and isinstance(DF_CACHE[int(year_value)], pd.DataFrame):
+        DF_CACHE[int(year_value)] = apply_exam_results(DF_CACHE[int(year_value)].copy(), year=year_value)
+    if int(year_value) == int(CURRENT_YEAR_NUMERIC) and isinstance(df, pd.DataFrame):
+        df = apply_exam_results(df.copy(), year=year_value)
+
+    delete_excel_import_preview(token)
+    write_staff_log(
+        action='import_excel_confirm',
+        outcome='success',
+        username=session.get('staff_username', ''),
+        detail=f'year={year_value}|class={preview.get("class_name")}|sheet={preview.get("sheet_name")}|updated={updated_count}|pending={len(pending_items)}'
+    )
+    return redirect(url_for('manage_results', year=year_value))
 
 
 @app.route('/get_data_info')
