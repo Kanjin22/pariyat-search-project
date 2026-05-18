@@ -1120,6 +1120,15 @@ a.phone-link:hover {
     font-weight: bold;
 }
 
+.fail-cell {
+    color: #dc2626;
+    font-weight: bold;
+}
+
+.dark-theme .fail-cell {
+    color: #fca5a5;
+}
+
 .percentage-cell {
     font-weight: 600;
 }

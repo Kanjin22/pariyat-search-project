@@ -96,7 +96,7 @@
                       <td class="group-name">{{ row.class_name }}</td>
                       <td class="number-cell">{{ row.sent }}</td>
                       <td class="number-cell">{{ row.active }}</td>
-                      <td class="number-cell">{{ row.fail }}</td>
+                      <td class="number-cell{% if row.fail > 0 %} fail-cell{% endif %}">{{ row.fail }}</td>
                       <td class="number-cell pass-cell">{{ row.pass }}</td>
                       <td class="number-cell percentage-cell">
                         {% if row.sent > 0 and row.pass_rate is not none %}
@@ -111,7 +111,7 @@
                     <td class="group-name"><strong>รวม</strong></td>
                     <td class="number-cell"><strong>{{ statistics.pass_summary.total.sent }}</strong></td>
                     <td class="number-cell"><strong>{{ statistics.pass_summary.total.active }}</strong></td>
-                    <td class="number-cell"><strong>{{ statistics.pass_summary.total.fail }}</strong></td>
+                    <td class="number-cell{% if statistics.pass_summary.total.fail > 0 %} fail-cell{% endif %}"><strong>{{ statistics.pass_summary.total.fail }}</strong></td>
                     <td class="number-cell pass-cell"><strong>{{ statistics.pass_summary.total.pass }}</strong></td>
                     <td class="number-cell percentage-cell">
                       {% if statistics.pass_summary.total.sent > 0 and statistics.pass_summary.total.pass_rate is not none %}
