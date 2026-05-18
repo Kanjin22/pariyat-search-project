@@ -42,7 +42,7 @@
         <div class="save-message error">{{ error_message }}</div>
         {% endif %}
 
-        <form method="get" action="{{ url_for('staff_manual_add') }}">
+        <form id="manual-filter-form" method="get" action="{{ url_for('staff_manual_add') }}">
           <section class="pass-list-filters">
             <div class="filter-group">
               <label for="year-input">ปี พ.ศ.</label>
@@ -156,5 +156,20 @@
       {% include '_site_footer.html' %}
     </div>
     <script src="{{ static_asset_url('theme.js') }}"></script>
+    <script>
+      (function () {
+        var form = document.getElementById('manual-filter-form');
+        var yearInput = document.getElementById('year-input');
+        var classInput = document.getElementById('class-input');
+        if (!form || !yearInput || !classInput) {
+          return;
+        }
+        function submitForm() {
+          form.submit();
+        }
+        yearInput.addEventListener('change', submitForm);
+        classInput.addEventListener('change', submitForm);
+      })();
+    </script>
   </body>
 </html>
