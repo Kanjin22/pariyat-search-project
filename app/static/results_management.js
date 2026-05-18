@@ -93,9 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <li class="result-manage-item">
                     <div class="result-manage-head">
                         <div class="result-manage-title">
-                            <strong>ลำดับที่ ${escapeHtml(registration.sequence)}</strong>
                             <span>สมัครสอบ ${escapeHtml(registration.class_name)}</span>
-                            <span class="status-note">(${escapeHtml(registration.reg_status)})</span>
                         </div>
                         ${registration.exam_result_status ? `<span class="saved-badge ${getStatusBadgeClass(registration.exam_result_status)}">${escapeHtml(registration.exam_result_status)}</span>` : ''}
                     </div>
