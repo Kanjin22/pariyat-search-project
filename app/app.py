@@ -2711,81 +2711,193 @@ def staff_manual_add():
     error_message = ''
     added_names = []
     skipped_names = []
+    manual_entries = []
+
+    def normalize_optional_text(value):
+        cleaned = str(value or '').strip()
+        return cleaned if cleaned else None
+
+    def invalidate_year_cache(year_value):
+        DF_CACHE.pop(int(year_value), None)
+        DF_CACHE_META.pop(int(year_value), None)
+        if int(year_value) == int(CURRENT_YEAR_NUMERIC):
+            global df
+            df = None
+
+    def build_display_name_key_map(year_value, target_class):
+        year_df = get_df_for_year(year_value)
+        if year_df is None or year_df.empty:
+            return {}
+        key_column = 'result_key' if 'result_key' in year_df.columns else 'registration_key'
+        class_df = year_df[year_df['class_name'] == target_class][['display_name', key_column]].copy()
+        class_df[key_column] = class_df[key_column].astype(str)
+        return dict(zip(class_df['display_name'].astype(str), class_df[key_column]))
+
+    manual_map = load_manual_registrations_for_year(fixed_year)
+    if not isinstance(manual_map, dict):
+        manual_map = {}
+
+    for _, entry in manual_map.items():
+        if isinstance(entry, dict):
+            if 'school_name' not in entry or entry.get('school_name') == '':
+                entry['school_name'] = None
+            if 'group_name' not in entry or entry.get('group_name') == '':
+                entry['group_name'] = None
 
     if request.method == 'POST':
-        raw_names = [line.strip() for line in names_text.split('\n')]
-        deduped = []
-        seen = set()
-        for name in raw_names:
-            if not name:
-                continue
-            if name in seen:
-                continue
-            seen.add(name)
-            deduped.append(name)
+        action = str(request.form.get('action') or '').strip() or 'add'
 
-        if not deduped:
-            error_message = 'กรุณากรอกรายชื่ออย่างน้อย 1 รายชื่อ (ขึ้นบรรทัดใหม่ 1 คน)'
-        else:
-            existing_in_class = set()
-            try:
-                df_year = get_df_for_year(fixed_year)
-                if isinstance(df_year, pd.DataFrame) and not df_year.empty:
-                    existing_in_class = set(
-                        df_year[df_year['class_name'] == class_name]['display_name']
-                        .dropna()
-                        .astype(str)
-                        .tolist()
-                    )
-            except Exception:
-                existing_in_class = set()
-
-            manual_map = load_manual_registrations_for_year(fixed_year)
-            if not isinstance(manual_map, dict):
-                manual_map = {}
-
-            for _, entry in manual_map.items():
-                if isinstance(entry, dict):
-                    if not entry.get('school_name'):
-                        entry['school_name'] = None
-                    if not entry.get('group_name'):
-                        entry['group_name'] = None
-
-            for display_name in deduped:
-                if display_name in existing_in_class:
-                    skipped_names.append(display_name)
-                    continue
-
-                key = build_manual_registration_key(display_name, class_name)
-                if key in manual_map:
-                    skipped_names.append(display_name)
-                    continue
-
-                manual_map[key] = {
-                    'display_name': display_name,
-                    'class_name': class_name,
-                    'sequence': '',
-                    'school_name': None,
-                    'group_name': None,
-                    'reg_status': 'manual'
-                }
-                added_names.append(display_name)
-
-            if added_names:
+        if action == 'delete':
+            delete_key = str(request.form.get('manual_key') or '').strip()
+            if not delete_key or delete_key not in manual_map:
+                error_message = 'ไม่พบรายการที่ต้องการลบ'
+            else:
+                manual_map.pop(delete_key, None)
                 write_json_atomic(get_manual_registrations_file(fixed_year), manual_map)
-                DF_CACHE.pop(int(fixed_year), None)
-                DF_CACHE_META.pop(int(fixed_year), None)
-                if int(fixed_year) == int(CURRENT_YEAR_NUMERIC):
-                    global df
-                    df = None
+
+                result_map = load_exam_results_for_year(fixed_year)
+                if isinstance(result_map, dict) and delete_key in result_map:
+                    result_map.pop(delete_key, None)
+                    write_json_atomic(get_exam_results_file(fixed_year), result_map)
+
+                names_map = load_exam_names_for_year(fixed_year)
+                if isinstance(names_map, dict) and delete_key in names_map:
+                    names_map.pop(delete_key, None)
+                    write_json_atomic(get_exam_names_file(fixed_year), names_map)
+
+                invalidate_year_cache(fixed_year)
                 write_staff_log(
-                    action='manual_add',
+                    action='manual_delete',
                     outcome='success',
                     username=session.get('staff_username', ''),
-                    detail=f'year={fixed_year}|class={class_name}|added={len(added_names)}|skipped={len(skipped_names)}'
+                    detail=f'year={fixed_year}|key={delete_key}'
                 )
+                success_message = 'ลบรายการสำเร็จ'
 
-            success_message = f'เพิ่มรายชื่อสำเร็จ {len(added_names)} รายชื่อ'
+        elif action == 'update':
+            old_key = str(request.form.get('manual_key') or '').strip()
+            new_display_name = str(request.form.get('display_name') or '').strip()
+            new_class_name = str(request.form.get('new_class_name') or '').strip() or class_name
+            new_school_name = normalize_optional_text(request.form.get('school_name'))
+            new_group_name = normalize_optional_text(request.form.get('group_name'))
+
+            if not old_key or old_key not in manual_map:
+                error_message = 'ไม่พบรายการที่ต้องการแก้ไข'
+            elif not new_display_name:
+                error_message = 'กรุณากรอกชื่อให้ถูกต้อง'
+            elif new_class_name not in CLASS_NAME_ORDER:
+                error_message = 'ชั้นเรียนไม่ถูกต้อง'
+            else:
+                display_name_key_map = build_display_name_key_map(fixed_year, new_class_name)
+                existing_key = str(display_name_key_map.get(new_display_name) or '')
+                if existing_key and existing_key != old_key:
+                    error_message = 'มีชื่อซ้ำอยู่แล้วในข้อมูลของชั้นนี้'
+                else:
+                    new_key = build_manual_registration_key(new_display_name, new_class_name)
+                    if new_key in manual_map and new_key != old_key:
+                        error_message = 'รายการนี้มีอยู่แล้ว (key ซ้ำ)'
+                    else:
+                        entry = manual_map.get(old_key) if isinstance(manual_map.get(old_key), dict) else {}
+                        if not isinstance(entry, dict):
+                            entry = {}
+
+                        entry['display_name'] = new_display_name
+                        entry['class_name'] = new_class_name
+                        entry['sequence'] = str(entry.get('sequence') or '')
+                        entry['school_name'] = new_school_name
+                        entry['group_name'] = new_group_name
+                        entry['reg_status'] = 'manual'
+
+                        if new_key != old_key:
+                            manual_map.pop(old_key, None)
+                            manual_map[new_key] = entry
+
+                            result_map = load_exam_results_for_year(fixed_year)
+                            if isinstance(result_map, dict) and old_key in result_map:
+                                result_map[new_key] = result_map.pop(old_key)
+                                write_json_atomic(get_exam_results_file(fixed_year), result_map)
+
+                            names_map = load_exam_names_for_year(fixed_year)
+                            if isinstance(names_map, dict) and old_key in names_map:
+                                names_map[new_key] = names_map.pop(old_key)
+                                write_json_atomic(get_exam_names_file(fixed_year), names_map)
+                        else:
+                            manual_map[old_key] = entry
+
+                        write_json_atomic(get_manual_registrations_file(fixed_year), manual_map)
+                        invalidate_year_cache(fixed_year)
+                        write_staff_log(
+                            action='manual_update',
+                            outcome='success',
+                            username=session.get('staff_username', ''),
+                            detail=f'year={fixed_year}|old_key={old_key}|new_key={new_key}|class={new_class_name}'
+                        )
+                        success_message = 'บันทึกการแก้ไขสำเร็จ'
+
+        else:
+            raw_names = [line.strip() for line in names_text.split('\n')]
+            deduped = []
+            seen = set()
+            for name in raw_names:
+                if not name:
+                    continue
+                if name in seen:
+                    continue
+                seen.add(name)
+                deduped.append(name)
+
+            if not deduped:
+                error_message = 'กรุณากรอกรายชื่ออย่างน้อย 1 รายชื่อ (ขึ้นบรรทัดใหม่ 1 คน)'
+            else:
+                display_name_key_map = build_display_name_key_map(fixed_year, class_name)
+
+                for display_name in deduped:
+                    existing_key = str(display_name_key_map.get(display_name) or '')
+                    if existing_key:
+                        skipped_names.append(display_name)
+                        continue
+
+                    key = build_manual_registration_key(display_name, class_name)
+                    if key in manual_map:
+                        skipped_names.append(display_name)
+                        continue
+
+                    manual_map[key] = {
+                        'display_name': display_name,
+                        'class_name': class_name,
+                        'sequence': '',
+                        'school_name': None,
+                        'group_name': None,
+                        'reg_status': 'manual'
+                    }
+                    added_names.append(display_name)
+
+                if added_names:
+                    write_json_atomic(get_manual_registrations_file(fixed_year), manual_map)
+                    invalidate_year_cache(fixed_year)
+                    write_staff_log(
+                        action='manual_add',
+                        outcome='success',
+                        username=session.get('staff_username', ''),
+                        detail=f'year={fixed_year}|class={class_name}|added={len(added_names)}|skipped={len(skipped_names)}'
+                    )
+
+                success_message = f'เพิ่มรายชื่อสำเร็จ {len(added_names)} รายชื่อ'
+
+    for manual_key, manual_item in manual_map.items():
+        if not isinstance(manual_item, dict):
+            continue
+        entry_class = str(manual_item.get('class_name') or '').strip()
+        if entry_class != class_name:
+            continue
+        manual_entries.append({
+            'key': str(manual_key),
+            'display_name': str(manual_item.get('display_name') or '').strip(),
+            'class_name': entry_class,
+            'school_name': manual_item.get('school_name'),
+            'group_name': manual_item.get('group_name')
+        })
+    manual_entries = sorted(manual_entries, key=lambda item: item.get('display_name') or '')
 
     return render_template(
         'manual_add.html',
@@ -2799,7 +2911,8 @@ def staff_manual_add():
         success_message=success_message,
         error_message=error_message,
         added_names=added_names,
-        skipped_names=skipped_names
+        skipped_names=skipped_names,
+        manual_entries=manual_entries
     )
 
 

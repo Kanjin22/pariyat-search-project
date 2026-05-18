@@ -42,7 +42,7 @@
         <div class="save-message error">{{ error_message }}</div>
         {% endif %}
 
-        <form method="post" action="{{ url_for('staff_manual_add') }}">
+        <form method="get" action="{{ url_for('staff_manual_add') }}">
           <section class="pass-list-filters">
             <div class="filter-group">
               <label for="year-input">ปี พ.ศ.</label>
@@ -62,7 +62,12 @@
               </select>
             </div>
           </section>
+          <button type="submit" class="save-result-btn">แสดงรายการ</button>
+        </form>
 
+        <form method="post" action="{{ url_for('staff_manual_add') }}">
+          <input type="hidden" name="year" value="{{ selected_year }}" />
+          <input type="hidden" name="class_name" value="{{ selected_class }}" />
           <div class="filter-group">
             <label for="names-input">รายชื่อ (ขึ้นบรรทัดใหม่ 1 คน)</label>
             <textarea id="names-input" class="form-input" name="names" rows="10" placeholder="ตัวอย่าง:\nสามเณร ก ข\nสามเณร ค ง" required>{{ names_text }}</textarea>
@@ -96,6 +101,56 @@
           </ul>
         </div>
         {% endif %}
+
+        <section class="page-intro" style="margin-top: 18px;">
+          <h2>รายการ manual (ปี {{ to_thai_digits(selected_year) }} | ชั้น {{ selected_class }})</h2>
+          <p>แก้ไขแล้วกด “บันทึกแก้ไข” หรือกด “ลบ”</p>
+        </section>
+
+        <div class="result-group">
+          {% if manual_entries %}
+          <ul class="registrations-list">
+            {% for item in manual_entries %}
+            <li>
+              <form method="post" action="{{ url_for('staff_manual_add') }}" style="display:flex; flex-wrap:wrap; gap: 10px; align-items:flex-end;">
+                <input type="hidden" name="year" value="{{ selected_year }}" />
+                <input type="hidden" name="class_name" value="{{ selected_class }}" />
+                <input type="hidden" name="manual_key" value="{{ item.key }}" />
+
+                <div class="filter-group" style="margin:0;">
+                  <label for="manual-name-{{ loop.index }}">ชื่อ</label>
+                  <input id="manual-name-{{ loop.index }}" class="form-input" type="text" name="display_name" value="{{ item.display_name }}" required />
+                </div>
+
+                <div class="filter-group" style="margin:0;">
+                  <label for="manual-class-{{ loop.index }}">ชั้น</label>
+                  <select id="manual-class-{{ loop.index }}" name="new_class_name" class="filter-select">
+                    {% for class_name in available_classes %}
+                      <option value="{{ class_name }}" {{ 'selected' if item.class_name == class_name else '' }}>{{ class_name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="filter-group" style="margin:0;">
+                  <label for="manual-school-{{ loop.index }}">หน่วยงาน</label>
+                  <input id="manual-school-{{ loop.index }}" class="form-input" type="text" name="school_name" value="{{ item.school_name or '' }}" />
+                </div>
+
+                <div class="filter-group" style="margin:0;">
+                  <label for="manual-group-{{ loop.index }}">กลุ่ม</label>
+                  <input id="manual-group-{{ loop.index }}" class="form-input" type="text" name="group_name" value="{{ item.group_name or '' }}" />
+                </div>
+
+                <button type="submit" class="save-result-btn" name="action" value="update">บันทึกแก้ไข</button>
+                <button type="submit" class="save-result-btn" name="action" value="delete" onclick="return confirm('ยืนยันลบรายการนี้?')">ลบ</button>
+              </form>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p>ยังไม่มีรายการ manual ในชั้นนี้</p>
+          {% endif %}
+        </div>
       </main>
 
       {% include '_site_footer.html' %}
