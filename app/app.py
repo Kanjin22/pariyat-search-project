@@ -1,4 +1,5 @@
 import json
+import hashlib
 import logging
 import os
 import sqlite3
@@ -2408,7 +2409,7 @@ def staff_import_excel():
     if year_value not in available_years:
         available_years.append(year_value)
         available_years = sorted(available_years)
-    fixed_status_options = ['สอบได้', 'ขาดสอบ', 'สอบซ่อม', 'สอบซ่อมได้']
+    fixed_status_options = ['สอบได้', 'สอบตก', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบซ่อม', 'สอบซ่อมได้']
     return render_template(
         'import_excel.html',
         current_buddhist_year=current_year_thai,
@@ -2436,7 +2437,7 @@ def staff_import_excel_preview():
     if year_value not in available_years:
         available_years.append(year_value)
         available_years = sorted(available_years)
-    fixed_status_options = ['สอบได้', 'ขาดสอบ', 'สอบซ่อม', 'สอบซ่อมได้']
+    fixed_status_options = ['สอบได้', 'สอบตก', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบซ่อม', 'สอบซ่อมได้']
 
     def render_error(message):
         return render_template(
@@ -2684,6 +2685,122 @@ def staff_import_excel_confirm():
         detail=f'year={year_value}|class={preview.get("class_name")}|sheet={preview.get("sheet_name")}|updated={updated_count}|pending={len(pending_items)}'
     )
     return redirect(url_for('manage_results', year=year_value))
+
+
+def build_manual_registration_key(display_name, class_name):
+    digest = hashlib.sha1(f'{display_name}|{class_name}'.encode('utf-8')).hexdigest()[:16]
+    return f'manual={digest}|class={class_name}'
+
+
+@app.route('/manage-results/manual-add', methods=['GET', 'POST'])
+@staff_login_required()
+def staff_manual_add():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    available_years = list_available_years()
+    fixed_year = normalize_year_value(request.values.get('year')) or get_selected_year()
+    if fixed_year not in available_years:
+        available_years.append(fixed_year)
+        available_years = sorted(available_years)
+
+    class_name = str(request.values.get('class_name') or '').strip() or 'น.ธ.ตรี'
+    if class_name not in CLASS_NAME_ORDER:
+        class_name = 'น.ธ.ตรี'
+
+    names_text = str(request.values.get('names') or '').replace('\r\n', '\n')
+    success_message = ''
+    error_message = ''
+    added_names = []
+    skipped_names = []
+
+    if request.method == 'POST':
+        raw_names = [line.strip() for line in names_text.split('\n')]
+        deduped = []
+        seen = set()
+        for name in raw_names:
+            if not name:
+                continue
+            if name in seen:
+                continue
+            seen.add(name)
+            deduped.append(name)
+
+        if not deduped:
+            error_message = 'กรุณากรอกรายชื่ออย่างน้อย 1 รายชื่อ (ขึ้นบรรทัดใหม่ 1 คน)'
+        else:
+            existing_in_class = set()
+            try:
+                df_year = get_df_for_year(fixed_year)
+                if isinstance(df_year, pd.DataFrame) and not df_year.empty:
+                    existing_in_class = set(
+                        df_year[df_year['class_name'] == class_name]['display_name']
+                        .dropna()
+                        .astype(str)
+                        .tolist()
+                    )
+            except Exception:
+                existing_in_class = set()
+
+            manual_map = load_manual_registrations_for_year(fixed_year)
+            if not isinstance(manual_map, dict):
+                manual_map = {}
+
+            for _, entry in manual_map.items():
+                if isinstance(entry, dict):
+                    if not entry.get('school_name'):
+                        entry['school_name'] = None
+                    if not entry.get('group_name'):
+                        entry['group_name'] = None
+
+            for display_name in deduped:
+                if display_name in existing_in_class:
+                    skipped_names.append(display_name)
+                    continue
+
+                key = build_manual_registration_key(display_name, class_name)
+                if key in manual_map:
+                    skipped_names.append(display_name)
+                    continue
+
+                manual_map[key] = {
+                    'display_name': display_name,
+                    'class_name': class_name,
+                    'sequence': '',
+                    'school_name': None,
+                    'group_name': None,
+                    'reg_status': 'manual'
+                }
+                added_names.append(display_name)
+
+            if added_names:
+                write_json_atomic(get_manual_registrations_file(fixed_year), manual_map)
+                DF_CACHE.pop(int(fixed_year), None)
+                DF_CACHE_META.pop(int(fixed_year), None)
+                if int(fixed_year) == int(CURRENT_YEAR_NUMERIC):
+                    global df
+                    df = None
+                write_staff_log(
+                    action='manual_add',
+                    outcome='success',
+                    username=session.get('staff_username', ''),
+                    detail=f'year={fixed_year}|class={class_name}|added={len(added_names)}|skipped={len(skipped_names)}'
+                )
+
+            success_message = f'เพิ่มรายชื่อสำเร็จ {len(added_names)} รายชื่อ'
+
+    return render_template(
+        'manual_add.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        selected_year=fixed_year,
+        available_years=available_years,
+        available_classes=CLASS_NAME_ORDER,
+        selected_class=class_name,
+        names_text=names_text,
+        success_message=success_message,
+        error_message=error_message,
+        added_names=added_names,
+        skipped_names=skipped_names
+    )
 
 
 @app.route('/get_data_info')

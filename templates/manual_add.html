@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>เพิ่มรายชื่อ Manual - ธรรม-บาลี</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container container-wide">
+      <header class="main-header">
+        <h1>เพิ่มรายชื่อ (Manual)</h1>
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ to_thai_digits(selected_year) if selected_year else current_buddhist_year }}</p>
+        <nav class="top-nav">
+          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
+          <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
+          <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
+          <a class="nav-link active" href="{{ url_for('manage_results', year=selected_year) }}">จัดการผลการสอบ</a>
+          <a class="nav-link" href="{{ url_for('staff_import_excel', year=selected_year) }}">นำเข้าจาก Excel</a>
+          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
+          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
+            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
+          </form>
+        </nav>
+      </header>
+
+      <main class="search-area">
+        <section class="page-intro">
+          <h2>เพิ่มรายชื่อผู้สมัครที่ไม่มีในระบบใหญ่</h2>
+          <p>หน่วยงาน/กลุ่ม จะถูกตั้งเป็น None และสถานะผลสอบจะยังไม่ถูกตั้งค่า</p>
+        </section>
+
+        {% if success_message %}
+        <div class="save-message success">{{ success_message }}</div>
+        {% endif %}
+
+        {% if error_message %}
+        <div class="save-message error">{{ error_message }}</div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('staff_manual_add') }}">
+          <section class="pass-list-filters">
+            <div class="filter-group">
+              <label for="year-input">ปี พ.ศ.</label>
+              <select id="year-input" name="year" class="filter-select">
+                {% for year in available_years %}
+                  <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>{{ to_thai_digits(year) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label for="class-input">ชั้น</label>
+              <select id="class-input" name="class_name" class="filter-select" required>
+                {% for class_name in available_classes %}
+                  <option value="{{ class_name }}" {{ 'selected' if selected_class == class_name else '' }}>{{ class_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </section>
+
+          <div class="filter-group">
+            <label for="names-input">รายชื่อ (ขึ้นบรรทัดใหม่ 1 คน)</label>
+            <textarea id="names-input" class="form-input" name="names" rows="10" placeholder="ตัวอย่าง:\nสามเณร ก ข\nสามเณร ค ง" required>{{ names_text }}</textarea>
+          </div>
+
+          <button type="submit" class="save-result-btn">เพิ่มรายชื่อ</button>
+        </form>
+
+        {% if added_names %}
+        <section class="page-intro" style="margin-top: 18px;">
+          <h2>เพิ่มสำเร็จ</h2>
+        </section>
+        <div class="result-group">
+          <ul class="registrations-list">
+            {% for name in added_names %}
+            <li>{{ name }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        {% if skipped_names %}
+        <section class="page-intro" style="margin-top: 18px;">
+          <h2>ข้าม (มีอยู่แล้ว)</h2>
+        </section>
+        <div class="result-group">
+          <ul class="registrations-list">
+            {% for name in skipped_names %}
+            <li>{{ name }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </main>
+
+      {% include '_site_footer.html' %}
+    </div>
+    <script src="{{ static_asset_url('theme.js') }}"></script>
+  </body>
+</html>
