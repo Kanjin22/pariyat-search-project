@@ -14,7 +14,11 @@
     <div class="container">
       <header class="main-header">
         <h1>นำเข้าผลสอบจาก Excel</h1>
-        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ to_thai_digits(selected_year) if selected_year else current_buddhist_year }}</p>
+        {% if selected_year %}
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}-{{ to_thai_digits(selected_year) }}</p>
+        {% else %}
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
+        {% endif %}
         <nav class="top-nav">
           <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
           <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
@@ -25,7 +29,7 @@
           <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
           <a class="nav-link" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
           {% endif %}
-          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
+          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
           <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
             <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
           </form>
@@ -65,10 +69,10 @@
         <form class="upload-form" method="post" action="{{ url_for('staff_import_excel_preview') }}" enctype="multipart/form-data">
           <section class="pass-list-filters">
             <div class="filter-group">
-              <label for="year-input">ปี พ.ศ.</label>
+              <label for="year-input">ปีการศึกษา</label>
               <select id="year-input" name="year" class="filter-select">
                 {% for year in available_years %}
-                  <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>{{ to_thai_digits(year) }}</option>
+                  <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>ปีการศึกษา {{ to_thai_digits((year|int) - 1) }}-{{ to_thai_digits(year) }}</option>
                 {% endfor %}
               </select>
             </div>

@@ -14,7 +14,11 @@
     <div class="container">
       <header class="main-header">
         <h1>สรุปสถิติธรรม (แยกหน่วยงาน)</h1>
-        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ to_thai_digits(selected_year) if selected_year else current_buddhist_year }}</p>
+        {% if selected_year %}
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}-{{ to_thai_digits(selected_year) }}</p>
+        {% else %}
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
+        {% endif %}
         <nav class="top-nav">
           <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
           <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>

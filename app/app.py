@@ -845,6 +845,7 @@ def inject_auth_state():
     group_descriptions = {}
     if isinstance(bali_summary_data, dict):
         group_descriptions = bali_summary_data.get('group_descriptions') or {}
+    current_year_numeric = int(CURRENT_YEAR_NUMERIC)
     return {
         'staff_logged_in': is_staff_logged_in(),
         'security_hardened': is_security_hardened(),
@@ -852,6 +853,8 @@ def inject_auth_state():
         'static_asset_url': static_asset_url,
         'group_descriptions': group_descriptions,
         'to_thai_digits': to_thai_digits,
+        'current_year_numeric': current_year_numeric,
+        'current_academic_year_label': f"{to_thai_digits(current_year_numeric - 1)}-{to_thai_digits(current_year_numeric)}",
         'visitor_counter': get_visitor_counts()
     }
 

@@ -14,7 +14,7 @@
     <div class="container">
       <header class="main-header">
         <h1>ระบบค้นหารายชื่อผู้สมัครสอบ ธรรม-บาลีสนามหลวง</h1>
-        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปี พ.ศ. {{ current_buddhist_year }}</p>
+        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
         <nav class="top-nav">
           <a class="nav-link active" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
           <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
@@ -31,7 +31,7 @@
           {% else %}
           <a class="nav-link" href="{{ url_for('staff_login', next=url_for('manage_results')) }}">เข้าสู่ระบบเจ้าหน้าที่</a>
           {% endif %}
-          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
+          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
         </nav>
       </header>
 
