@@ -1125,6 +1125,41 @@ def apply_exam_results(dataframe, year=None):
         ).fillna('')
     else:
         dataframe['exam_result_status'] = dataframe['registration_key'].map(result_map).fillna('')
+    if isinstance(result_map, dict) and result_map and 'id_card' in dataframe.columns and 'class_name' in dataframe.columns:
+        legacy_index = {}
+        legacy_conflicts = set()
+        for legacy_key, legacy_status in result_map.items():
+            key_text = str(legacy_key or '')
+            if key_text.startswith('cid=') or key_text.startswith('name='):
+                continue
+            parts = [part.strip() for part in key_text.split('|') if part is not None]
+            if len(parts) < 3:
+                continue
+            class_part = str(parts[1] or '').strip()
+            id_part = str(parts[-2] or '').strip() if len(parts) >= 2 else ''
+            if not class_part or not id_part or id_part.lower() in {'none', 'nan', 'null'}:
+                continue
+            idx_key = (id_part, class_part)
+            if idx_key in legacy_index and legacy_index[idx_key] != legacy_status:
+                legacy_conflicts.add(idx_key)
+                continue
+            legacy_index[idx_key] = legacy_status
+        if legacy_conflicts:
+            for conflict_key in legacy_conflicts:
+                legacy_index.pop(conflict_key, None)
+        if legacy_index:
+            missing_mask = dataframe['exam_result_status'].astype(str).fillna('') == ''
+            if missing_mask.any():
+                id_series = dataframe.loc[missing_mask, 'id_card'].astype(str).fillna('').str.strip()
+                class_series = dataframe.loc[missing_mask, 'class_name'].astype(str).fillna('').str.strip()
+                mapped = [
+                    legacy_index.get((id_val, class_val), '')
+                    for id_val, class_val in zip(id_series.tolist(), class_series.tolist())
+                ]
+                dataframe.loc[missing_mask, 'exam_result_status'] = [
+                    mapped_val if mapped_val else existing_val
+                    for mapped_val, existing_val in zip(mapped, dataframe.loc[missing_mask, 'exam_result_status'].tolist())
+                ]
     target_mask = dataframe['class_name'].astype(str).str.startswith('ป.') | dataframe['class_name'].astype(str).str.startswith('บ.ศ')
     dataframe.loc[target_mask & (dataframe['exam_result_status'] == ''), 'exam_result_status'] = 'สอบตก'
     return dataframe
