@@ -221,6 +221,7 @@
                   <th>หน่วยงาน</th>
                   <th>กลุ่ม</th>
                   <th>สถานะ</th>
+                  <th>ปกศ.</th>
                 </tr>
               </thead>
               <tbody>
@@ -254,6 +255,13 @@
                         {% set status_class = 'status-disqualified' %}
                       {% endif %}
                       <span class="pass-status-badge {{ status_class }}">{{ result.result_status or '-' }}</span>
+                    </td>
+                    <td class="number-cell">
+                      {% if result.cert_current_year_ok %}
+                        ✓
+                      {% else %}
+                        -
+                      {% endif %}
                     </td>
                   </tr>
                 {% endfor %}

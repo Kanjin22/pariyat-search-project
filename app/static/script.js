@@ -75,11 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 let nugdhamLine = '';
                 let paliLine = '';
 
+                const nugdhamMark = reg.cert_nugdham_current_ok ? ' ✓' : '';
+                const paliMark = reg.cert_pali_current_ok ? ' ✓' : '';
+
                 if (isPaliSubject) {
-                    nugdhamLine = reg.cert_nugdham ? ` - ${reg.cert_nugdham}<br>` : '';
-                    paliLine = reg.cert_pali ? ` - ${reg.cert_pali}<br>` : '';
+                    nugdhamLine = reg.cert_nugdham ? ` - ${reg.cert_nugdham}${nugdhamMark}<br>` : '';
+                    paliLine = reg.cert_pali ? ` - ${reg.cert_pali}${paliMark}<br>` : '';
                 } else {
-                    nugdhamLine = reg.cert_nugdham ? ` - ${reg.cert_nugdham}<br>` : '';
+                    nugdhamLine = reg.cert_nugdham ? ` - ${reg.cert_nugdham}${nugdhamMark}<br>` : '';
                 }
 
                 const hasCertToShow = nugdhamLine || paliLine;
