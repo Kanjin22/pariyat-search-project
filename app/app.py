@@ -42,6 +42,7 @@ try:
     API_SNAPSHOT_LOCK_MAX_YEAR = int((os.getenv('API_SNAPSHOT_LOCK_MAX_YEAR') or '').strip() or 0) or None
 except ValueError:
     API_SNAPSHOT_LOCK_MAX_YEAR = None
+DATA_SOURCE_SETTINGS_FILE = os.path.join(RESULTS_DATA_DIR, 'data_source_settings.json')
 ANALYTICS_DB_FILE = os.path.join(RESULTS_DATA_DIR, 'analytics.sqlite3')
 VISITOR_COOKIE_NAME = 'ps_vid'
 VISITOR_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 5
@@ -496,6 +497,37 @@ def get_manual_registrations_file(year):
 
 def get_api_snapshot_file(year):
     return os.path.join(RESULTS_DATA_DIR, f'api_snapshot_{int(year)}.json')
+
+
+def load_data_source_settings():
+    if not os.path.exists(DATA_SOURCE_SETTINGS_FILE):
+        return {}
+    try:
+        with open(DATA_SOURCE_SETTINGS_FILE, 'r', encoding='utf-8') as fp:
+            settings = json.load(fp)
+        if isinstance(settings, dict):
+            return settings
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {}
+
+
+def save_data_source_settings(settings):
+    if not isinstance(settings, dict):
+        return False
+    os.makedirs(RESULTS_DATA_DIR, exist_ok=True)
+    with open(DATA_SOURCE_SETTINGS_FILE, 'w', encoding='utf-8') as fp:
+        json.dump(settings, fp, ensure_ascii=False)
+    return True
+
+
+def get_effective_snapshot_lock_max_year():
+    settings = load_data_source_settings()
+    override_value = settings.get('snapshot_lock_max_year')
+    override_year = normalize_year_value(override_value)
+    if override_year:
+        return int(override_year)
+    return API_SNAPSHOT_LOCK_MAX_YEAR
 
 
 def is_snapshot_fresh(snapshot_meta):
@@ -1436,7 +1468,7 @@ def build_processed_df_from_api_rows(api_rows, target_year_numeric, store_global
     return result_df
 
 
-def load_data_from_api(year=None, store_global=True, force_refresh=False):
+def load_data_from_api(year=None, store_global=True, force_refresh=False, allow_locked_refresh=False):
     global df
     API_URL = os.getenv('PARIYAT_API_URL', "https://app.pariyat.com/pages/postx/name_json.php")
     API_USER = (os.getenv('PARIYAT_API_USER') or '').strip()
@@ -1444,20 +1476,19 @@ def load_data_from_api(year=None, store_global=True, force_refresh=False):
     target_year_numeric = int(year or CURRENT_YEAR_NUMERIC)
     PARAMS = {'user': API_USER, 'pass': API_PASS, 'filter_year': target_year_numeric}
     runtime_current_year = get_runtime_current_year_numeric()
-    snapshot_lock_max_year = API_SNAPSHOT_LOCK_MAX_YEAR
+    snapshot_lock_max_year = get_effective_snapshot_lock_max_year()
     locked_year = (snapshot_lock_max_year is not None and target_year_numeric <= snapshot_lock_max_year) or (target_year_numeric < runtime_current_year)
     
     try:
         snapshot = None
-        if locked_year or not force_refresh:
-            snapshot = load_api_snapshot(target_year_numeric)
-            if snapshot:
-                if locked_year or is_snapshot_fresh(snapshot):
-                    result_df = build_processed_df_from_api_rows(snapshot.get('data') or [], target_year_numeric, store_global)
-                    print(f"--- [SUCCESS] Data loaded from snapshot (fresh). Final records: {len(result_df)}")
-                    return result_df
+        snapshot = load_api_snapshot(target_year_numeric)
+        if not force_refresh and snapshot:
+            if locked_year or is_snapshot_fresh(snapshot):
+                result_df = build_processed_df_from_api_rows(snapshot.get('data') or [], target_year_numeric, store_global)
+                print(f"--- [SUCCESS] Data loaded from snapshot (fresh). Final records: {len(result_df)}")
+                return result_df
 
-        if locked_year and snapshot:
+        if locked_year and snapshot and not allow_locked_refresh:
             raise RuntimeError('Snapshot is locked for this year; not refreshing from API')
 
         if not API_USER or not API_PASS:
@@ -1488,7 +1519,8 @@ def load_data_from_api(year=None, store_global=True, force_refresh=False):
 def get_df_for_year(year):
     year_value = normalize_year_value(year) or CURRENT_YEAR_NUMERIC
     if year_value in DF_CACHE:
-        if (API_SNAPSHOT_LOCK_MAX_YEAR is not None and int(year_value) <= int(API_SNAPSHOT_LOCK_MAX_YEAR)) or int(year_value) < int(get_runtime_current_year_numeric()):
+        lock_max_year = get_effective_snapshot_lock_max_year()
+        if (lock_max_year is not None and int(year_value) <= int(lock_max_year)) or int(year_value) < int(get_runtime_current_year_numeric()):
             return DF_CACHE[year_value]
         cache_meta = DF_CACHE_META.get(year_value) or {}
         if API_SNAPSHOT_MAX_AGE_HOURS <= 0:
@@ -2724,6 +2756,103 @@ def api_create_backup():
         return jsonify({'success': True, 'message': 'สำรองข้อมูลสำเร็จ'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/staff/data-source', methods=['GET', 'POST'])
+@staff_login_required()
+def staff_data_source():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    selected_year = get_selected_year()
+    available_years = list_available_years()
+    if selected_year not in available_years:
+        available_years.append(selected_year)
+        available_years = sorted(available_years)
+
+    settings = load_data_source_settings()
+    effective_lock_max_year = get_effective_snapshot_lock_max_year()
+    runtime_current_year = get_runtime_current_year_numeric()
+    snapshot_items = []
+    for year in available_years:
+        snapshot_file = get_api_snapshot_file(year)
+        fetched_at = ''
+        if os.path.exists(snapshot_file):
+            try:
+                fetched_at = datetime.fromtimestamp(os.path.getmtime(snapshot_file)).isoformat()
+            except OSError:
+                fetched_at = ''
+        snapshot_items.append({
+            'year': int(year),
+            'snapshot_exists': os.path.exists(snapshot_file),
+            'snapshot_modified_at': fetched_at,
+        })
+
+    message = ''
+    message_type = 'success'
+    if request.method == 'POST':
+        action = str(request.form.get('action') or '').strip()
+        if action == 'set_lock_max_year':
+            new_lock_year = normalize_year_value(request.form.get('lock_max_year'))
+            if new_lock_year:
+                settings['snapshot_lock_max_year'] = int(new_lock_year)
+            else:
+                settings.pop('snapshot_lock_max_year', None)
+            save_data_source_settings(settings)
+            write_staff_log(action='data_source', outcome='success', username=session.get('staff_username', ''), detail=f'set_lock_max_year:{settings.get("snapshot_lock_max_year")}')
+            return redirect(url_for('staff_data_source', mode=get_mode_value(request.args.get('mode')), year=selected_year))
+
+        if action == 'clear_lock_max_year':
+            settings.pop('snapshot_lock_max_year', None)
+            save_data_source_settings(settings)
+            write_staff_log(action='data_source', outcome='success', username=session.get('staff_username', ''), detail='clear_lock_max_year')
+            return redirect(url_for('staff_data_source', mode=get_mode_value(request.args.get('mode')), year=selected_year))
+
+        if action == 'refresh_snapshot':
+            target_year = normalize_year_value(request.form.get('refresh_year')) or selected_year
+            try:
+                load_data_from_api(target_year, store_global=False, force_refresh=True, allow_locked_refresh=True)
+                DF_CACHE.pop(str(target_year), None)
+                DF_CACHE.pop(int(target_year), None)
+                DF_CACHE_META.pop(str(target_year), None)
+                DF_CACHE_META.pop(int(target_year), None)
+                write_staff_log(action='data_source', outcome='success', username=session.get('staff_username', ''), detail=f'refresh_snapshot:{target_year}')
+                message = f'อัปเดต snapshot ปี {to_thai_digits(target_year)} สำเร็จ'
+                message_type = 'success'
+            except Exception as e:
+                write_staff_log(action='data_source', outcome='failed', username=session.get('staff_username', ''), detail=f'refresh_snapshot:{target_year}:{e}')
+                message = f'อัปเดต snapshot ไม่สำเร็จ: {e}'
+                message_type = 'error'
+
+            settings = load_data_source_settings()
+            effective_lock_max_year = get_effective_snapshot_lock_max_year()
+            snapshot_items = []
+            for year in available_years:
+                snapshot_file = get_api_snapshot_file(year)
+                fetched_at = ''
+                if os.path.exists(snapshot_file):
+                    try:
+                        fetched_at = datetime.fromtimestamp(os.path.getmtime(snapshot_file)).isoformat()
+                    except OSError:
+                        fetched_at = ''
+                snapshot_items.append({
+                    'year': int(year),
+                    'snapshot_exists': os.path.exists(snapshot_file),
+                    'snapshot_modified_at': fetched_at,
+                })
+
+    return render_template(
+        'staff_data_source.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        selected_year=selected_year,
+        available_years=available_years,
+        runtime_current_year_numeric=runtime_current_year,
+        env_lock_max_year=API_SNAPSHOT_LOCK_MAX_YEAR,
+        override_lock_max_year=settings.get('snapshot_lock_max_year'),
+        effective_lock_max_year=effective_lock_max_year,
+        snapshot_items=snapshot_items,
+        message=message,
+        message_type=message_type
+    )
 
 
 @app.route('/staff/logout', methods=['POST'])

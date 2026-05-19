@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>แหล่งข้อมูล API/Snapshot</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>แหล่งข้อมูล API/Snapshot</h1>
+        {% if selected_year %}
+          {% if current_mode == 'tham' %}
+        <p>แผนกธรรม | ปี พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}</p>
+          {% elif current_mode == 'bali' %}
+        <p>แผนกบาลี | ปี พ.ศ. {{ to_thai_digits(selected_year) }}</p>
+          {% else %}
+        <p>ภาพรวม | ปีการศึกษา พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}-{{ to_thai_digits(selected_year) }}</p>
+          {% endif %}
+        {% else %}
+        <p>ภาพรวม | ปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
+        {% endif %}
+        {% include '_nav.html' %}
+      </header>
+
+      <main class="search-area">
+        <section class="page-intro">
+          <h2>ตั้งค่าโหมดข้อมูล</h2>
+          <div class="config-notice">
+            ระบบจะล็อกปีอัตโนมัติหลังวันที่ ๑ มิ.ย. (ปีที่น้อยกว่า “ปีปัจจุบันตามระบบ” จะใช้ snapshot เป็นหลัก)
+          </div>
+        </section>
+
+        {% if message %}
+          <div class="save-message {{ message_type }}">{{ message }}</div>
+        {% endif %}
+
+        <section class="pass-list-filters">
+          <div class="filter-group">
+            <div><strong>ปีปัจจุบันตามระบบ (อิง ๑ มิ.ย.)</strong>: {{ to_thai_digits(runtime_current_year_numeric) }}</div>
+            <div><strong>ENV ล็อกปีสูงสุด</strong>: {{ to_thai_digits(env_lock_max_year) if env_lock_max_year else '-' }}</div>
+            <div><strong>Override ล็อกปีสูงสุด</strong>: {{ to_thai_digits(override_lock_max_year) if override_lock_max_year else '-' }}</div>
+            <div><strong>ค่าที่ใช้งานจริง</strong>: {{ to_thai_digits(effective_lock_max_year) if effective_lock_max_year else '-' }}</div>
+          </div>
+        </section>
+
+        <section class="pass-list-filters">
+          <form class="filter-group" method="post">
+            <input type="hidden" name="action" value="set_lock_max_year" />
+            <label for="lock-max-year">ล็อกให้ใช้ snapshot ถึงปี</label>
+            <select id="lock-max-year" name="lock_max_year" class="filter-select">
+              <option value="">ไม่ override (ใช้ค่าอัตโนมัติ/ENV)</option>
+              {% for year in available_years %}
+                <option value="{{ year }}" {{ 'selected' if override_lock_max_year and (override_lock_max_year|int) == (year|int) else '' }}>
+                  {{ to_thai_digits(year) }}
+                </option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="search-btn">บันทึก</button>
+          </form>
+
+          <form class="filter-group" method="post">
+            <input type="hidden" name="action" value="clear_lock_max_year" />
+            <button type="submit" class="search-btn">ล้างค่า override</button>
+          </form>
+        </section>
+
+        <section class="pass-list-filters">
+          <form class="filter-group" method="post">
+            <input type="hidden" name="action" value="refresh_snapshot" />
+            <label for="refresh-year">อัปเดต snapshot จาก API</label>
+            <select id="refresh-year" name="refresh_year" class="filter-select">
+              {% for year in available_years %}
+                <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>{{ to_thai_digits(year) }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="search-btn">ดึงจาก API และบันทึก snapshot</button>
+          </form>
+        </section>
+
+        <section class="pass-list-table-wrapper">
+          <table class="pass-list-table">
+            <thead>
+              <tr>
+                <th>ปี</th>
+                <th>มี snapshot</th>
+                <th>แก้ไขล่าสุด</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in snapshot_items %}
+                <tr>
+                  <td class="number-cell">{{ to_thai_digits(item.year) }}</td>
+                  <td class="number-cell">{{ '✓' if item.snapshot_exists else '-' }}</td>
+                  <td>{{ to_thai_digits(item.snapshot_modified_at) if item.snapshot_modified_at else '-' }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </section>
+      </main>
+
+      {% include '_site_footer.html' %}
+    </div>
+  </body>
+</html>
+

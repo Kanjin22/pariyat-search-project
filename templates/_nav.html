@@ -30,6 +30,7 @@
           <a role="menuitem" href="{{ url_for('manage_results', mode=nav_mode, year=nav_year) }}">จัดการผลการสอบ</a>
           <a role="menuitem" href="{{ url_for('staff_import_excel', mode=nav_mode, year=nav_year) }}">นำเข้าจาก Excel</a>
           <a role="menuitem" href="{{ url_for('staff_manual_add', mode=nav_mode, year=nav_year) }}">เพิ่มรายชื่อ manual</a>
+          <a role="menuitem" href="{{ url_for('staff_data_source', mode=nav_mode, year=nav_year) }}">แหล่งข้อมูล API/Snapshot</a>
           {% if session.staff_username and is_admin(session.staff_username) %}
             <a role="menuitem" href="{{ url_for('staff_manage', mode=nav_mode, year=nav_year) }}">จัดการเจ้าหน้าที่</a>
             <a role="menuitem" href="{{ url_for('staff_activity', mode=nav_mode, year=nav_year) }}">ประวัติการทำงาน</a>
