@@ -32,7 +32,7 @@
           {% else %}
           <a class="nav-link" href="{{ url_for('staff_login', next=url_for('manage_results')) }}">เข้าสู่ระบบเจ้าหน้าที่</a>
           {% endif %}
-          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
+          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
         </nav>
       </header>
 
@@ -56,16 +56,24 @@
 
         <section class="pass-list-filters">
           <div class="filter-group">
-            <label for="year-filter">ปี พ.ศ.</label>
+            <label for="year-filter">ปีการศึกษา</label>
             <select id="year-filter" class="filter-select">
               {% for year in available_years %}
                 <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>
-                  {{ to_thai_digits(year) }}
+                  ปีการศึกษา {{ to_thai_digits((year|int) - 1) }}-{{ to_thai_digits(year) }}
                 </option>
               {% endfor %}
             </select>
           </div>
         </section>
+
+        {% if selected_year %}
+        <div class="config-notice">
+          ปีการศึกษา {{ to_thai_digits((selected_year|int) - 1) }}<br />
+          - แผนกธรรม สอบปี {{ to_thai_digits((selected_year|int) - 1) }}<br />
+          - แผนกบาลี สอบปี {{ to_thai_digits(selected_year) }}
+        </div>
+        {% endif %}
 
         <section class="department-nav">
           {% for key, subsection in department.subsections.items() %}
