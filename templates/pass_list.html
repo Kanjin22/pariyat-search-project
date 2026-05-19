@@ -44,6 +44,11 @@
               ระบบล็อกอัตโนมัติ: ปีที่น้อยกว่า {{ to_thai_digits(snapshot_lock.runtime_current_year) }}
             {% endif %}
           </div>
+        {% else %}
+          <div class="config-notice api">
+            <strong>สถานะข้อมูล: โหมดปกติ (อ้างอิง API)</strong><br />
+            ระบบอาจใช้ snapshot ชั่วคราวเพื่อ cache/สำรอง หาก API ขัดข้อง
+          </div>
         {% endif %}
 
         <section class="pass-list-filters">

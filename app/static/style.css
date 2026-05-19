@@ -476,6 +476,12 @@ a.phone-link:hover {
     font-weight: bold;
 }
 
+.config-notice.api {
+    background-color: #e6f4ff;
+    border-color: #91caff;
+    color: #003a8c;
+}
+
 .empty-state {
     color: #666;
     padding: 10px 0;
