@@ -9,7 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   </head>
   <body>
     <div class="container">
@@ -24,6 +23,7 @@
       </header>
 
       <main class="search-area">
+        {% set is_public_statistics = request.path.startswith('/statistics') %}
         <section class="page-intro">
           <h2>เลือกแผนกที่ต้องการดูสถิติ</h2>
         </section>
@@ -50,11 +50,19 @@
         {% endif %}
 
         <section class="department-nav">
+          {% if is_public_statistics %}
+          <a href="{{ url_for('public_statistics_tham', mode='tham', year=selected_year) }}" class="department-card">
+          {% else %}
           <a href="{{ url_for('staff_statistics_tham', mode='tham', year=selected_year) }}" class="department-card">
+          {% endif %}
             <h3>📚 แผนกธรรม</h3>
             <p>ดูสถิติของแผนกธรรม</p>
           </a>
+          {% if is_public_statistics %}
+          <a href="{{ url_for('public_statistics_bali', mode='bali', year=selected_year) }}" class="department-card">
+          {% else %}
           <a href="{{ url_for('staff_statistics_bali', mode='bali', year=selected_year) }}" class="department-card">
+          {% endif %}
             <h3>📖 แผนกบาลี</h3>
             <p>ดูสถิติของแผนกบาลี</p>
           </a>
@@ -126,36 +134,25 @@
             </div>
           </div>
         {% endif %}
-
-        <div class="charts-container">
-          <div class="chart-wrapper">
-            <h3 class="chart-title">สถิติผลการสอบ</h3>
-            <canvas id="statusChart"></canvas>
-          </div>
-          <div class="chart-wrapper">
-            <h3 class="chart-title">สถิติตามชั้นเรียน</h3>
-            <canvas id="classChart"></canvas>
-          </div>
-        </div>
       </main>
 
       {% include '_site_footer.html' %}
     </div>
 
     <script>
-      const statistics = {{ statistics | tojson }};
-    </script>
-    <script>
       document.addEventListener('DOMContentLoaded', function() {
         const yearFilter = document.getElementById('year-filter');
         if (!yearFilter) return;
         yearFilter.addEventListener('change', function() {
           const year = yearFilter.value;
+          {% if request.path.startswith('/statistics') %}
+          window.location.href = '{{ url_for("public_statistics") }}?mode={{ current_mode }}&year=' + encodeURIComponent(year);
+          {% else %}
           window.location.href = '{{ url_for("staff_statistics") }}?mode={{ current_mode }}&year=' + encodeURIComponent(year);
+          {% endif %}
         });
       });
     </script>
     <script src="{{ static_asset_url('theme.js') }}"></script>
-    <script src="{{ static_asset_url('statistics.js') }}"></script>
   </body>
 </html>
