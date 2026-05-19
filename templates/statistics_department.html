@@ -45,6 +45,17 @@
           {% endif %}
         </section>
 
+        {% if snapshot_lock and snapshot_lock.locked %}
+        <div class="config-notice">
+          <strong>ตอนนี้กำลังล็อก snapshot อยู่</strong><br />
+          {% if snapshot_lock.reason == 'override' %}
+            ตั้งค่าโดยเจ้าหน้าที่: ล็อกถึงปี {{ to_thai_digits(snapshot_lock.lock_max_year) }}
+          {% else %}
+            ระบบล็อกอัตโนมัติ: ปีที่น้อยกว่า {{ to_thai_digits(snapshot_lock.runtime_current_year) }}
+          {% endif %}
+        </div>
+        {% endif %}
+
         <section class="pass-list-filters">
           <div class="filter-group">
             <label for="year-filter">ปี พ.ศ.</label>

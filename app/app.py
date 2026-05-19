@@ -530,6 +530,30 @@ def get_effective_snapshot_lock_max_year():
     return API_SNAPSHOT_LOCK_MAX_YEAR
 
 
+def get_snapshot_lock_status(year):
+    year_value = normalize_year_value(year) or CURRENT_YEAR_NUMERIC
+    runtime_current_year = int(get_runtime_current_year_numeric())
+    lock_max_year = get_effective_snapshot_lock_max_year()
+    settings = load_data_source_settings()
+    override_year = normalize_year_value(settings.get('snapshot_lock_max_year'))
+    locked = False
+    reason = ''
+    if int(year_value) < runtime_current_year:
+        locked = True
+        reason = 'past_year'
+    if lock_max_year is not None and int(year_value) <= int(lock_max_year):
+        locked = True
+        reason = 'override' if override_year else 'lock_max_year'
+    return {
+        'locked': locked,
+        'reason': reason,
+        'year': int(year_value),
+        'runtime_current_year': runtime_current_year,
+        'lock_max_year': int(lock_max_year) if lock_max_year is not None else None,
+        'override_lock_max_year': int(override_year) if override_year else None
+    }
+
+
 def is_snapshot_fresh(snapshot_meta):
     if not isinstance(snapshot_meta, dict):
         return False
@@ -1761,13 +1785,15 @@ def index():
     if selected_year not in available_years:
         available_years.append(selected_year)
         available_years = sorted(available_years)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     return render_template(
         'index.html',
         current_buddhist_year=current_year_thai,
         current_year_numeric=current_year_numeric,
         selected_year=selected_year,
         available_years=available_years,
-        mode=mode
+        mode=mode,
+        snapshot_lock=snapshot_lock
     )
 
 
@@ -1794,6 +1820,7 @@ def pass_list():
     if selected_year not in available_years:
         available_years.append(selected_year)
         available_years = sorted(available_years)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     
     year_df = get_df_for_year(selected_year)
     year_df = filter_df_by_mode(year_df, mode)
@@ -1898,7 +1925,8 @@ def pass_list():
         available_levels=available_levels,
         available_schools=available_schools,
         available_groups=available_groups,
-        available_statuses=available_statuses
+        available_statuses=available_statuses,
+        snapshot_lock=snapshot_lock
     )
 
 
@@ -1918,6 +1946,7 @@ def public_statistics():
         available_years.append(selected_year)
         available_years = sorted(available_years)
     stats = get_statistics(year=selected_year)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     return render_template(
         'statistics.html',
         current_buddhist_year=current_year_thai,
@@ -1925,7 +1954,8 @@ def public_statistics():
         selected_year=selected_year,
         available_years=available_years,
         statistics=stats,
-        department_levels=DEPARTMENT_LEVELS
+        department_levels=DEPARTMENT_LEVELS,
+        snapshot_lock=snapshot_lock
     )
 
 
@@ -1941,6 +1971,7 @@ def public_statistics_tham():
     for subsection in DEPARTMENT_LEVELS.get('tham', {}).get('subsections', {}).values():
         level_ids.extend(subsection.get('levels', []) or [])
     stats = get_statistics(level_ids=level_ids, year=selected_year)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     return render_template(
         'statistics_department.html',
         current_buddhist_year=current_year_thai,
@@ -1949,7 +1980,8 @@ def public_statistics_tham():
         available_years=available_years,
         statistics=stats,
         department_key='tham',
-        department=DEPARTMENT_LEVELS['tham']
+        department=DEPARTMENT_LEVELS['tham'],
+        snapshot_lock=snapshot_lock
     )
 
 
@@ -1966,6 +1998,7 @@ def public_statistics_tham_subsection(subsection):
 
     subsection_data = DEPARTMENT_LEVELS['tham']['subsections'][subsection]
     stats = get_statistics(subsection_data['levels'], year=selected_year)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     return render_template(
         'statistics_subsection.html',
         current_buddhist_year=current_year_thai,
@@ -1976,7 +2009,8 @@ def public_statistics_tham_subsection(subsection):
         department=DEPARTMENT_LEVELS['tham'],
         subsection_key=subsection,
         subsection=subsection_data,
-        statistics=stats
+        statistics=stats,
+        snapshot_lock=snapshot_lock
     )
 
 
@@ -1992,6 +2026,7 @@ def public_statistics_bali():
     for subsection in DEPARTMENT_LEVELS.get('bali', {}).get('subsections', {}).values():
         level_ids.extend(subsection.get('levels', []) or [])
     stats = get_statistics(level_ids=level_ids, year=selected_year)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     return render_template(
         'statistics_department.html',
         current_buddhist_year=current_year_thai,
@@ -2000,7 +2035,8 @@ def public_statistics_bali():
         available_years=available_years,
         statistics=stats,
         department_key='bali',
-        department=DEPARTMENT_LEVELS['bali']
+        department=DEPARTMENT_LEVELS['bali'],
+        snapshot_lock=snapshot_lock
     )
 
 
@@ -2017,6 +2053,7 @@ def public_statistics_bali_subsection(subsection):
 
     subsection_data = DEPARTMENT_LEVELS['bali']['subsections'][subsection]
     stats = get_statistics(subsection_data['levels'], year=selected_year)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     return render_template(
         'statistics_subsection.html',
         current_buddhist_year=current_year_thai,
@@ -2027,7 +2064,8 @@ def public_statistics_bali_subsection(subsection):
         department=DEPARTMENT_LEVELS['bali'],
         subsection_key=subsection,
         subsection=subsection_data,
-        statistics=stats
+        statistics=stats,
+        snapshot_lock=snapshot_lock
     )
 
 
@@ -2100,6 +2138,7 @@ def staff_statistics():
         available_years.append(selected_year)
         available_years = sorted(available_years)
     stats = get_statistics(year=selected_year)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     return render_template(
         'statistics.html',
         current_buddhist_year=current_year_thai,
@@ -2107,7 +2146,8 @@ def staff_statistics():
         selected_year=selected_year,
         available_years=available_years,
         statistics=stats,
-        department_levels=DEPARTMENT_LEVELS
+        department_levels=DEPARTMENT_LEVELS,
+        snapshot_lock=snapshot_lock
     )
 
 
@@ -2123,6 +2163,7 @@ def staff_statistics_tham():
     for subsection in DEPARTMENT_LEVELS.get('tham', {}).get('subsections', {}).values():
         level_ids.extend(subsection.get('levels', []) or [])
     stats = get_statistics(level_ids=level_ids, year=selected_year)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     return render_template(
         'statistics_department.html',
         current_buddhist_year=current_year_thai,
@@ -2131,7 +2172,8 @@ def staff_statistics_tham():
         available_years=available_years,
         statistics=stats,
         department_key='tham',
-        department=DEPARTMENT_LEVELS['tham']
+        department=DEPARTMENT_LEVELS['tham'],
+        snapshot_lock=snapshot_lock
     )
 
 
@@ -2148,6 +2190,7 @@ def staff_statistics_tham_subsection(subsection):
     
     subsection_data = DEPARTMENT_LEVELS['tham']['subsections'][subsection]
     stats = get_statistics(subsection_data['levels'], year=selected_year)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     
     return render_template(
         'statistics_subsection.html',
@@ -2159,7 +2202,8 @@ def staff_statistics_tham_subsection(subsection):
         department=DEPARTMENT_LEVELS['tham'],
         subsection_key=subsection,
         subsection=subsection_data,
-        statistics=stats
+        statistics=stats,
+        snapshot_lock=snapshot_lock
     )
 
 
@@ -2175,6 +2219,7 @@ def staff_statistics_bali():
     for subsection in DEPARTMENT_LEVELS.get('bali', {}).get('subsections', {}).values():
         level_ids.extend(subsection.get('levels', []) or [])
     stats = get_statistics(level_ids=level_ids, year=selected_year)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     return render_template(
         'statistics_department.html',
         current_buddhist_year=current_year_thai,
@@ -2183,7 +2228,8 @@ def staff_statistics_bali():
         available_years=available_years,
         statistics=stats,
         department_key='bali',
-        department=DEPARTMENT_LEVELS['bali']
+        department=DEPARTMENT_LEVELS['bali'],
+        snapshot_lock=snapshot_lock
     )
 
 
@@ -2200,6 +2246,7 @@ def staff_statistics_bali_subsection(subsection):
     
     subsection_data = DEPARTMENT_LEVELS['bali']['subsections'][subsection]
     stats = get_statistics(subsection_data['levels'], year=selected_year)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
     
     return render_template(
         'statistics_subsection.html',
@@ -2211,7 +2258,8 @@ def staff_statistics_bali_subsection(subsection):
         department=DEPARTMENT_LEVELS['bali'],
         subsection_key=subsection,
         subsection=subsection_data,
-        statistics=stats
+        statistics=stats,
+        snapshot_lock=snapshot_lock
     )
 
 
