@@ -2,6 +2,7 @@ import json
 import hashlib
 import logging
 import os
+import re
 import sqlite3
 import uuid
 from functools import wraps
@@ -296,7 +297,7 @@ def cert_matches_bali_year(cert_text, expected_year):
     if not text:
         return False
     expected = str(int(expected_year))
-    return text.endswith('/' + expected)
+    return re.search(r'/' + re.escape(expected) + r'(?!\d)', text) is not None
 
 
 def cert_matches_tham_year(cert_text, expected_year_two_digits):
@@ -304,8 +305,8 @@ def cert_matches_tham_year(cert_text, expected_year_two_digits):
     if not text:
         return False
     expected_year = str(expected_year_two_digits).zfill(2)
-    match = pd.Series([text]).str.extract(r'(\d{4})/(\d{4,5})$').iloc[0]
-    prefix = str(match[0] or '').strip()
+    match = re.search(r'(\d{4})\s*/\s*(\d{4,5})', text)
+    prefix = str(match.group(1) if match else '').strip()
     if len(prefix) != 4 or not prefix.isdigit():
         return False
     year_two = prefix[2:4]
@@ -331,8 +332,8 @@ def cert_matches_tham_year_and_type(cert_text, expected_year_two_digits, expecte
         return False
     expected_year = str(expected_year_two_digits).zfill(2)
     expected_type = str(expected_type_digit or '').strip()
-    match = pd.Series([text]).str.extract(r'(\d{4})/(\d{4,5})$').iloc[0]
-    prefix = str(match[0] or '').strip()
+    match = re.search(r'(\d{4})\s*/\s*(\d{4,5})', text)
+    prefix = str(match.group(1) if match else '').strip()
     if len(prefix) != 4 or not prefix.isdigit():
         return False
     type_digit = prefix[1:2]
@@ -342,14 +343,10 @@ def cert_matches_tham_year_and_type(cert_text, expected_year_two_digits, expecte
     return year_two == expected_year
 
 
-def get_expected_certificate_years(selected_year_value, mode):
+def get_expected_certificate_years(selected_year_value):
     year_int = int(normalize_year_value(selected_year_value) or CURRENT_YEAR_NUMERIC)
-    mode_value = get_mode_value(mode)
     expected_bali_year = year_int
-    if mode_value == MODE_OVERVIEW:
-        expected_tham_year_two = str(year_int - 1)[-2:]
-    else:
-        expected_tham_year_two = str(year_int)[-2:]
+    expected_tham_year_two = str(year_int - 1)[-2:]
     return expected_bali_year, expected_tham_year_two
 
 
@@ -1526,7 +1523,7 @@ def search():
         return jsonify([])
     tham_class_names = set(get_department_class_names('tham'))
     bali_class_names = set(get_department_class_names('bali'))
-    expected_bali_year, expected_tham_year_two = get_expected_certificate_years(year_value, mode)
+    expected_bali_year, expected_tham_year_two = get_expected_certificate_years(year_value)
     results_df = base_df[base_df['display_name'].str.contains(query, case=False, na=False)]
     if results_df.empty:
         return jsonify([])
@@ -1772,7 +1769,7 @@ def pass_list():
         names_map = load_exam_names_for_year(selected_year)
         tham_class_names = set(get_department_class_names('tham'))
         bali_class_names = set(get_department_class_names('bali'))
-        expected_bali_year, expected_tham_year_two = get_expected_certificate_years(selected_year, mode)
+        expected_bali_year, expected_tham_year_two = get_expected_certificate_years(selected_year)
         summary_df = year_df.copy()
         summary_df = summary_df.assign(
             summary_group=summary_df['group_name'].map(normalize_pass_summary_group)
