@@ -15,17 +15,7 @@
       <header class="main-header">
         <h1>ประวัติการทำงานเจ้าหน้าที่</h1>
         <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
-        <nav class="top-nav">
-          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
-          <a class="nav-link" href="{{ url_for('manage_results') }}">หน้าจัดการผลการสอบ</a>
-          <a class="nav-link" href="{{ url_for('staff_statistics') }}">สถิติ</a>
-          <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
-          <a class="nav-link active" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
-          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
-          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
-            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
-          </form>
-        </nav>
+        {% include '_nav.html' %}
       </header>
 
       <main class="search-area">

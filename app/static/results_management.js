@@ -5,19 +5,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resultsContainer = document.getElementById('result-management-container');
     const messageBox = document.getElementById('result-message');
     const statusOptions = Array.isArray(window.RESULT_STATUS_OPTIONS) ? window.RESULT_STATUS_OPTIONS : [];
-    const loginUrl = '/staff/login?next=%2Fmanage-results';
+    const loginUrl = `/staff/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
     const selectedYear = String(window.SELECTED_YEAR ?? '').trim();
+    const currentMode = String(window.CURRENT_MODE ?? '').trim();
 
     if (yearFilter) {
         yearFilter.addEventListener('change', () => {
             const year = yearFilter.value;
-            window.location.href = `/manage-results?year=${encodeURIComponent(year)}`;
+            const params = new URLSearchParams();
+            if (year) {
+                params.set('year', year);
+            }
+            if (currentMode) {
+                params.set('mode', currentMode);
+            }
+            window.location.href = `/manage-results?${params.toString()}`;
         });
     }
 
     const loadClasses = async () => {
         try {
-            const response = await fetch(`/get_classes?year=${encodeURIComponent(selectedYear)}`);
+            const params = new URLSearchParams();
+            if (selectedYear) {
+                params.set('year', selectedYear);
+            }
+            if (currentMode) {
+                params.set('mode', currentMode);
+            }
+            const url = params.toString() ? `/get_classes?${params.toString()}` : '/get_classes';
+            const response = await fetch(url);
             if (response.status === 401) {
                 window.location.href = loginUrl;
                 return;
@@ -205,6 +221,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const params = new URLSearchParams();
             if (selectedYear) {
                 params.append('year', selectedYear);
+            }
+            if (currentMode) {
+                params.append('mode', currentMode);
             }
             if (query) {
                 params.append('q', query);

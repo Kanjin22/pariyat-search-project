@@ -19,21 +19,7 @@
         {% else %}
         <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
         {% endif %}
-        <nav class="top-nav">
-          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
-          <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
-          <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
-          <a class="nav-link active" href="{{ url_for('manage_results') }}">จัดการผลการสอบ</a>
-          <a class="nav-link" href="{{ url_for('staff_bali_summary') }}">สรุปสถิติบาลี</a>
-          {% if session.staff_username and is_admin(session.staff_username) %}
-          <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
-          <a class="nav-link" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
-          {% endif %}
-          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
-          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
-            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
-          </form>
-        </nav>
+        {% include '_nav.html' %}
       </header>
 
       <main class="search-area">

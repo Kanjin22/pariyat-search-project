@@ -15,21 +15,17 @@
       <header class="main-header">
         <h1>เพิ่มรายชื่อ (Manual)</h1>
         {% if selected_year %}
-        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}-{{ to_thai_digits(selected_year) }}</p>
+          {% if current_mode == 'tham' %}
+        <p>แผนกธรรม | ปี พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}</p>
+          {% elif current_mode == 'bali' %}
+        <p>แผนกบาลี | ปี พ.ศ. {{ to_thai_digits(selected_year) }}</p>
+          {% else %}
+        <p>ภาพรวม | ปีการศึกษา พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}-{{ to_thai_digits(selected_year) }}</p>
+          {% endif %}
         {% else %}
-        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
+        <p>ภาพรวม | ปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
         {% endif %}
-        <nav class="top-nav">
-          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
-          <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
-          <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
-          <a class="nav-link active" href="{{ url_for('manage_results', year=selected_year) }}">จัดการผลการสอบ</a>
-          <a class="nav-link" href="{{ url_for('staff_import_excel', year=selected_year) }}">นำเข้าจาก Excel</a>
-          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
-          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
-            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
-          </form>
-        </nav>
+        {% include '_nav.html' %}
       </header>
 
       <main class="search-area">
@@ -47,12 +43,25 @@
         {% endif %}
 
         <form id="manual-filter-form" method="get" action="{{ url_for('staff_manual_add') }}">
+          <input type="hidden" name="mode" value="{{ current_mode }}" />
           <section class="pass-list-filters">
             <div class="filter-group">
+              {% if current_mode == 'overview' %}
               <label for="year-input">ปีการศึกษา</label>
+              {% else %}
+              <label for="year-input">ปี พ.ศ.</label>
+              {% endif %}
               <select id="year-input" name="year" class="filter-select">
                 {% for year in available_years %}
-                  <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>ปีการศึกษา {{ to_thai_digits((year|int) - 1) }}-{{ to_thai_digits(year) }}</option>
+                  <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>
+                    {% if current_mode == 'tham' %}
+                      ปี พ.ศ. {{ to_thai_digits((year|int) - 1) }}
+                    {% elif current_mode == 'bali' %}
+                      ปี พ.ศ. {{ to_thai_digits(year) }}
+                    {% else %}
+                      ปีการศึกษา {{ to_thai_digits((year|int) - 1) }}-{{ to_thai_digits(year) }}
+                    {% endif %}
+                  </option>
                 {% endfor %}
               </select>
             </div>
@@ -71,6 +80,7 @@
 
         <form method="post" action="{{ url_for('staff_manual_add') }}">
           <input type="hidden" name="year" value="{{ selected_year }}" />
+          <input type="hidden" name="mode" value="{{ current_mode }}" />
           <input type="hidden" name="class_name" value="{{ selected_class }}" />
           <div class="filter-group">
             <label for="names-input">รายชื่อ (ขึ้นบรรทัดใหม่ 1 คน)</label>

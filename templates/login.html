@@ -15,10 +15,7 @@
       <header class="main-header">
         <h1>เข้าสู่ระบบเจ้าหน้าที่</h1>
         <p>สำหรับจัดการผลการสอบ ธรรม-บาลีสนามหลวง ประจำปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
-        <nav class="top-nav">
-          <a class="nav-link" href="{{ url_for('index') }}">กลับหน้าค้นหารายชื่อ</a>
-          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
-        </nav>
+        {% include '_nav.html' %}
       </header>
 
       <main class="search-area login-area">

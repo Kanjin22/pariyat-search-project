@@ -1,0 +1,51 @@
+<nav class="nav-shell" aria-label="เมนูหลัก">
+  {% set nav_year = selected_year if selected_year else current_year_numeric %}
+  {% set nav_mode = current_mode if current_mode else 'overview' %}
+  {% if request.path.startswith('/pass-list') %}
+    {% set nav_target = 'pass_list' %}
+  {% elif request.path.startswith('/statistics') %}
+    {% set nav_target = 'public_statistics' %}
+  {% elif request.path.startswith('/manage-results') %}
+    {% set nav_target = 'manage_results' %}
+  {% elif request.path.startswith('/staff/statistics') %}
+    {% set nav_target = 'staff_statistics' %}
+  {% else %}
+    {% set nav_target = 'index' %}
+  {% endif %}
+  <div class="nav-row" role="navigation" aria-label="เลือกแผนก">
+    <a class="nav-link{% if nav_mode == 'overview' %} active{% endif %}" href="{{ url_for(nav_target, mode='overview', year=nav_year) }}">ภาพรวม</a>
+    <a class="nav-link{% if nav_mode == 'tham' %} active{% endif %}" href="{{ url_for(nav_target, mode='tham', year=nav_year) }}">แผนกธรรม</a>
+    <a class="nav-link{% if nav_mode == 'bali' %} active{% endif %}" href="{{ url_for(nav_target, mode='bali', year=nav_year) }}">แผนกบาลี</a>
+  </div>
+
+  <div class="nav-row" role="navigation" aria-label="เมนูย่อย">
+    <a class="nav-link{% if request.path == '/' %} active{% endif %}" href="{{ url_for('index', mode=nav_mode, year=nav_year) }}">ค้นหารายชื่อ</a>
+    <a class="nav-link{% if request.path.startswith('/statistics') or request.path.startswith('/staff/statistics') %} active{% endif %}" href="{{ url_for('public_statistics', mode=nav_mode, year=nav_year) }}">ดูสถิติ</a>
+    <a class="nav-link{% if request.path.startswith('/pass-list') %} active{% endif %}" href="{{ url_for('pass_list', mode=nav_mode, year=nav_year) }}">ดูผลสอบ</a>
+
+    {% if staff_logged_in %}
+      <div class="nav-dropdown">
+        <button type="button" class="nav-link nav-button nav-dropdown-toggle">เครื่องมือ ▾</button>
+        <div class="nav-dropdown-menu" role="menu">
+          <a role="menuitem" href="{{ url_for('manage_results', mode=nav_mode, year=nav_year) }}">จัดการผลการสอบ</a>
+          <a role="menuitem" href="{{ url_for('staff_import_excel', mode=nav_mode, year=nav_year) }}">นำเข้าจาก Excel</a>
+          <a role="menuitem" href="{{ url_for('staff_manual_add', mode=nav_mode, year=nav_year) }}">เพิ่มรายชื่อ manual</a>
+          {% if session.staff_username and is_admin(session.staff_username) %}
+            <a role="menuitem" href="{{ url_for('staff_manage', mode=nav_mode, year=nav_year) }}">จัดการเจ้าหน้าที่</a>
+            <a role="menuitem" href="{{ url_for('staff_activity', mode=nav_mode, year=nav_year) }}">ประวัติการทำงาน</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
+        <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
+      </form>
+    {% else %}
+      {% if request.endpoint != 'staff_login' %}
+        <a class="nav-link" href="{{ url_for('staff_login', next=request.full_path) }}">เข้าสู่ระบบเจ้าหน้าที่</a>
+      {% endif %}
+    {% endif %}
+
+    <button type="button" class="theme-toggle nav-button nav-link" id="theme-toggle">🌙 โหมดกลางคืน</button>
+  </div>
+</nav>

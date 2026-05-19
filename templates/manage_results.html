@@ -15,25 +15,17 @@
       <header class="main-header">
         <h1>หน้าจัดการผลการสอบ ธรรม-บาลีสนามหลวง</h1>
         {% if selected_year %}
-        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}-{{ to_thai_digits(selected_year) }}</p>
-        {% else %}
-        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
-        {% endif %}
-        <nav class="top-nav">
-          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
-          <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
-          <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
-          <a class="nav-link active" href="{{ url_for('manage_results') }}">จัดการผลการสอบ</a>
-          <a class="nav-link" href="{{ url_for('staff_bali_summary') }}">สรุปสถิติบาลี</a>
-          {% if session.staff_username and is_admin(session.staff_username) %}
-          <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
-          <a class="nav-link" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
+          {% if current_mode == 'tham' %}
+        <p>แผนกธรรม | ปี พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}</p>
+          {% elif current_mode == 'bali' %}
+        <p>แผนกบาลี | ปี พ.ศ. {{ to_thai_digits(selected_year) }}</p>
+          {% else %}
+        <p>ภาพรวม | ปีการศึกษา พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}-{{ to_thai_digits(selected_year) }}</p>
           {% endif %}
-          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
-          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
-            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
-          </form>
-        </nav>
+        {% else %}
+        <p>ภาพรวม | ปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
+        {% endif %}
+        {% include '_nav.html' %}
       </header>
 
       <main class="search-area">
@@ -44,26 +36,42 @@
 
         <section class="pass-list-filters">
           <div class="filter-group">
+            {% if current_mode == 'overview' %}
             <label for="year-filter">ปีการศึกษา</label>
+            {% else %}
+            <label for="year-filter">ปี พ.ศ.</label>
+            {% endif %}
             <select id="year-filter" class="filter-select">
               {% for year in available_years %}
                 <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>
-                  ปีการศึกษา {{ to_thai_digits((year|int) - 1) }}-{{ to_thai_digits(year) }}
+                  {% if current_mode == 'tham' %}
+                    ปี พ.ศ. {{ to_thai_digits((year|int) - 1) }}
+                  {% elif current_mode == 'bali' %}
+                    ปี พ.ศ. {{ to_thai_digits(year) }}
+                  {% else %}
+                    ปีการศึกษา {{ to_thai_digits((year|int) - 1) }}-{{ to_thai_digits(year) }}
+                  {% endif %}
                 </option>
               {% endfor %}
             </select>
           </div>
           <div class="filter-group filter-group-actions">
-            <a class="nav-link" href="{{ url_for('staff_import_excel', year=selected_year) }}">นำเข้าจาก Excel</a>
-            <a class="nav-link" href="{{ url_for('staff_manual_add', year=selected_year) }}">เพิ่มรายชื่อ manual</a>
+            <a class="nav-link" href="{{ url_for('staff_import_excel', mode=current_mode, year=selected_year) }}">นำเข้าจาก Excel</a>
+            <a class="nav-link" href="{{ url_for('staff_manual_add', mode=current_mode, year=selected_year) }}">เพิ่มรายชื่อ manual</a>
           </div>
         </section>
 
         {% if selected_year %}
         <div class="config-notice">
-          ปีการศึกษา {{ to_thai_digits((selected_year|int) - 1) }}<br />
-          - แผนกธรรม สอบปี {{ to_thai_digits((selected_year|int) - 1) }}<br />
-          - แผนกบาลี สอบปี {{ to_thai_digits(selected_year) }}
+          {% if current_mode == 'tham' %}
+            แผนกธรรม สอบปี {{ to_thai_digits((selected_year|int) - 1) }}
+          {% elif current_mode == 'bali' %}
+            แผนกบาลี สอบปี {{ to_thai_digits(selected_year) }}
+          {% else %}
+            ปีการศึกษา {{ to_thai_digits((selected_year|int) - 1) }}<br />
+            - แผนกธรรม สอบปี {{ to_thai_digits((selected_year|int) - 1) }}<br />
+            - แผนกบาลี สอบปี {{ to_thai_digits(selected_year) }}
+          {% endif %}
         </div>
         {% endif %}
 
@@ -108,6 +116,7 @@
     <script>
       window.RESULT_STATUS_OPTIONS = {{ result_status_options | tojson }};
       window.SELECTED_YEAR = {{ selected_year | tojson }};
+      window.CURRENT_MODE = {{ current_mode | tojson }};
     </script>
     <script src="{{ static_asset_url('theme.js') }}"></script>
     <script src="{{ static_asset_url('results_management.js') }}"></script>

@@ -94,6 +94,44 @@ DEPARTMENT_LEVELS = {
     }
 }
 
+MODE_OVERVIEW = 'overview'
+MODE_THAM = 'tham'
+MODE_BALI = 'bali'
+VALID_MODES = {MODE_OVERVIEW, MODE_THAM, MODE_BALI}
+
+
+def get_mode_value(raw_value):
+    mode = str(raw_value or '').strip().lower()
+    return mode if mode in VALID_MODES else MODE_OVERVIEW
+
+
+def get_current_mode():
+    return get_mode_value(request.args.get('mode'))
+
+
+def get_department_class_names(department_key):
+    key = str(department_key or '').strip().lower()
+    if key not in DEPARTMENT_LEVELS:
+        return []
+    levels = []
+    for subsection in (DEPARTMENT_LEVELS[key].get('subsections') or {}).values():
+        levels.extend(subsection.get('levels') or [])
+    class_names = [LEVEL_ID_MAP.get(str(level_id), '') for level_id in levels]
+    return [value for value in class_names if value]
+
+
+def filter_df_by_mode(base_df, mode):
+    if base_df is None or base_df.empty:
+        return base_df
+    mode_value = get_mode_value(mode)
+    if mode_value == MODE_THAM:
+        class_names = get_department_class_names('tham')
+        return base_df[base_df['class_name'].isin(class_names)]
+    if mode_value == MODE_BALI:
+        class_names = get_department_class_names('bali')
+        return base_df[base_df['class_name'].isin(class_names)]
+    return base_df
+
 
 @app.route('/@vite/client')
 def vite_client_stub():
@@ -855,6 +893,7 @@ def inject_auth_state():
         'to_thai_digits': to_thai_digits,
         'current_year_numeric': current_year_numeric,
         'current_academic_year_label': f"{to_thai_digits(current_year_numeric - 1)}-{to_thai_digits(current_year_numeric)}",
+        'current_mode': get_current_mode(),
         'visitor_counter': get_visitor_counts()
     }
 
@@ -1316,10 +1355,20 @@ def get_df_for_year(year):
 
 @app.route('/search')
 def search():
-    query = request.args.get('q', '')
-    if df is None or df.empty or query == '': return jsonify([])
-    results_df = df[df['display_name'].str.contains(query, case=False, na=False)]
-    if results_df.empty: return jsonify([])
+    query = str(request.args.get('q', '') or '').strip()
+    if query == '':
+        return jsonify([])
+    year_value = normalize_year_value(request.args.get('year')) or CURRENT_YEAR_NUMERIC
+    mode = get_mode_value(request.args.get('mode'))
+    base_df = get_df_for_year(year_value)
+    if base_df is None or base_df.empty:
+        return jsonify([])
+    base_df = filter_df_by_mode(base_df, mode)
+    if base_df is None or base_df.empty:
+        return jsonify([])
+    results_df = base_df[base_df['display_name'].str.contains(query, case=False, na=False)]
+    if results_df.empty:
+        return jsonify([])
     grouped = results_df.groupby('display_name')
     
     final_results = []
@@ -1367,6 +1416,10 @@ def get_classes():
     year_df = get_df_for_year(selected_year)
     if year_df is None or year_df.empty:
         return jsonify([])
+    mode = get_mode_value(request.args.get('mode'))
+    year_df = filter_df_by_mode(year_df, mode)
+    if year_df is None or year_df.empty:
+        return jsonify([])
     available_classes = order_class_names(year_df['class_name'].unique().tolist())
     return jsonify(available_classes)
 
@@ -1383,7 +1436,10 @@ def search_exam_results():
         return jsonify([])
 
     names_map = load_exam_names_for_year(selected_year)
-    results_df = year_df.copy()
+    mode = get_mode_value(request.args.get('mode'))
+    results_df = filter_df_by_mode(year_df.copy(), mode)
+    if results_df is None or results_df.empty:
+        return jsonify([])
     
     if query:
         results_df = results_df[results_df['display_name'].str.contains(query, case=False, na=False)]
@@ -1494,9 +1550,20 @@ def update_exam_result():
 @app.route('/')
 def index():
     current_year_thai = get_current_buddhist_year(numeric=False)
+    current_year_numeric = int(CURRENT_YEAR_NUMERIC)
+    mode = get_current_mode()
+    selected_year = normalize_year_value(request.args.get('year')) or current_year_numeric
+    available_years = list_available_years()
+    if selected_year not in available_years:
+        available_years.append(selected_year)
+        available_years = sorted(available_years)
     return render_template(
-        'index.html', 
-        current_buddhist_year=current_year_thai
+        'index.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=current_year_numeric,
+        selected_year=selected_year,
+        available_years=available_years,
+        mode=mode
     )
 
 
@@ -1506,6 +1573,7 @@ def pass_list():
     current_year_numeric = CURRENT_YEAR_NUMERIC
     
     selected_year = normalize_year_value(request.args.get('year')) or current_year_numeric
+    mode = get_mode_value(request.args.get('mode'))
     selected_level = request.args.get('level', '')
     selected_school = request.args.get('school', '')
     selected_group = request.args.get('group', '')
@@ -1524,6 +1592,7 @@ def pass_list():
         available_years = sorted(available_years)
     
     year_df = get_df_for_year(selected_year)
+    year_df = filter_df_by_mode(year_df, mode)
     if year_df is not None and not year_df.empty:
         names_map = load_exam_names_for_year(selected_year)
         summary_df = year_df.copy()
@@ -1615,6 +1684,135 @@ def pass_list():
     )
 
 
+@app.route('/statistics')
+def public_statistics():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    selected_year = normalize_year_value(request.args.get('year')) or CURRENT_YEAR_NUMERIC
+    mode = get_mode_value(request.args.get('mode'))
+
+    if mode == MODE_THAM:
+        return redirect(url_for('public_statistics_tham', mode=mode, year=selected_year))
+    if mode == MODE_BALI:
+        return redirect(url_for('public_statistics_bali', mode=mode, year=selected_year))
+
+    available_years = list_available_years()
+    if selected_year not in available_years:
+        available_years.append(selected_year)
+        available_years = sorted(available_years)
+    stats = get_statistics(year=selected_year)
+    return render_template(
+        'statistics.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        selected_year=selected_year,
+        available_years=available_years,
+        statistics=stats,
+        department_levels=DEPARTMENT_LEVELS
+    )
+
+
+@app.route('/statistics/tham')
+def public_statistics_tham():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    selected_year = normalize_year_value(request.args.get('year')) or CURRENT_YEAR_NUMERIC
+    available_years = list_available_years()
+    if selected_year not in available_years:
+        available_years.append(selected_year)
+        available_years = sorted(available_years)
+    level_ids = []
+    for subsection in DEPARTMENT_LEVELS.get('tham', {}).get('subsections', {}).values():
+        level_ids.extend(subsection.get('levels', []) or [])
+    stats = get_statistics(level_ids=level_ids, year=selected_year)
+    return render_template(
+        'statistics_department.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        selected_year=selected_year,
+        available_years=available_years,
+        statistics=stats,
+        department_key='tham',
+        department=DEPARTMENT_LEVELS['tham']
+    )
+
+
+@app.route('/statistics/tham/<subsection>')
+def public_statistics_tham_subsection(subsection):
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    selected_year = normalize_year_value(request.args.get('year')) or CURRENT_YEAR_NUMERIC
+    available_years = list_available_years()
+    if selected_year not in available_years:
+        available_years.append(selected_year)
+        available_years = sorted(available_years)
+    if subsection not in DEPARTMENT_LEVELS['tham']['subsections']:
+        return redirect(url_for('public_statistics_tham', mode=MODE_THAM, year=selected_year))
+
+    subsection_data = DEPARTMENT_LEVELS['tham']['subsections'][subsection]
+    stats = get_statistics(subsection_data['levels'], year=selected_year)
+    return render_template(
+        'statistics_subsection.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        selected_year=selected_year,
+        available_years=available_years,
+        department_key='tham',
+        department=DEPARTMENT_LEVELS['tham'],
+        subsection_key=subsection,
+        subsection=subsection_data,
+        statistics=stats
+    )
+
+
+@app.route('/statistics/bali')
+def public_statistics_bali():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    selected_year = normalize_year_value(request.args.get('year')) or CURRENT_YEAR_NUMERIC
+    available_years = list_available_years()
+    if selected_year not in available_years:
+        available_years.append(selected_year)
+        available_years = sorted(available_years)
+    level_ids = []
+    for subsection in DEPARTMENT_LEVELS.get('bali', {}).get('subsections', {}).values():
+        level_ids.extend(subsection.get('levels', []) or [])
+    stats = get_statistics(level_ids=level_ids, year=selected_year)
+    return render_template(
+        'statistics_department.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        selected_year=selected_year,
+        available_years=available_years,
+        statistics=stats,
+        department_key='bali',
+        department=DEPARTMENT_LEVELS['bali']
+    )
+
+
+@app.route('/statistics/bali/<subsection>')
+def public_statistics_bali_subsection(subsection):
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    selected_year = normalize_year_value(request.args.get('year')) or CURRENT_YEAR_NUMERIC
+    available_years = list_available_years()
+    if selected_year not in available_years:
+        available_years.append(selected_year)
+        available_years = sorted(available_years)
+    if subsection not in DEPARTMENT_LEVELS['bali']['subsections']:
+        return redirect(url_for('public_statistics_bali', mode=MODE_BALI, year=selected_year))
+
+    subsection_data = DEPARTMENT_LEVELS['bali']['subsections'][subsection]
+    stats = get_statistics(subsection_data['levels'], year=selected_year)
+    return render_template(
+        'statistics_subsection.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        selected_year=selected_year,
+        available_years=available_years,
+        department_key='bali',
+        department=DEPARTMENT_LEVELS['bali'],
+        subsection_key=subsection,
+        subsection=subsection_data,
+        statistics=stats
+    )
+
+
 @app.route('/staff/login', methods=['GET', 'POST'])
 def staff_login():
     if is_staff_logged_in():
@@ -1674,6 +1872,11 @@ def staff_manage():
 def staff_statistics():
     current_year_thai = get_current_buddhist_year(numeric=False)
     selected_year = get_selected_year()
+    mode = get_mode_value(request.args.get('mode'))
+    if mode == MODE_THAM:
+        return redirect(url_for('staff_statistics_tham', mode=mode, year=selected_year))
+    if mode == MODE_BALI:
+        return redirect(url_for('staff_statistics_bali', mode=mode, year=selected_year))
     available_years = list_available_years()
     if selected_year not in available_years:
         available_years.append(selected_year)
@@ -1723,7 +1926,7 @@ def staff_statistics_tham_subsection(subsection):
         available_years.append(selected_year)
         available_years = sorted(available_years)
     if subsection not in DEPARTMENT_LEVELS['tham']['subsections']:
-        return redirect(url_for('staff_statistics_tham'))
+        return redirect(url_for('staff_statistics_tham', mode=MODE_THAM, year=selected_year))
     
     subsection_data = DEPARTMENT_LEVELS['tham']['subsections'][subsection]
     stats = get_statistics(subsection_data['levels'], year=selected_year)
@@ -1775,7 +1978,7 @@ def staff_statistics_bali_subsection(subsection):
         available_years.append(selected_year)
         available_years = sorted(available_years)
     if subsection not in DEPARTMENT_LEVELS['bali']['subsections']:
-        return redirect(url_for('staff_statistics_bali'))
+        return redirect(url_for('staff_statistics_bali', mode=MODE_BALI, year=selected_year))
     
     subsection_data = DEPARTMENT_LEVELS['bali']['subsections'][subsection]
     stats = get_statistics(subsection_data['levels'], year=selected_year)
@@ -2714,7 +2917,7 @@ def staff_import_excel_confirm():
         username=session.get('staff_username', ''),
         detail=f'year={year_value}|class={preview.get("class_name")}|sheet={preview.get("sheet_name")}|updated={updated_count}|pending={len(pending_items)}'
     )
-    return redirect(url_for('manage_results', year=year_value))
+    return redirect(url_for('manage_results', mode=get_mode_value(request.args.get('mode')), year=year_value))
 
 
 def build_manual_registration_key(display_name, class_name):
@@ -2948,7 +3151,12 @@ def staff_manual_add():
 
 @app.route('/get_data_info')
 def get_data_info():
-    return jsonify({'timestamp': get_data_timestamp(), 'count': len(df) if df is not None else 0})
+    year_value = normalize_year_value(request.args.get('year')) or CURRENT_YEAR_NUMERIC
+    mode = get_mode_value(request.args.get('mode'))
+    year_df = get_df_for_year(year_value)
+    year_df = filter_df_by_mode(year_df, mode)
+    count_value = int(len(year_df)) if year_df is not None and not year_df.empty else 0
+    return jsonify({'timestamp': get_data_timestamp(), 'count': count_value})
 
 
 def get_data_timestamp():

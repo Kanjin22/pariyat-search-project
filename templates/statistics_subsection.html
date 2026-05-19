@@ -16,38 +16,29 @@
       <header class="main-header">
         <h1>สถิติ{{ subsection.name }} - {{ department.name }}</h1>
         {% if selected_year %}
-        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}-{{ to_thai_digits(selected_year) }}</p>
-        {% else %}
-        <p>ในนามวัดพระธรรมกาย จ.ปทุมธานี ประจำปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
-        {% endif %}
-        <nav class="top-nav">
-          <a class="nav-link" href="{{ url_for('index') }}">หน้าค้นหารายชื่อ</a>
-          <a class="nav-link" href="{{ url_for('staff_statistics') }}">ดูสถิติ</a>
-          <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
-          {% if staff_logged_in %}
-          <a class="nav-link" href="{{ url_for('manage_results') }}">จัดการผลการสอบ</a>
-          {% if session.staff_username and is_admin(session.staff_username) %}
-          <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
-          <a class="nav-link" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
-          {% endif %}
-          <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
-            <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
-          </form>
+          {% if department_key == 'tham' %}
+        <p>แผนกธรรม | ปี พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}</p>
           {% else %}
-          <a class="nav-link" href="{{ url_for('staff_login', next=url_for('manage_results')) }}">เข้าสู่ระบบเจ้าหน้าที่</a>
+        <p>แผนกบาลี | ปี พ.ศ. {{ to_thai_digits(selected_year) }}</p>
           {% endif %}
-          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
-        </nav>
+        {% else %}
+        <p>{{ department.name }}</p>
+        {% endif %}
+        {% include '_nav.html' %}
       </header>
 
       <main class="search-area">
         <section class="pass-list-filters">
           <div class="filter-group">
-            <label for="year-filter">ปีการศึกษา</label>
+            <label for="year-filter">ปี พ.ศ.</label>
             <select id="year-filter" class="filter-select">
               {% for year in available_years %}
                 <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>
-                  ปีการศึกษา {{ to_thai_digits((year|int) - 1) }}-{{ to_thai_digits(year) }}
+                  {% if department_key == 'tham' %}
+                    ปี พ.ศ. {{ to_thai_digits((year|int) - 1) }}
+                  {% else %}
+                    ปี พ.ศ. {{ to_thai_digits(year) }}
+                  {% endif %}
                 </option>
               {% endfor %}
             </select>
@@ -56,20 +47,22 @@
 
         {% if selected_year %}
         <div class="config-notice">
-          ปีการศึกษา {{ to_thai_digits((selected_year|int) - 1) }}<br />
-          - แผนกธรรม สอบปี {{ to_thai_digits((selected_year|int) - 1) }}<br />
-          - แผนกบาลี สอบปี {{ to_thai_digits(selected_year) }}
+          {% if department_key == 'tham' %}
+            แผนกธรรม สอบปี {{ to_thai_digits((selected_year|int) - 1) }}
+          {% else %}
+            แผนกบาลี สอบปี {{ to_thai_digits(selected_year) }}
+          {% endif %}
         </div>
         {% endif %}
 
         <nav class="subsection-nav">
           {% for key, sub in department.subsections.items() %}
             {% if department_key == 'tham' %}
-              <a href="{{ url_for('staff_statistics_tham_subsection', subsection=key, year=selected_year) }}" class="{{ 'active' if key == subsection_key else '' }}">
+              <a href="{{ url_for('staff_statistics_tham_subsection', mode='tham', subsection=key, year=selected_year) }}" class="{{ 'active' if key == subsection_key else '' }}">
                 {{ sub.name }}
               </a>
             {% else %}
-              <a href="{{ url_for('staff_statistics_bali_subsection', subsection=key, year=selected_year) }}" class="{{ 'active' if key == subsection_key else '' }}">
+              <a href="{{ url_for('staff_statistics_bali_subsection', mode='bali', subsection=key, year=selected_year) }}" class="{{ 'active' if key == subsection_key else '' }}">
                 {{ sub.name }}
               </a>
             {% endif %}
@@ -166,7 +159,7 @@
         if (!yearFilter) return;
         yearFilter.addEventListener('change', function() {
           const year = yearFilter.value;
-          window.location.href = '{{ url_for("staff_statistics_" ~ department_key ~ "_subsection", subsection=subsection_key) }}?year=' + encodeURIComponent(year);
+          window.location.href = '{{ url_for("staff_statistics_" ~ department_key ~ "_subsection", subsection=subsection_key) }}?mode={{ department_key }}&year=' + encodeURIComponent(year);
         });
       });
     </script>

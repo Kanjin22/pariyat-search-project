@@ -3,10 +3,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const countSpan = document.getElementById('info-count');
     const searchInput = document.getElementById('search-input');
     const resultsContainer = document.getElementById('results-container');
+    const yearFilter = document.getElementById('year-filter');
+
+    const selectedYear = String(window.SELECTED_YEAR ?? '').trim();
+    const currentMode = String(window.CURRENT_MODE ?? '').trim();
+
+    if (yearFilter) {
+        yearFilter.addEventListener('change', () => {
+            const year = yearFilter.value;
+            const params = new URLSearchParams();
+            if (year) {
+                params.set('year', year);
+            }
+            if (currentMode) {
+                params.set('mode', currentMode);
+            }
+            window.location.href = `/?${params.toString()}`;
+        });
+    }
 
     const fetchInitialInfo = async () => {
         try {
-            const response = await fetch('/get_data_info');
+            const params = new URLSearchParams();
+            if (selectedYear) {
+                params.set('year', selectedYear);
+            }
+            if (currentMode) {
+                params.set('mode', currentMode);
+            }
+            const url = params.toString() ? `/get_data_info?${params.toString()}` : '/get_data_info';
+            const response = await fetch(url);
             const data = await response.json();
             timestampSpan.textContent = data.timestamp;
             countSpan.textContent = data.count;
@@ -22,7 +48,15 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsContainer.innerHTML = '';
             return;
         }
-        const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
+        const params = new URLSearchParams();
+        params.set('q', query);
+        if (selectedYear) {
+            params.set('year', selectedYear);
+        }
+        if (currentMode) {
+            params.set('mode', currentMode);
+        }
+        const response = await fetch(`/search?${params.toString()}`);
         const results = await response.json();
         renderResults(results);
     });
