@@ -2,6 +2,8 @@ body {
     font-family: 'Sarabun', sans-serif;
     background-color: #eef2f5;
     color: #333;
+    font-size: 16px;
+    line-height: 1.6;
     margin: 0;
     padding: 20px;
 }
@@ -31,13 +33,13 @@ body {
 .main-header h1 {
     margin: 0;
     color: #1a237e;
-    font-size: 2rem;
+    font-size: 1.75rem;
 }
 
 .main-header p {
     margin: 5px 0 0;
     color: #444;
-    font-size: 1.1rem;
+    font-size: 1rem;
 }
 
 .top-nav {
@@ -50,13 +52,14 @@ body {
 
 .nav-link {
     display: inline-block;
-    padding: 8px 14px;
+    padding: 7px 12px;
     border-radius: 999px;
     text-decoration: none;
     color: #1a237e;
     background-color: #e8edff;
     border: 1px solid #c7d2fe;
     font-weight: bold;
+    font-size: 0.95rem;
 }
 
 .inline-form {
@@ -66,7 +69,7 @@ body {
 .nav-button {
     cursor: pointer;
     font-family: 'Sarabun', sans-serif;
-    font-size: 1rem;
+    font-size: 0.95rem;
 }
 
 .nav-link.active {
@@ -104,6 +107,7 @@ body {
 .page-intro h2 {
     margin: 0 0 8px;
     color: #003366;
+    font-size: 1.35rem;
 }
 
 .page-intro p {
@@ -118,8 +122,8 @@ body {
 
 .search-box input {
     width: 100%;
-    padding: 15px;
-    font-size: 1.1rem;
+    padding: 12px 14px;
+    font-size: 1rem;
     border: 2px solid #ddd;
     border-radius: 8px;
     box-sizing: border-box;
@@ -159,7 +163,7 @@ body {
 
 .result-group .header h3 {
     margin: 0;
-    font-size: 1.4rem;
+    font-size: 1.25rem;
     color: #003366;
     margin-right: 15px;
 }
@@ -672,7 +676,7 @@ a.phone-link:hover {
 }
 
 .stat-number {
-    font-size: 2.5rem;
+    font-size: 2.1rem;
     font-weight: bold;
     margin-bottom: 5px;
 }
@@ -699,7 +703,7 @@ a.phone-link:hover {
 .chart-title {
     margin: 0 0 15px;
     color: #003366;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
 }
 
 .log-list {
@@ -809,7 +813,7 @@ a.phone-link:hover {
 }
 
 .toast-icon {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
 }
 
 .toast.success .toast-icon {
@@ -841,7 +845,7 @@ a.phone-link:hover {
 .toast-close {
     background: none;
     border: none;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     cursor: pointer;
     color: #6b7280;
 }
@@ -850,7 +854,7 @@ a.phone-link:hover {
     background: none;
     border: 2px solid #c7d2fe;
     border-radius: 999px;
-    padding: 8px 14px;
+    padding: 7px 12px;
     cursor: pointer;
     font-weight: bold;
     color: #1a237e;
@@ -1212,10 +1216,10 @@ a.phone-link:hover {
 }
 
 .filter-select {
-    padding: 12px 16px;
+    padding: 10px 14px;
     border: 2px solid #e2e8f0;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-family: 'Sarabun', sans-serif;
     background: white;
     cursor: pointer;
