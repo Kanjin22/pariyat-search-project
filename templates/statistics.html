@@ -87,14 +87,23 @@
           <div class="pass-list-summary">
             <h3 class="class-title">สรุปผลการสอบตามชั้น</h3>
             <div class="summary-table-wrapper">
-              <table class="summary-table">
+              <div class="summary-toggle-row">
+                <button type="button" class="summary-toggle-btn summary-toggle-btn--table">กดดูแบบเต็ม</button>
+              </div>
+              <table class="summary-table summary-scope">
                 <thead>
                   <tr>
                     <th>ชั้น</th>
                     <th>ส่งสอบ</th>
+                    <th class="summary-col-full">ขาดสอบ</th>
+                    <th class="summary-col-full">ขาดสิทธิ์</th>
                     <th>คงสอบ</th>
-                    <th>สอบตก</th>
-                    <th>สอบได้</th>
+                    <th class="summary-col-compact pass-cell">สอบได้</th>
+                    <th class="summary-col-full pass-cell">สอบได้</th>
+                    <th class="summary-col-full">สอบซ่อม</th>
+                    <th class="summary-col-full pass-cell">สอบซ่อมได้</th>
+                    <th class="summary-col-full pass-cell">รวมสอบได้</th>
+                    <th class="fail-cell">สอบตก</th>
                     <th>% สอบได้</th>
                   </tr>
                 </thead>
@@ -103,9 +112,15 @@
                     <tr>
                       <td class="group-name">{{ row.class_name }}</td>
                       <td class="number-cell">{{ row.sent }}</td>
+                      <td class="number-cell summary-col-full">{{ row.absent }}</td>
+                      <td class="number-cell summary-col-full">{{ row.disqualified }}</td>
                       <td class="number-cell">{{ row.active }}</td>
+                      <td class="number-cell summary-col-compact pass-cell">{{ row.total_pass }}</td>
+                      <td class="number-cell summary-col-full pass-cell">{{ row.pass_main }}</td>
+                      <td class="number-cell summary-col-full">{{ row.remedial }}</td>
+                      <td class="number-cell summary-col-full pass-cell">{{ row.remedial_pass }}</td>
+                      <td class="number-cell summary-col-full pass-cell">{{ row.total_pass }}</td>
                       <td class="number-cell{% if row.fail > 0 %} fail-cell{% endif %}">{{ row.fail }}</td>
-                      <td class="number-cell pass-cell">{{ row.pass }}</td>
                       <td class="number-cell percentage-cell">
                         {% if row.sent > 0 and row.pass_rate is not none %}
                           {{ "%.2f"|format(row.pass_rate) }}%
@@ -118,9 +133,15 @@
                   <tr class="total-row">
                     <td class="group-name"><strong>รวม</strong></td>
                     <td class="number-cell"><strong>{{ statistics.pass_summary.total.sent }}</strong></td>
+                    <td class="number-cell summary-col-full"><strong>{{ statistics.pass_summary.total.absent }}</strong></td>
+                    <td class="number-cell summary-col-full"><strong>{{ statistics.pass_summary.total.disqualified }}</strong></td>
                     <td class="number-cell"><strong>{{ statistics.pass_summary.total.active }}</strong></td>
+                    <td class="number-cell summary-col-compact pass-cell"><strong>{{ statistics.pass_summary.total.total_pass }}</strong></td>
+                    <td class="number-cell summary-col-full pass-cell"><strong>{{ statistics.pass_summary.total.pass_main }}</strong></td>
+                    <td class="number-cell summary-col-full"><strong>{{ statistics.pass_summary.total.remedial }}</strong></td>
+                    <td class="number-cell summary-col-full pass-cell"><strong>{{ statistics.pass_summary.total.remedial_pass }}</strong></td>
+                    <td class="number-cell summary-col-full pass-cell"><strong>{{ statistics.pass_summary.total.total_pass }}</strong></td>
                     <td class="number-cell{% if statistics.pass_summary.total.fail > 0 %} fail-cell{% endif %}"><strong>{{ statistics.pass_summary.total.fail }}</strong></td>
-                    <td class="number-cell pass-cell"><strong>{{ statistics.pass_summary.total.pass }}</strong></td>
                     <td class="number-cell percentage-cell">
                       {% if statistics.pass_summary.total.sent > 0 and statistics.pass_summary.total.pass_rate is not none %}
                         <strong>{{ "%.2f"|format(statistics.pass_summary.total.pass_rate) }}%</strong>
@@ -150,6 +171,14 @@
           {% else %}
           window.location.href = '{{ url_for("staff_statistics") }}?mode={{ current_mode }}&year=' + encodeURIComponent(year);
           {% endif %}
+        });
+        document.querySelectorAll('.summary-toggle-btn--table').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            const scope = btn.closest('.summary-table-wrapper')?.querySelector('.summary-scope');
+            if (!scope) return;
+            scope.classList.toggle('summary-full');
+            btn.textContent = scope.classList.contains('summary-full') ? 'กลับเป็นแบบย่อ' : 'กดดูแบบเต็ม';
+          });
         });
       });
     </script>

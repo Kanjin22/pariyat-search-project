@@ -30,7 +30,7 @@ df = None
 DF_CACHE = {}
 DF_CACHE_META = {}
 CURRENT_YEAR_NUMERIC = None
-RESULT_STATUS_OPTIONS = ['', 'สอบตก', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม', 'สอบซ่อมได้']
+RESULT_STATUS_OPTIONS = ['', 'สอบตก', 'ขาดสอบ', 'ขาดสิทธิ์', 'สอบได้', 'สอบซ่อม (รวมสอบซ่อมได้)', 'สอบซ่อม', 'สอบซ่อมได้']
 RESULT_STATUS_SET = set(RESULT_STATUS_OPTIONS)
 RESULTS_DATA_DIR = os.getenv('RESULTS_DATA_DIR', '').strip() or os.getenv('PARIYAT_DATA_DIR', '').strip() or os.path.join(BASE_DIR, 'data')
 RESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')
@@ -746,36 +746,68 @@ def get_statistics(level_ids=None, year=None):
         stats['by_class'] = {class_name: int(class_counts[class_name]) for class_name in ordered_classes if class_name in class_counts}
 
         summary_rows = []
-        total_sent = 0
-        total_active = 0
-        total_pass = 0
+        totals = {
+            'sent': 0,
+            'absent': 0,
+            'disqualified': 0,
+            'active': 0,
+            'pass_main': 0,
+            'remedial': 0,
+            'remedial_pass': 0,
+            'total_pass': 0,
+            'fail': 0
+        }
         for class_name in ordered_classes:
             class_df = filtered_df[filtered_df['class_name'] == class_name]
-            sent_count = len(class_df)
-            active_count = len(class_df[~class_df['exam_result_status'].isin(PASS_SUMMARY_ABSENT_STATUSES)])
-            pass_count = len(class_df[class_df['exam_result_status'].isin(PASS_SUMMARY_PASS_STATUSES)])
-            fail_count = max(int(active_count) - int(pass_count), 0)
-            pass_rate = (pass_count / sent_count * 100) if sent_count > 0 else None
+            status_series = class_df['exam_result_status'].fillna('').astype(str)
+            sent_count = int(len(class_df))
+            absent_count = int((status_series == 'ขาดสอบ').sum())
+            disqualified_count = int((status_series == 'ขาดสิทธิ์').sum())
+            active_count = int(sent_count - absent_count - disqualified_count)
+            pass_count = int((status_series == 'สอบได้').sum())
+            remedial_pass_count = int((status_series == 'สอบซ่อมได้').sum())
+            remedial_count = int(status_series.isin({'สอบซ่อม', 'สอบซ่อมได้'}).sum())
+            total_pass_count = int(pass_count + remedial_pass_count)
+            fail_count = max(int(active_count) - int(total_pass_count), 0)
+            pass_rate = (total_pass_count / sent_count * 100) if sent_count > 0 else None
             summary_rows.append({
                 'class_name': class_name,
-                'sent': int(sent_count),
-                'active': int(active_count),
-                'fail': int(fail_count),
-                'pass': int(pass_count),
+                'sent': sent_count,
+                'absent': absent_count,
+                'disqualified': disqualified_count,
+                'active': active_count,
+                'pass_main': pass_count,
+                'total_pass': total_pass_count,
+                'remedial': remedial_count,
+                'remedial_pass': remedial_pass_count,
+                'pass': total_pass_count,
+                'fail': fail_count,
                 'pass_rate': pass_rate
             })
-            total_sent += sent_count
-            total_active += active_count
-            total_pass += pass_count
+            totals['sent'] += sent_count
+            totals['absent'] += absent_count
+            totals['disqualified'] += disqualified_count
+            totals['active'] += active_count
+            totals['pass_main'] += pass_count
+            totals['remedial'] += remedial_count
+            totals['remedial_pass'] += remedial_pass_count
+            totals['total_pass'] += total_pass_count
+            totals['fail'] += fail_count
 
         stats['pass_summary'] = {
             'rows': summary_rows,
             'total': {
-                'sent': int(total_sent),
-                'active': int(total_active),
-                'fail': max(int(total_active) - int(total_pass), 0),
-                'pass': int(total_pass),
-                'pass_rate': (total_pass / total_sent * 100) if total_sent > 0 else None
+                'sent': int(totals['sent']),
+                'absent': int(totals['absent']),
+                'disqualified': int(totals['disqualified']),
+                'active': int(totals['active']),
+                'remedial': int(totals['remedial']),
+                'remedial_pass': int(totals['remedial_pass']),
+                'pass_main': int(totals['pass_main']),
+                'total_pass': int(totals['total_pass']),
+                'pass': int(totals['total_pass']),
+                'fail': int(totals['fail']),
+                'pass_rate': (totals['total_pass'] / totals['sent'] * 100) if totals['sent'] > 0 else None
             }
         }
     
@@ -966,37 +998,50 @@ def build_pass_summary(summary_df, class_name):
         return None
 
     group_rows = {}
-    total_sent = 0
-    total_active = 0
-    total_pass = 0
+    totals = {
+        'ส่งสอบ': 0,
+        'ขาดสอบ': 0,
+        'ขาดสิทธิ์': 0,
+        'คงสอบ': 0,
+        'สอบได้': 0,
+        'สอบซ่อม': 0,
+        'สอบซ่อมได้': 0,
+        'รวมสอบได้': 0,
+        'สอบตก': 0
+    }
 
     for group_name in PASS_SUMMARY_GROUP_ORDER:
         group_df = summary_df[summary_df['summary_group'] == group_name]
-        sent_count = len(group_df)
-        active_count = len(group_df[~group_df['exam_result_status'].isin(PASS_SUMMARY_ABSENT_STATUSES)])
-        pass_count = len(group_df[group_df['exam_result_status'].isin(PASS_SUMMARY_PASS_STATUSES)])
-        fail_count = max(int(active_count) - int(pass_count), 0)
+        status_series = group_df['exam_result_status'].fillna('').astype(str)
+        sent_count = int(len(group_df))
+        absent_count = int((status_series == 'ขาดสอบ').sum())
+        disqualified_count = int((status_series == 'ขาดสิทธิ์').sum())
+        active_count = int(sent_count - absent_count - disqualified_count)
+        pass_count = int((status_series == 'สอบได้').sum())
+        remedial_pass_count = int((status_series == 'สอบซ่อมได้').sum())
+        remedial_count = int(status_series.isin({'สอบซ่อม', 'สอบซ่อมได้'}).sum())
+        total_pass_count = int(pass_count + remedial_pass_count)
+        fail_count = max(int(active_count) - int(total_pass_count), 0)
 
         group_rows[group_name] = {
-            'ส่งสอบ': int(sent_count),
-            'คงสอบ': int(active_count),
-            'สอบตก': int(fail_count),
-            'สอบได้': int(pass_count)
+            'ส่งสอบ': sent_count,
+            'ขาดสอบ': absent_count,
+            'ขาดสิทธิ์': disqualified_count,
+            'คงสอบ': active_count,
+            'สอบได้': pass_count,
+            'สอบซ่อม': remedial_count,
+            'สอบซ่อมได้': remedial_pass_count,
+            'รวมสอบได้': total_pass_count,
+            'สอบตก': fail_count
         }
-        total_sent += sent_count
-        total_active += active_count
-        total_pass += pass_count
+        for key in totals:
+            totals[key] += int(group_rows[group_name].get(key, 0) or 0)
 
     return {
         'class_name': class_name,
         'class_data': {
             'groups': group_rows,
-            'total': {
-                'ส่งสอบ': int(total_sent),
-                'คงสอบ': int(total_active),
-                'สอบตก': max(int(total_active) - int(total_pass), 0),
-                'สอบได้': int(total_pass)
-            }
+            'total': totals
         }
     }
 
@@ -1650,7 +1695,10 @@ def pass_list():
         pass_df = summary_df.copy()
         
         if selected_status:
-            pass_df = pass_df[pass_df['exam_result_status'] == selected_status]
+            if selected_status == 'สอบซ่อม (รวมสอบซ่อมได้)':
+                pass_df = pass_df[pass_df['exam_result_status'].isin(['สอบซ่อม', 'สอบซ่อมได้'])]
+            else:
+                pass_df = pass_df[pass_df['exam_result_status'] == selected_status]
         
         if sort_by == 'name':
             pass_df = pass_df.sort_values(by='display_name', ascending=True)
@@ -2168,6 +2216,29 @@ def staff_bali_summary():
     summary = None
     year_df = get_df_for_year(selected_year)
     if year_df is not None and not year_df.empty and class_names:
+        def build_group_summary(group_df):
+            status_series = group_df.get('exam_result_status', '').fillna('').astype(str)
+            sent_count = int(len(group_df))
+            absent_count = int((status_series == 'ขาดสอบ').sum())
+            disqualified_count = int((status_series == 'ขาดสิทธิ์').sum())
+            active_count = int(sent_count - absent_count - disqualified_count)
+            pass_count = int((status_series == 'สอบได้').sum())
+            remedial_pass_count = int((status_series == 'สอบซ่อมได้').sum())
+            remedial_count = int(status_series.isin({'สอบซ่อม', 'สอบซ่อมได้'}).sum())
+            total_pass_count = int(pass_count + remedial_pass_count)
+            fail_count = max(int(active_count) - int(total_pass_count), 0)
+            return {
+                'ส่งสอบ': sent_count,
+                'ขาดสอบ': absent_count,
+                'ขาดสิทธิ์': disqualified_count,
+                'คงสอบ': active_count,
+                'สอบได้': pass_count,
+                'สอบซ่อม': remedial_count,
+                'สอบซ่อมได้': remedial_pass_count,
+                'รวมสอบได้': total_pass_count,
+                'สอบตก': fail_count
+            }
+
         summary_df = year_df.copy()
         summary_df = summary_df.assign(
             summary_group=summary_df['group_name'].map(normalize_pass_summary_group)
@@ -2178,55 +2249,49 @@ def staff_bali_summary():
         for class_name in class_names:
             class_df = summary_df[summary_df['class_name'] == class_name]
             group_rows = {}
-            total_sent = 0
-            total_active = 0
-            total_pass = 0
+            totals = {
+                'ส่งสอบ': 0,
+                'ขาดสอบ': 0,
+                'ขาดสิทธิ์': 0,
+                'คงสอบ': 0,
+                'สอบได้': 0,
+                'สอบซ่อม': 0,
+                'สอบซ่อมได้': 0,
+                'รวมสอบได้': 0,
+                'สอบตก': 0
+            }
             for group_name in PASS_SUMMARY_GROUP_ORDER:
                 group_df = class_df[class_df['summary_group'] == group_name]
-                sent_count = len(group_df)
-                active_count = len(group_df[~group_df['exam_result_status'].isin(PASS_SUMMARY_ABSENT_STATUSES)])
-                pass_count = len(group_df[group_df['exam_result_status'].isin(PASS_SUMMARY_PASS_STATUSES)])
-                group_rows[group_name] = {
-                    'ส่งสอบ': int(sent_count),
-                    'คงสอบ': int(active_count),
-                    'สอบได้': int(pass_count)
-                }
-                total_sent += sent_count
-                total_active += active_count
-                total_pass += pass_count
+                group_summary = build_group_summary(group_df)
+                group_rows[group_name] = group_summary
+                for key in totals:
+                    totals[key] += int(group_summary.get(key, 0) or 0)
 
             classes_data[class_name] = {
                 'groups': group_rows,
-                'total': {
-                    'ส่งสอบ': int(total_sent),
-                    'คงสอบ': int(total_active),
-                    'สอบได้': int(total_pass)
-                }
+                'total': totals
             }
 
         grand_total = {}
-        total_sent = 0
-        total_active = 0
-        total_pass = 0
+        grand_totals = {
+            'ส่งสอบ': 0,
+            'ขาดสอบ': 0,
+            'ขาดสิทธิ์': 0,
+            'คงสอบ': 0,
+            'สอบได้': 0,
+            'สอบซ่อม': 0,
+            'สอบซ่อมได้': 0,
+            'รวมสอบได้': 0,
+            'สอบตก': 0
+        }
         for group_name in PASS_SUMMARY_GROUP_ORDER:
             group_df = summary_df[summary_df['summary_group'] == group_name]
-            sent_count = len(group_df)
-            active_count = len(group_df[~group_df['exam_result_status'].isin(PASS_SUMMARY_ABSENT_STATUSES)])
-            pass_count = len(group_df[group_df['exam_result_status'].isin(PASS_SUMMARY_PASS_STATUSES)])
-            grand_total[group_name] = {
-                'ส่งสอบ': int(sent_count),
-                'คงสอบ': int(active_count),
-                'สอบได้': int(pass_count)
-            }
-            total_sent += sent_count
-            total_active += active_count
-            total_pass += pass_count
+            group_summary = build_group_summary(group_df)
+            grand_total[group_name] = group_summary
+            for key in grand_totals:
+                grand_totals[key] += int(group_summary.get(key, 0) or 0)
 
-        grand_total['total'] = {
-            'ส่งสอบ': int(total_sent),
-            'คงสอบ': int(total_active),
-            'สอบได้': int(total_pass)
-        }
+        grand_total['total'] = grand_totals
 
         group_descriptions = {}
         if isinstance(bali_summary_data, dict):
@@ -2278,47 +2343,91 @@ def build_school_summary(department_key, selected_year):
         unit_rows_list = []
         for school_name in sorted(class_df['school_name_norm'].unique().tolist()):
             unit_df = class_df[class_df['school_name_norm'] == school_name]
-            sent_count = len(unit_df)
-            active_count = len(unit_df[~unit_df['exam_result_status'].isin(PASS_SUMMARY_ABSENT_STATUSES)])
-            pass_count = len(unit_df[unit_df['exam_result_status'].isin(PASS_SUMMARY_PASS_STATUSES)])
+            status_series = unit_df['exam_result_status'].fillna('').astype(str)
+            sent_count = int(len(unit_df))
+            absent_count = int((status_series == 'ขาดสอบ').sum())
+            disqualified_count = int((status_series == 'ขาดสิทธิ์').sum())
+            active_count = int(sent_count - absent_count - disqualified_count)
+            pass_count = int((status_series == 'สอบได้').sum())
+            remedial_pass_count = int((status_series == 'สอบซ่อมได้').sum())
+            remedial_count = int(status_series.isin({'สอบซ่อม', 'สอบซ่อมได้'}).sum())
+            total_pass_count = int(pass_count + remedial_pass_count)
+            fail_count = max(int(active_count) - int(total_pass_count), 0)
             unit_rows_list.append({
                 'name': school_name,
-                'ส่งสอบ': int(sent_count),
-                'คงสอบ': int(active_count),
-                'สอบได้': int(pass_count)
+                'ส่งสอบ': sent_count,
+                'ขาดสอบ': absent_count,
+                'ขาดสิทธิ์': disqualified_count,
+                'คงสอบ': active_count,
+                'สอบได้': pass_count,
+                'สอบซ่อม': remedial_count,
+                'สอบซ่อมได้': remedial_pass_count,
+                'รวมสอบได้': total_pass_count,
+                'สอบตก': fail_count
             })
         unit_rows_list = sorted(unit_rows_list, key=lambda row: (-row.get('ส่งสอบ', 0), row.get('name', '')))
 
-        total_sent = sum(row['ส่งสอบ'] for row in unit_rows_list)
-        total_active = sum(row['คงสอบ'] for row in unit_rows_list)
-        total_pass = sum(row['สอบได้'] for row in unit_rows_list)
+        total_sent = sum(row.get('ส่งสอบ', 0) for row in unit_rows_list)
+        total_absent = sum(row.get('ขาดสอบ', 0) for row in unit_rows_list)
+        total_disqualified = sum(row.get('ขาดสิทธิ์', 0) for row in unit_rows_list)
+        total_active = sum(row.get('คงสอบ', 0) for row in unit_rows_list)
+        total_pass = sum(row.get('สอบได้', 0) for row in unit_rows_list)
+        total_remedial = sum(row.get('สอบซ่อม', 0) for row in unit_rows_list)
+        total_remedial_pass = sum(row.get('สอบซ่อมได้', 0) for row in unit_rows_list)
+        total_total_pass = sum(row.get('รวมสอบได้', 0) for row in unit_rows_list)
+        total_fail = sum(row.get('สอบตก', 0) for row in unit_rows_list)
 
         classes_data[class_name] = {
             'units': unit_rows_list,
             'total': {
                 'ส่งสอบ': int(total_sent),
+                'ขาดสอบ': int(total_absent),
+                'ขาดสิทธิ์': int(total_disqualified),
                 'คงสอบ': int(total_active),
-                'สอบได้': int(total_pass)
+                'สอบได้': int(total_pass),
+                'สอบซ่อม': int(total_remedial),
+                'สอบซ่อมได้': int(total_remedial_pass),
+                'รวมสอบได้': int(total_total_pass),
+                'สอบตก': int(total_fail)
             }
         }
 
     grand_unit_rows = {}
     for school_name in sorted(summary_df['school_name_norm'].unique().tolist()):
         unit_df = summary_df[summary_df['school_name_norm'] == school_name]
-        sent_count = len(unit_df)
-        active_count = len(unit_df[~unit_df['exam_result_status'].isin(PASS_SUMMARY_ABSENT_STATUSES)])
-        pass_count = len(unit_df[unit_df['exam_result_status'].isin(PASS_SUMMARY_PASS_STATUSES)])
+        status_series = unit_df['exam_result_status'].fillna('').astype(str)
+        sent_count = int(len(unit_df))
+        absent_count = int((status_series == 'ขาดสอบ').sum())
+        disqualified_count = int((status_series == 'ขาดสิทธิ์').sum())
+        active_count = int(sent_count - absent_count - disqualified_count)
+        pass_count = int((status_series == 'สอบได้').sum())
+        remedial_pass_count = int((status_series == 'สอบซ่อมได้').sum())
+        remedial_count = int(status_series.isin({'สอบซ่อม', 'สอบซ่อมได้'}).sum())
+        total_pass_count = int(pass_count + remedial_pass_count)
+        fail_count = max(int(active_count) - int(total_pass_count), 0)
         grand_unit_rows[school_name] = {
             'name': school_name,
-            'ส่งสอบ': int(sent_count),
-            'คงสอบ': int(active_count),
-            'สอบได้': int(pass_count)
+            'ส่งสอบ': sent_count,
+            'ขาดสอบ': absent_count,
+            'ขาดสิทธิ์': disqualified_count,
+            'คงสอบ': active_count,
+            'สอบได้': pass_count,
+            'สอบซ่อม': remedial_count,
+            'สอบซ่อมได้': remedial_pass_count,
+            'รวมสอบได้': total_pass_count,
+            'สอบตก': fail_count
         }
     grand_units_list = sorted(grand_unit_rows.values(), key=lambda row: (-row.get('ส่งสอบ', 0), row.get('name', '')))
 
-    total_sent = sum(row['ส่งสอบ'] for row in grand_units_list)
-    total_active = sum(row['คงสอบ'] for row in grand_units_list)
-    total_pass = sum(row['สอบได้'] for row in grand_units_list)
+    total_sent = sum(row.get('ส่งสอบ', 0) for row in grand_units_list)
+    total_absent = sum(row.get('ขาดสอบ', 0) for row in grand_units_list)
+    total_disqualified = sum(row.get('ขาดสิทธิ์', 0) for row in grand_units_list)
+    total_active = sum(row.get('คงสอบ', 0) for row in grand_units_list)
+    total_pass = sum(row.get('สอบได้', 0) for row in grand_units_list)
+    total_remedial = sum(row.get('สอบซ่อม', 0) for row in grand_units_list)
+    total_remedial_pass = sum(row.get('สอบซ่อมได้', 0) for row in grand_units_list)
+    total_total_pass = sum(row.get('รวมสอบได้', 0) for row in grand_units_list)
+    total_fail = sum(row.get('สอบตก', 0) for row in grand_units_list)
 
     return {
         'classes': classes_data,
@@ -2326,8 +2435,14 @@ def build_school_summary(department_key, selected_year):
             'units': grand_units_list,
             'total': {
                 'ส่งสอบ': int(total_sent),
+                'ขาดสอบ': int(total_absent),
+                'ขาดสิทธิ์': int(total_disqualified),
                 'คงสอบ': int(total_active),
-                'สอบได้': int(total_pass)
+                'สอบได้': int(total_pass),
+                'สอบซ่อม': int(total_remedial),
+                'สอบซ่อมได้': int(total_remedial_pass),
+                'รวมสอบได้': int(total_total_pass),
+                'สอบตก': int(total_fail)
             }
         }
     }
@@ -2374,6 +2489,29 @@ def staff_tham_summary():
     summary = None
     year_df = get_df_for_year(selected_year)
     if year_df is not None and not year_df.empty and class_names:
+        def build_group_summary(group_df):
+            status_series = group_df.get('exam_result_status', '').fillna('').astype(str)
+            sent_count = int(len(group_df))
+            absent_count = int((status_series == 'ขาดสอบ').sum())
+            disqualified_count = int((status_series == 'ขาดสิทธิ์').sum())
+            active_count = int(sent_count - absent_count - disqualified_count)
+            pass_count = int((status_series == 'สอบได้').sum())
+            remedial_pass_count = int((status_series == 'สอบซ่อมได้').sum())
+            remedial_count = int(status_series.isin({'สอบซ่อม', 'สอบซ่อมได้'}).sum())
+            total_pass_count = int(pass_count + remedial_pass_count)
+            fail_count = max(int(active_count) - int(total_pass_count), 0)
+            return {
+                'ส่งสอบ': sent_count,
+                'ขาดสอบ': absent_count,
+                'ขาดสิทธิ์': disqualified_count,
+                'คงสอบ': active_count,
+                'สอบได้': pass_count,
+                'สอบซ่อม': remedial_count,
+                'สอบซ่อมได้': remedial_pass_count,
+                'รวมสอบได้': total_pass_count,
+                'สอบตก': fail_count
+            }
+
         summary_df = year_df.copy()
         summary_df = summary_df.assign(
             summary_group=summary_df['group_name'].map(normalize_pass_summary_group)
@@ -2384,55 +2522,49 @@ def staff_tham_summary():
         for class_name in class_names:
             class_df = summary_df[summary_df['class_name'] == class_name]
             group_rows = {}
-            total_sent = 0
-            total_active = 0
-            total_pass = 0
+            totals = {
+                'ส่งสอบ': 0,
+                'ขาดสอบ': 0,
+                'ขาดสิทธิ์': 0,
+                'คงสอบ': 0,
+                'สอบได้': 0,
+                'สอบซ่อม': 0,
+                'สอบซ่อมได้': 0,
+                'รวมสอบได้': 0,
+                'สอบตก': 0
+            }
             for group_name in PASS_SUMMARY_GROUP_ORDER:
                 group_df = class_df[class_df['summary_group'] == group_name]
-                sent_count = len(group_df)
-                active_count = len(group_df[~group_df['exam_result_status'].isin(PASS_SUMMARY_ABSENT_STATUSES)])
-                pass_count = len(group_df[group_df['exam_result_status'].isin(PASS_SUMMARY_PASS_STATUSES)])
-                group_rows[group_name] = {
-                    'ส่งสอบ': int(sent_count),
-                    'คงสอบ': int(active_count),
-                    'สอบได้': int(pass_count)
-                }
-                total_sent += sent_count
-                total_active += active_count
-                total_pass += pass_count
+                group_summary = build_group_summary(group_df)
+                group_rows[group_name] = group_summary
+                for key in totals:
+                    totals[key] += int(group_summary.get(key, 0) or 0)
 
             classes_data[class_name] = {
                 'groups': group_rows,
-                'total': {
-                    'ส่งสอบ': int(total_sent),
-                    'คงสอบ': int(total_active),
-                    'สอบได้': int(total_pass)
-                }
+                'total': totals
             }
 
         grand_total = {}
-        total_sent = 0
-        total_active = 0
-        total_pass = 0
+        grand_totals = {
+            'ส่งสอบ': 0,
+            'ขาดสอบ': 0,
+            'ขาดสิทธิ์': 0,
+            'คงสอบ': 0,
+            'สอบได้': 0,
+            'สอบซ่อม': 0,
+            'สอบซ่อมได้': 0,
+            'รวมสอบได้': 0,
+            'สอบตก': 0
+        }
         for group_name in PASS_SUMMARY_GROUP_ORDER:
             group_df = summary_df[summary_df['summary_group'] == group_name]
-            sent_count = len(group_df)
-            active_count = len(group_df[~group_df['exam_result_status'].isin(PASS_SUMMARY_ABSENT_STATUSES)])
-            pass_count = len(group_df[group_df['exam_result_status'].isin(PASS_SUMMARY_PASS_STATUSES)])
-            grand_total[group_name] = {
-                'ส่งสอบ': int(sent_count),
-                'คงสอบ': int(active_count),
-                'สอบได้': int(pass_count)
-            }
-            total_sent += sent_count
-            total_active += active_count
-            total_pass += pass_count
+            group_summary = build_group_summary(group_df)
+            grand_total[group_name] = group_summary
+            for key in grand_totals:
+                grand_totals[key] += int(group_summary.get(key, 0) or 0)
 
-        grand_total['total'] = {
-            'ส่งสอบ': int(total_sent),
-            'คงสอบ': int(total_active),
-            'สอบได้': int(total_pass)
-        }
+        grand_total['total'] = grand_totals
 
         group_descriptions = {}
         if isinstance(bali_summary_data, dict):

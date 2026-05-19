@@ -49,13 +49,23 @@
             <section class="summary-class-section">
               <h3 class="class-title">{{ class_name }}</h3>
               <div class="summary-table-wrapper">
-                <table class="summary-table">
+                <div class="summary-toggle-row">
+                  <button type="button" class="summary-toggle-btn summary-toggle-btn--table">กดดูแบบเต็ม</button>
+                </div>
+                <table class="summary-table summary-scope">
                   <thead>
                     <tr>
                       <th>หน่วยงาน</th>
                       <th>ส่งสอบ</th>
+                      <th class="summary-col-full">ขาดสอบ</th>
+                      <th class="summary-col-full">ขาดสิทธิ์</th>
                       <th>คงสอบ</th>
-                      <th>สอบได้</th>
+                      <th class="summary-col-compact pass-cell">สอบได้</th>
+                      <th class="summary-col-full pass-cell">สอบได้</th>
+                      <th class="summary-col-full">สอบซ่อม</th>
+                      <th class="summary-col-full pass-cell">สอบซ่อมได้</th>
+                      <th class="summary-col-full pass-cell">รวมสอบได้</th>
+                      <th class="fail-cell">สอบตก</th>
                       <th>% สอบได้</th>
                     </tr>
                   </thead>
@@ -64,11 +74,18 @@
                       <tr>
                         <td class="group-name">{{ unit_data.name }}</td>
                         <td class="number-cell">{{ unit_data.get('ส่งสอบ', 0) }}</td>
+                        <td class="number-cell summary-col-full">{{ unit_data.get('ขาดสอบ', 0) }}</td>
+                        <td class="number-cell summary-col-full">{{ unit_data.get('ขาดสิทธิ์', 0) }}</td>
                         <td class="number-cell">{{ unit_data.get('คงสอบ', 0) }}</td>
-                        <td class="number-cell pass-cell">{{ unit_data.get('สอบได้', 0) }}</td>
+                        <td class="number-cell summary-col-compact pass-cell">{{ unit_data.get('รวมสอบได้', 0) }}</td>
+                        <td class="number-cell summary-col-full pass-cell">{{ unit_data.get('สอบได้', 0) }}</td>
+                        <td class="number-cell summary-col-full">{{ unit_data.get('สอบซ่อม', 0) }}</td>
+                        <td class="number-cell summary-col-full pass-cell">{{ unit_data.get('สอบซ่อมได้', 0) }}</td>
+                        <td class="number-cell summary-col-full pass-cell">{{ unit_data.get('รวมสอบได้', 0) }}</td>
+                        <td class="number-cell fail-cell">{{ unit_data.get('สอบตก', 0) }}</td>
                         <td class="number-cell percentage-cell">
                           {% if unit_data.get('ส่งสอบ', 0) > 0 %}
-                            {{ "%.2f"|format((unit_data.get('สอบได้', 0) / unit_data.get('ส่งสอบ', 0) * 100)) }}%
+                            {{ "%.2f"|format((unit_data.get('รวมสอบได้', 0) / unit_data.get('ส่งสอบ', 0) * 100)) }}%
                           {% else %}
                             -
                           {% endif %}
@@ -78,11 +95,18 @@
                     <tr class="total-row">
                       <td class="group-name"><strong>รวม</strong></td>
                       <td class="number-cell"><strong>{{ class_data.total.get('ส่งสอบ', 0) }}</strong></td>
+                      <td class="number-cell summary-col-full"><strong>{{ class_data.total.get('ขาดสอบ', 0) }}</strong></td>
+                      <td class="number-cell summary-col-full"><strong>{{ class_data.total.get('ขาดสิทธิ์', 0) }}</strong></td>
                       <td class="number-cell"><strong>{{ class_data.total.get('คงสอบ', 0) }}</strong></td>
-                      <td class="number-cell pass-cell"><strong>{{ class_data.total.get('สอบได้', 0) }}</strong></td>
+                      <td class="number-cell summary-col-compact pass-cell"><strong>{{ class_data.total.get('รวมสอบได้', 0) }}</strong></td>
+                      <td class="number-cell summary-col-full pass-cell"><strong>{{ class_data.total.get('สอบได้', 0) }}</strong></td>
+                      <td class="number-cell summary-col-full"><strong>{{ class_data.total.get('สอบซ่อม', 0) }}</strong></td>
+                      <td class="number-cell summary-col-full pass-cell"><strong>{{ class_data.total.get('สอบซ่อมได้', 0) }}</strong></td>
+                      <td class="number-cell summary-col-full pass-cell"><strong>{{ class_data.total.get('รวมสอบได้', 0) }}</strong></td>
+                      <td class="number-cell fail-cell"><strong>{{ class_data.total.get('สอบตก', 0) }}</strong></td>
                       <td class="number-cell percentage-cell">
                         {% if class_data.total.get('ส่งสอบ', 0) > 0 %}
-                          <strong>{{ "%.2f"|format((class_data.total.get('สอบได้', 0) / class_data.total.get('ส่งสอบ', 0) * 100)) }}%</strong>
+                          <strong>{{ "%.2f"|format((class_data.total.get('รวมสอบได้', 0) / class_data.total.get('ส่งสอบ', 0) * 100)) }}%</strong>
                         {% else %}
                           -
                         {% endif %}
@@ -97,13 +121,23 @@
           <section class="summary-grand-total">
             <h3 class="class-title">รวมทุกชั้น</h3>
             <div class="summary-table-wrapper">
-              <table class="summary-table">
+              <div class="summary-toggle-row">
+                <button type="button" class="summary-toggle-btn summary-toggle-btn--table">กดดูแบบเต็ม</button>
+              </div>
+              <table class="summary-table summary-scope">
                 <thead>
                   <tr>
                     <th>หน่วยงาน</th>
                     <th>ส่งสอบ</th>
+                    <th class="summary-col-full">ขาดสอบ</th>
+                    <th class="summary-col-full">ขาดสิทธิ์</th>
                     <th>คงสอบ</th>
-                    <th>สอบได้</th>
+                    <th class="summary-col-compact pass-cell">สอบได้</th>
+                    <th class="summary-col-full pass-cell">สอบได้</th>
+                    <th class="summary-col-full">สอบซ่อม</th>
+                    <th class="summary-col-full pass-cell">สอบซ่อมได้</th>
+                    <th class="summary-col-full pass-cell">รวมสอบได้</th>
+                    <th class="fail-cell">สอบตก</th>
                     <th>% สอบได้</th>
                   </tr>
                 </thead>
@@ -112,11 +146,18 @@
                     <tr>
                       <td class="group-name">{{ unit_data.name }}</td>
                       <td class="number-cell">{{ unit_data.get('ส่งสอบ', 0) }}</td>
+                      <td class="number-cell summary-col-full">{{ unit_data.get('ขาดสอบ', 0) }}</td>
+                      <td class="number-cell summary-col-full">{{ unit_data.get('ขาดสิทธิ์', 0) }}</td>
                       <td class="number-cell">{{ unit_data.get('คงสอบ', 0) }}</td>
-                      <td class="number-cell pass-cell">{{ unit_data.get('สอบได้', 0) }}</td>
+                      <td class="number-cell summary-col-compact pass-cell">{{ unit_data.get('รวมสอบได้', 0) }}</td>
+                      <td class="number-cell summary-col-full pass-cell">{{ unit_data.get('สอบได้', 0) }}</td>
+                      <td class="number-cell summary-col-full">{{ unit_data.get('สอบซ่อม', 0) }}</td>
+                      <td class="number-cell summary-col-full pass-cell">{{ unit_data.get('สอบซ่อมได้', 0) }}</td>
+                      <td class="number-cell summary-col-full pass-cell">{{ unit_data.get('รวมสอบได้', 0) }}</td>
+                      <td class="number-cell fail-cell">{{ unit_data.get('สอบตก', 0) }}</td>
                       <td class="number-cell percentage-cell">
                         {% if unit_data.get('ส่งสอบ', 0) > 0 %}
-                          {{ "%.2f"|format((unit_data.get('สอบได้', 0) / unit_data.get('ส่งสอบ', 0) * 100)) }}%
+                          {{ "%.2f"|format((unit_data.get('รวมสอบได้', 0) / unit_data.get('ส่งสอบ', 0) * 100)) }}%
                         {% else %}
                           -
                         {% endif %}
@@ -126,11 +167,18 @@
                   <tr class="total-row">
                     <td class="group-name"><strong>รวมทุกหน่วยงาน</strong></td>
                     <td class="number-cell"><strong>{{ summary.grand_total.total.get('ส่งสอบ', 0) }}</strong></td>
+                    <td class="number-cell summary-col-full"><strong>{{ summary.grand_total.total.get('ขาดสอบ', 0) }}</strong></td>
+                    <td class="number-cell summary-col-full"><strong>{{ summary.grand_total.total.get('ขาดสิทธิ์', 0) }}</strong></td>
                     <td class="number-cell"><strong>{{ summary.grand_total.total.get('คงสอบ', 0) }}</strong></td>
-                    <td class="number-cell pass-cell"><strong>{{ summary.grand_total.total.get('สอบได้', 0) }}</strong></td>
+                    <td class="number-cell summary-col-compact pass-cell"><strong>{{ summary.grand_total.total.get('รวมสอบได้', 0) }}</strong></td>
+                    <td class="number-cell summary-col-full pass-cell"><strong>{{ summary.grand_total.total.get('สอบได้', 0) }}</strong></td>
+                    <td class="number-cell summary-col-full"><strong>{{ summary.grand_total.total.get('สอบซ่อม', 0) }}</strong></td>
+                    <td class="number-cell summary-col-full pass-cell"><strong>{{ summary.grand_total.total.get('สอบซ่อมได้', 0) }}</strong></td>
+                    <td class="number-cell summary-col-full pass-cell"><strong>{{ summary.grand_total.total.get('รวมสอบได้', 0) }}</strong></td>
+                    <td class="number-cell fail-cell"><strong>{{ summary.grand_total.total.get('สอบตก', 0) }}</strong></td>
                     <td class="number-cell percentage-cell">
                       {% if summary.grand_total.total.get('ส่งสอบ', 0) > 0 %}
-                        <strong>{{ "%.2f"|format((summary.grand_total.total.get('สอบได้', 0) / summary.grand_total.total.get('ส่งสอบ', 0) * 100)) }}%</strong>
+                        <strong>{{ "%.2f"|format((summary.grand_total.total.get('รวมสอบได้', 0) / summary.grand_total.total.get('ส่งสอบ', 0) * 100)) }}%</strong>
                       {% else %}
                         -
                       {% endif %}
@@ -157,6 +205,14 @@
         yearFilter.addEventListener('change', function() {
           const year = yearFilter.value;
           window.location.href = '{{ url_for("staff_bali_school_summary") }}?year=' + encodeURIComponent(year);
+        });
+        document.querySelectorAll('.summary-toggle-btn--table').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            const scope = btn.closest('.summary-table-wrapper')?.querySelector('.summary-scope');
+            if (!scope) return;
+            scope.classList.toggle('summary-full');
+            btn.textContent = scope.classList.contains('summary-full') ? 'กลับเป็นแบบย่อ' : 'กดดูแบบเต็ม';
+          });
         });
       });
     </script>

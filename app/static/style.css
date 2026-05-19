@@ -1130,6 +1130,40 @@ a.phone-link:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.summary-toggle-row {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 0 15px 0;
+}
+
+.summary-toggle-btn {
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 0.95rem;
+    cursor: pointer;
+    font-weight: bold;
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.dark-theme .summary-toggle-btn {
+    background: #3b82f6;
+}
+
+.summary-scope .summary-col-full {
+    display: none;
+}
+
+.summary-scope.summary-full .summary-col-full {
+    display: table-cell;
+}
+
+.summary-scope.summary-full .summary-col-compact {
+    display: none;
+}
+
 .summary-table {
     width: 100%;
     border-collapse: collapse;
