@@ -303,10 +303,54 @@ def cert_matches_tham_year(cert_text, expected_year_two_digits):
     text = normalize_certificate_text(cert_text)
     if not text:
         return False
-    expected = str(expected_year_two_digits).zfill(2)
-    match = pd.Series([text]).str.extract(r'(\d{2})/(\d{4,5})$').iloc[0]
-    year_two = str(match[0] or '').strip()
-    return year_two == expected
+    expected_year = str(expected_year_two_digits).zfill(2)
+    match = pd.Series([text]).str.extract(r'(\d{4})/(\d{4,5})$').iloc[0]
+    prefix = str(match[0] or '').strip()
+    if len(prefix) != 4 or not prefix.isdigit():
+        return False
+    year_two = prefix[2:4]
+    return year_two == expected_year
+
+
+def get_tham_certificate_type_digit_from_class_name(class_name):
+    text = str(class_name or '').strip()
+    mapping = {
+        'น.ธ.ตรี': '1',
+        'น.ธ.โท': '2',
+        'น.ธ.เอก': '3',
+        'ธ.ศ.ตรี': '4',
+        'ธ.ศ.โท': '5',
+        'ธ.ศ.เอก': '6',
+    }
+    return mapping.get(text, '')
+
+
+def cert_matches_tham_year_and_type(cert_text, expected_year_two_digits, expected_type_digit):
+    text = normalize_certificate_text(cert_text)
+    if not text:
+        return False
+    expected_year = str(expected_year_two_digits).zfill(2)
+    expected_type = str(expected_type_digit or '').strip()
+    match = pd.Series([text]).str.extract(r'(\d{4})/(\d{4,5})$').iloc[0]
+    prefix = str(match[0] or '').strip()
+    if len(prefix) != 4 or not prefix.isdigit():
+        return False
+    type_digit = prefix[1:2]
+    year_two = prefix[2:4]
+    if expected_type and type_digit != expected_type:
+        return False
+    return year_two == expected_year
+
+
+def get_expected_certificate_years(selected_year_value, mode):
+    year_int = int(normalize_year_value(selected_year_value) or CURRENT_YEAR_NUMERIC)
+    mode_value = get_mode_value(mode)
+    expected_bali_year = year_int
+    if mode_value == MODE_OVERVIEW:
+        expected_tham_year_two = str(year_int - 1)[-2:]
+    else:
+        expected_tham_year_two = str(year_int)[-2:]
+    return expected_bali_year, expected_tham_year_two
 
 
 def normalize_name_key(value):
@@ -1482,8 +1526,7 @@ def search():
         return jsonify([])
     tham_class_names = set(get_department_class_names('tham'))
     bali_class_names = set(get_department_class_names('bali'))
-    expected_bali_year = int(year_value)
-    expected_tham_year_two = str(int(year_value) - 1)[-2:]
+    expected_bali_year, expected_tham_year_two = get_expected_certificate_years(year_value, mode)
     results_df = base_df[base_df['display_name'].str.contains(query, case=False, na=False)]
     if results_df.empty:
         return jsonify([])
@@ -1511,7 +1554,12 @@ def search():
         registrations = []
         for _, row in group.iterrows():
             class_name = str(row.get('class_name') or '').strip()
-            cert_nugdham_ok = class_name in tham_class_names and cert_matches_tham_year(row.get('cert_nugdham_text'), expected_tham_year_two)
+            tham_type_digit = get_tham_certificate_type_digit_from_class_name(class_name) if class_name in tham_class_names else ''
+            cert_nugdham_ok = class_name in tham_class_names and cert_matches_tham_year_and_type(
+                row.get('cert_nugdham_text'),
+                expected_tham_year_two,
+                tham_type_digit
+            )
             cert_pali_ok = class_name in bali_class_names and cert_matches_bali_year(row.get('cert_pali_text'), expected_bali_year)
             registrations.append({
                 'class_name': row['class_name'],
@@ -1724,8 +1772,7 @@ def pass_list():
         names_map = load_exam_names_for_year(selected_year)
         tham_class_names = set(get_department_class_names('tham'))
         bali_class_names = set(get_department_class_names('bali'))
-        expected_bali_year = int(selected_year)
-        expected_tham_year_two = str(int(selected_year) - 1)[-2:]
+        expected_bali_year, expected_tham_year_two = get_expected_certificate_years(selected_year, mode)
         summary_df = year_df.copy()
         summary_df = summary_df.assign(
             summary_group=summary_df['group_name'].map(normalize_pass_summary_group)
@@ -1791,7 +1838,8 @@ def pass_list():
             if class_name in bali_class_names:
                 cert_ok = cert_matches_bali_year(row.get('cert_pali_text'), expected_bali_year)
             elif class_name in tham_class_names:
-                cert_ok = cert_matches_tham_year(row.get('cert_nugdham_text'), expected_tham_year_two)
+                tham_type_digit = get_tham_certificate_type_digit_from_class_name(class_name)
+                cert_ok = cert_matches_tham_year_and_type(row.get('cert_nugdham_text'), expected_tham_year_two, tham_type_digit)
             pass_results.append({
                 'name': row['display_name'],
                 'exam_name': exam_name,
