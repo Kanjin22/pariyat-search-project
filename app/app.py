@@ -7,7 +7,7 @@ import uuid
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, Response
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pytz
 import requests
 from dotenv import load_dotenv
@@ -2616,7 +2616,7 @@ def staff_import_excel_preview():
                 'source_status': source_status,
                 'sheet': sheet_name,
                 'workbook': filename,
-                'imported_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+                'imported_at': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
             }
             pending_names.append(display_name)
 
@@ -2635,7 +2635,7 @@ def staff_import_excel_preview():
         'pending_names': pending_names[:200],
         'updates': updates,
         'pending_items': pending_items,
-        'created_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+        'created_at': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
     }
     save_excel_import_preview(token, preview_payload)
     write_staff_log(

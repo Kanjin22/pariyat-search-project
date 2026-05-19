@@ -175,16 +175,19 @@ body {
     margin: 0;
 }
 
-.registrations-list li {
+.registrations-list li,
+.registrations-list .registrations-item {
     padding: 8px 0;
     border-bottom: 1px dashed #ced4da;
 }
 
-.registrations-list li:last-child {
+.registrations-list li:last-child,
+.registrations-list .registrations-item:last-child {
     border-bottom: none;
 }
 
-.registrations-list li {
+.registrations-list li,
+.registrations-list .registrations-item {
     position: relative;
     padding-bottom: 10px;
 }
@@ -1179,6 +1182,24 @@ a.phone-link:hover {
     gap: 8px;
     flex: 1;
     min-width: 200px;
+}
+
+.filter-group-actions {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 10px;
+    min-width: auto;
+}
+
+.section-top-gap {
+    margin-top: 18px;
+}
+
+.manual-entry-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
 }
 
 .filter-group label {

@@ -25,7 +25,7 @@
           <a class="nav-link" href="{{ url_for('staff_manage') }}">จัดการเจ้าหน้าที่</a>
           <a class="nav-link" href="{{ url_for('staff_activity') }}">ประวัติการทำงาน</a>
           {% endif %}
-          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
+          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
           <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
             <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
           </form>
@@ -49,7 +49,7 @@
               {% endfor %}
             </select>
           </div>
-          <div class="filter-group" style="display:flex; align-items:flex-end; gap: 10px;">
+          <div class="filter-group filter-group-actions">
             <a class="nav-link" href="{{ url_for('staff_import_excel', year=selected_year) }}">นำเข้าจาก Excel</a>
             <a class="nav-link" href="{{ url_for('staff_manual_add', year=selected_year) }}">เพิ่มรายชื่อ manual</a>
           </div>

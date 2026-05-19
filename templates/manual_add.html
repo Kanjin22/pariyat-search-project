@@ -21,7 +21,7 @@
           <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
           <a class="nav-link active" href="{{ url_for('manage_results', year=selected_year) }}">จัดการผลการสอบ</a>
           <a class="nav-link" href="{{ url_for('staff_import_excel', year=selected_year) }}">นำเข้าจาก Excel</a>
-          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
+          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
           <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
             <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
           </form>
@@ -77,52 +77,42 @@
         </form>
 
         {% if added_names %}
-        <section class="page-intro" style="margin-top: 18px;">
+        <section class="page-intro section-top-gap">
           <h2>เพิ่มสำเร็จ</h2>
         </section>
         <div class="result-group">
-          <ul class="registrations-list">
-            {% for name in added_names %}
-            <li>{{ name }}</li>
-            {% endfor %}
-          </ul>
+          <div class="registrations-list">{% for name in added_names %}<div class="registrations-item">{{ name }}</div>{% endfor %}</div>
         </div>
         {% endif %}
 
         {% if skipped_names %}
-        <section class="page-intro" style="margin-top: 18px;">
+        <section class="page-intro section-top-gap">
           <h2>ข้าม (มีอยู่แล้ว)</h2>
         </section>
         <div class="result-group">
-          <ul class="registrations-list">
-            {% for name in skipped_names %}
-            <li>{{ name }}</li>
-            {% endfor %}
-          </ul>
+          <div class="registrations-list">{% for name in skipped_names %}<div class="registrations-item">{{ name }}</div>{% endfor %}</div>
         </div>
         {% endif %}
 
-        <section class="page-intro" style="margin-top: 18px;">
+        <section class="page-intro section-top-gap">
           <h2>รายการ manual (ปี {{ to_thai_digits(selected_year) }} | ชั้น {{ selected_class }})</h2>
           <p>แก้ไขแล้วกด “บันทึกแก้ไข” หรือกด “ลบ”</p>
         </section>
 
         <div class="result-group">
           {% if manual_entries %}
-          <ul class="registrations-list">
-            {% for item in manual_entries %}
-            <li>
-              <form method="post" action="{{ url_for('staff_manual_add') }}" style="display:flex; flex-wrap:wrap; gap: 10px; align-items:flex-end;">
+          <div class="registrations-list">{% for item in manual_entries %}<div class="registrations-item">
+              <form method="post" action="{{ url_for('staff_manual_add') }}" class="manual-entry-form">
                 <input type="hidden" name="year" value="{{ selected_year }}" />
                 <input type="hidden" name="class_name" value="{{ selected_class }}" />
                 <input type="hidden" name="manual_key" value="{{ item.key }}" />
 
-                <div class="filter-group" style="margin:0;">
+                <div class="filter-group">
                   <label for="manual-name-{{ loop.index }}">ชื่อ</label>
                   <input id="manual-name-{{ loop.index }}" class="form-input" type="text" name="display_name" value="{{ item.display_name }}" required />
                 </div>
 
-                <div class="filter-group" style="margin:0;">
+                <div class="filter-group">
                   <label for="manual-class-{{ loop.index }}">ชั้น</label>
                   <select id="manual-class-{{ loop.index }}" name="new_class_name" class="filter-select">
                     {% for class_name in available_classes %}
@@ -131,12 +121,12 @@
                   </select>
                 </div>
 
-                <div class="filter-group" style="margin:0;">
+                <div class="filter-group">
                   <label for="manual-school-{{ loop.index }}">หน่วยงาน</label>
                   <input id="manual-school-{{ loop.index }}" class="form-input" type="text" name="school_name" value="{{ item.school_name or '' }}" />
                 </div>
 
-                <div class="filter-group" style="margin:0;">
+                <div class="filter-group">
                   <label for="manual-group-{{ loop.index }}">กลุ่ม</label>
                   <input id="manual-group-{{ loop.index }}" class="form-input" type="text" name="group_name" value="{{ item.group_name or '' }}" />
                 </div>
@@ -144,9 +134,7 @@
                 <button type="submit" class="save-result-btn" name="action" value="update">บันทึกแก้ไข</button>
                 <button type="submit" class="save-result-btn" name="action" value="delete" onclick="return confirm('ยืนยันลบรายการนี้?')">ลบ</button>
               </form>
-            </li>
-            {% endfor %}
-          </ul>
+            </div>{% endfor %}</div>
           {% else %}
           <p>ยังไม่มีรายการ manual ในชั้นนี้</p>
           {% endif %}

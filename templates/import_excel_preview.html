@@ -21,7 +21,7 @@
           <a class="nav-link" href="{{ url_for('pass_list') }}">ดูผลสอบ</a>
           <a class="nav-link active" href="{{ url_for('manage_results') }}">จัดการผลการสอบ</a>
           <a class="nav-link" href="{{ url_for('staff_import_excel', year=selected_year) }}">อัปโหลด Excel</a>
-          <button class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
+          <button type="button" class="theme-toggle nav-button" id="theme-toggle">🌙 โหมดกลางคืน</button>
           <form class="inline-form" method="post" action="{{ url_for('staff_logout') }}">
             <button type="submit" class="nav-link nav-button">ออกจากระบบเจ้าหน้าที่</button>
           </form>
@@ -67,19 +67,15 @@
         </section>
 
         {% if preview.pending_rows %}
-        <section class="page-intro" style="margin-top: 18px;">
+        <section class="page-intro section-top-gap">
           <h2>รายการที่ไม่ match (แสดงสูงสุด 200 รายชื่อ)</h2>
         </section>
         <div class="result-group">
-          <ul class="registrations-list">
-            {% for name in preview.pending_names %}
-            <li>{{ name }}</li>
-            {% endfor %}
-          </ul>
+          <div class="registrations-list">{% for name in preview.pending_names %}<div class="registrations-item">{{ name }}</div>{% endfor %}</div>
         </div>
         {% endif %}
 
-        <form method="post" action="{{ url_for('staff_import_excel_confirm') }}" style="margin-top: 18px;">
+        <form method="post" action="{{ url_for('staff_import_excel_confirm') }}" class="section-top-gap">
           <input type="hidden" name="token" value="{{ preview.token }}" />
           <button type="submit" class="save-result-btn">ยืนยันนำเข้า</button>
           <a class="nav-link" href="{{ url_for('staff_import_excel', year=selected_year) }}">ย้อนกลับ</a>
