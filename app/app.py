@@ -41,6 +41,7 @@ LEGACY_CERTIFICATE_SUMMARY_FILE = os.getenv('LEGACY_CERTIFICATE_SUMMARY_FILE', '
 LEGACY_CERTIFICATE_NDJSON_FILE = os.getenv('LEGACY_CERTIFICATE_NDJSON_FILE', '').strip() or os.path.join(RESULTS_DATA_DIR, 'legacy_certificates.ndjson')
 COMMITTED_LEGACY_CERTIFICATE_SUMMARY_FILE = os.path.join(BASE_DIR, 'app', 'data', 'legacy_certificates_summary.json')
 COMMITTED_CERTIFICATE_SNAPSHOT_ALL_FILE = os.path.join(BASE_DIR, 'app', 'data', 'certificate_snapshot_all.json')
+COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE = os.path.join(BASE_DIR, 'app', 'data', 'public_certificates_bootstrap.json')
 API_SNAPSHOT_MAX_AGE_HOURS = int(os.getenv('API_SNAPSHOT_MAX_AGE_HOURS', '24') or 24)
 try:
     API_SNAPSHOT_LOCK_MAX_YEAR = int((os.getenv('API_SNAPSHOT_LOCK_MAX_YEAR') or '').strip() or 0) or None
@@ -736,6 +737,29 @@ def load_public_certificate_rows():
         and (datetime.now(timezone.utc) - cache_built_at).total_seconds() <= PUBLIC_CERTIFICATE_CACHE_TTL_SECONDS
     ):
         return PUBLIC_CERTIFICATE_CACHE.get('rows', []), PUBLIC_CERTIFICATE_CACHE.get('meta', {})
+
+    regular_legacy_available = os.path.exists(LEGACY_CERTIFICATE_SUMMARY_FILE) or os.path.exists(LEGACY_CERTIFICATE_NDJSON_FILE)
+    regular_current_snapshot_available = os.path.exists(get_certificate_snapshot_file('all'))
+    if (
+        not regular_legacy_available
+        and not regular_current_snapshot_available
+        and os.path.exists(COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE)
+    ):
+        try:
+            with open(COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE, 'r', encoding='utf-8') as fp:
+                payload = json.load(fp)
+            bootstrap_rows = payload.get('rows') if isinstance(payload, dict) else None
+            bootstrap_meta = payload.get('meta') if isinstance(payload, dict) else None
+            if isinstance(bootstrap_rows, list) and isinstance(bootstrap_meta, dict):
+                PUBLIC_CERTIFICATE_CACHE['built_at'] = datetime.now(timezone.utc)
+                PUBLIC_CERTIFICATE_CACHE['legacy_source'] = legacy_source_file
+                PUBLIC_CERTIFICATE_CACHE['legacy_mtime'] = legacy_mtime
+                PUBLIC_CERTIFICATE_CACHE['years'] = ()
+                PUBLIC_CERTIFICATE_CACHE['rows'] = bootstrap_rows
+                PUBLIC_CERTIFICATE_CACHE['meta'] = bootstrap_meta
+                return bootstrap_rows, bootstrap_meta
+        except (OSError, json.JSONDecodeError, AttributeError, TypeError, ValueError):
+            pass
 
     legacy_rows, legacy_meta = load_legacy_public_certificate_rows()
     current_rows, current_meta = load_current_public_certificate_rows_for_year(None)
