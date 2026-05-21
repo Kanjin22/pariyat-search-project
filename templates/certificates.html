@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ตรวจสอบใบประกาศนียบัตร</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>ตรวจสอบใบประกาศนียบัตร</h1>
+        <p>แสดงเฉพาะชื่อ ฉายา (นามสกุล) และข้อมูลใบประกาศนียบัตรที่เปิดเผยได้สู่สาธารณะ</p>
+        {% include '_nav.html' %}
+      </header>
+
+      <section class="data-info-section">
+        <div class="info-text">
+          ข้อมูล ณ <span id="certificate-info-timestamp">{{ certificate_data_info.timestamp or '-' }}</span>
+          |
+          ผู้มีใบประกาศ <span id="certificate-info-person-count">{{ to_thai_digits(certificate_data_info.person_count or 0) }}</span> คน
+          |
+          จำนวนใบประกาศ <span id="certificate-info-count">{{ to_thai_digits(certificate_data_info.certificate_count or 0) }}</span> รายการ
+        </div>
+      </section>
+
+      <main class="search-area">
+        <section class="page-intro">
+          <h2>ค้นหาจากชื่อ ฉายา นามสกุล หรือเลข ปกศ.</h2>
+          <p>พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อเริ่มค้นหา หรือเลือกปีเพื่อช่วยกรองผลลัพธ์</p>
+        </section>
+
+        <div class="config-notice api">
+          หน้าแสดงผลนี้ไม่แสดงข้อมูลส่วนบุคคลอื่น และใช้เฉพาะข้อมูลใบประกาศนียบัตรที่เปิดเผยได้
+        </div>
+
+        <section class="pass-list-filters">
+          <div class="filter-group">
+            <label for="certificate-year-filter">ปี พ.ศ.</label>
+            <select id="certificate-year-filter" class="filter-select">
+              <option value="">ทุกปี</option>
+              {% for year in available_years %}
+                <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>ปี {{ to_thai_digits(year) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </section>
+
+        <div class="search-box">
+          <input
+            type="text"
+            id="certificate-search-input"
+            placeholder="พิมพ์ชื่อ ฉายา นามสกุล หรือเลข ปกศ."
+            autocomplete="off"
+          />
+        </div>
+
+        <div id="certificate-results-container">
+          <div class="empty-state">
+            พิมพ์คำค้นเพื่อค้นหาใบประกาศนียบัตรของตนเอง
+          </div>
+        </div>
+      </main>
+
+      {% include '_site_footer.html' %}
+    </div>
+    <script>
+      window.CERTIFICATE_SELECTED_YEAR = {{ selected_year | tojson }};
+    </script>
+    <script src="{{ static_asset_url('theme.js') }}"></script>
+    <script src="{{ static_asset_url('certificate_lookup.js') }}"></script>
+  </body>
+</html>

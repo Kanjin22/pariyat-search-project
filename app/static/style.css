@@ -487,6 +487,31 @@ a.phone-link:hover {
     padding: 10px 0;
 }
 
+.certificate-result-group .header {
+    align-items: flex-start;
+}
+
+.certificate-list {
+    margin-top: 8px;
+}
+
+.certificate-item {
+    padding: 12px 0 !important;
+}
+
+.certificate-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px 16px;
+}
+
+.certificate-label {
+    display: block;
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 2px;
+}
+
 .manage-card .header {
     align-items: flex-start;
 }

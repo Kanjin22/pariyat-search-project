@@ -3,6 +3,8 @@
   {% set nav_mode = current_mode if current_mode else 'overview' %}
   {% if request.path.startswith('/pass-list') %}
     {% set nav_target = 'pass_list' %}
+  {% elif request.path.startswith('/certificates') %}
+    {% set nav_target = 'public_certificates' %}
   {% elif request.path.startswith('/statistics') %}
     {% set nav_target = 'public_statistics' %}
   {% elif request.path.startswith('/manage-results') %}
@@ -12,16 +14,19 @@
   {% else %}
     {% set nav_target = 'index' %}
   {% endif %}
-  <div class="nav-row" role="navigation" aria-label="เลือกแผนก">
-    <a class="nav-link{% if nav_mode == 'overview' %} active{% endif %}" href="{{ url_for(nav_target, mode='overview', year=nav_year) }}">ภาพรวม</a>
-    <a class="nav-link{% if nav_mode == 'tham' %} active{% endif %}" href="{{ url_for(nav_target, mode='tham', year=nav_year) }}">แผนกธรรม</a>
-    <a class="nav-link{% if nav_mode == 'bali' %} active{% endif %}" href="{{ url_for(nav_target, mode='bali', year=nav_year) }}">แผนกบาลี</a>
-  </div>
+  {% if not request.path.startswith('/certificates') %}
+    <div class="nav-row" role="navigation" aria-label="เลือกแผนก">
+      <a class="nav-link{% if nav_mode == 'overview' %} active{% endif %}" href="{{ url_for(nav_target, mode='overview', year=nav_year) }}">ภาพรวม</a>
+      <a class="nav-link{% if nav_mode == 'tham' %} active{% endif %}" href="{{ url_for(nav_target, mode='tham', year=nav_year) }}">แผนกธรรม</a>
+      <a class="nav-link{% if nav_mode == 'bali' %} active{% endif %}" href="{{ url_for(nav_target, mode='bali', year=nav_year) }}">แผนกบาลี</a>
+    </div>
+  {% endif %}
 
   <div class="nav-row" role="navigation" aria-label="เมนูย่อย">
     <a class="nav-link{% if request.path == '/' %} active{% endif %}" href="{{ url_for('index', mode=nav_mode, year=nav_year) }}">ค้นหารายชื่อ</a>
     <a class="nav-link{% if request.path.startswith('/statistics') or request.path.startswith('/staff/statistics') %} active{% endif %}" href="{{ url_for('public_statistics', mode=nav_mode, year=nav_year) }}">ดูสถิติ</a>
     <a class="nav-link{% if request.path.startswith('/pass-list') %} active{% endif %}" href="{{ url_for('pass_list', mode=nav_mode, year=nav_year) }}">ดูผลสอบ</a>
+    <a class="nav-link{% if request.path.startswith('/certificates') %} active{% endif %}" href="{{ url_for('public_certificates') }}">ตรวจสอบใบประกาศ</a>
 
     {% if staff_logged_in %}
       <div class="nav-dropdown">

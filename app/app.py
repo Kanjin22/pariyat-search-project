@@ -37,6 +37,8 @@ RESULTS_DATA_DIR = os.getenv('RESULTS_DATA_DIR', '').strip() or os.getenv('PARIY
 RESULTS_FILE = os.path.join(RESULTS_DATA_DIR, 'exam_results.json')
 STAFF_ACCOUNTS_FILE = os.path.join(RESULTS_DATA_DIR, 'staff_accounts.json')
 BALI_SUMMARY_FILE = os.path.join(RESULTS_DATA_DIR, 'bali_summary_2569.json')
+LEGACY_CERTIFICATE_SUMMARY_FILE = os.getenv('LEGACY_CERTIFICATE_SUMMARY_FILE', '').strip() or os.path.join(RESULTS_DATA_DIR, 'legacy_certificates_summary.json')
+LEGACY_CERTIFICATE_NDJSON_FILE = os.getenv('LEGACY_CERTIFICATE_NDJSON_FILE', '').strip() or os.path.join(RESULTS_DATA_DIR, 'legacy_certificates.ndjson')
 API_SNAPSHOT_MAX_AGE_HOURS = int(os.getenv('API_SNAPSHOT_MAX_AGE_HOURS', '24') or 24)
 try:
     API_SNAPSHOT_LOCK_MAX_YEAR = int((os.getenv('API_SNAPSHOT_LOCK_MAX_YEAR') or '').strip() or 0) or None
@@ -47,6 +49,19 @@ ANALYTICS_DB_FILE = os.path.join(RESULTS_DATA_DIR, 'analytics.sqlite3')
 VISITOR_COOKIE_NAME = 'ps_vid'
 VISITOR_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 5
 VISITOR_COUNTER_CACHE = {'ts': None, 'date': None, 'data': None}
+CERTIFICATE_API_URL = (os.getenv('PARIYAT_CERT_API_URL') or '').strip() or 'https://app.pariyat.com/pages/postx/license_json.php'
+CERTIFICATE_API_USER = (os.getenv('PARIYAT_CERT_API_USER') or os.getenv('PARIYAT_API_USER') or '').strip()
+CERTIFICATE_API_PASS = (os.getenv('PARIYAT_CERT_API_PASS') or os.getenv('PARIYAT_API_PASS') or '').strip()
+PUBLIC_CERTIFICATE_CACHE_TTL_SECONDS = int(os.getenv('PUBLIC_CERTIFICATE_CACHE_TTL_SECONDS', '300') or 300)
+PUBLIC_CERTIFICATE_CACHE = {
+    'built_at': None,
+    'legacy_source': '',
+    'legacy_mtime': None,
+    'years': (),
+    'rows': [],
+    'meta': {}
+}
+CURRENT_CERTIFICATE_YEAR_CACHE = {}
 
 bali_summary_data = None
 LOGIN_ATTEMPTS_FILE = os.path.join(RESULTS_DATA_DIR, 'login_attempts.json')
@@ -66,6 +81,7 @@ LEVEL_ID_MAP = {
 }
 CLASS_NAME_ORDER = [LEVEL_ID_MAP[level_id] for level_id in LEVEL_ID_MAP]
 CLASS_NAME_ORDER_INDEX = {class_name: index for index, class_name in enumerate(CLASS_NAME_ORDER)}
+CLASS_NAME_LEVEL_ID_MAP = {class_name: level_id for level_id, class_name in LEVEL_ID_MAP.items()}
 
 DEPARTMENT_LEVELS = {
     'tham': {
@@ -291,6 +307,535 @@ def normalize_certificate_text(value):
     text = pd.Series([text]).str.replace(r'[\s\u200b\u200c\u200d\ufeff]+', ' ', regex=True).iloc[0]
     text = text.replace(' /', '/').replace('/ ', '/')
     return text
+
+
+def normalize_public_certificate_record(item):
+    if not isinstance(item, dict):
+        return {}
+    display_name = str(item.get('display_name') or item.get('fullname') or '').strip()
+    certificate_no = normalize_certificate_text(item.get('certificate_no') or item.get('license'))
+    subject = str(item.get('subject') or item.get('level_type') or '').strip()
+    level = str(item.get('level') or '').strip()
+    year = str(item.get('year') or '').strip()
+    province = str(item.get('province') or '').strip()
+    school = str(item.get('school') or item.get('sumnugrean') or '').strip()
+    temple = str(item.get('temple') or item.get('sumnugrean') or item.get('school') or '').strip()
+    source = str(item.get('source') or 'legacy').strip() or 'legacy'
+    person_id = str(item.get('person_id') or item.get('source_person_id') or '').strip()
+    level_id = str(item.get('level_id') or '').strip()
+    source_record_id = str(item.get('source_record_id') or item.get('license_id') or item.get('id') or '').strip()
+    name_normalized = build_base_name_key_from_display_name(display_name) or normalize_name_key(display_name)
+    search_text = ' '.join(
+        part for part in [
+            display_name,
+            name_normalized,
+            certificate_no,
+            subject,
+            level,
+            year,
+            province,
+            school,
+            temple,
+        ] if part
+    ).lower()
+    return {
+        'id_std': str(item.get('id_std') or '').strip(),
+        'display_name': display_name,
+        'certificate_no': certificate_no,
+        'certificate_no_normalized': certificate_no.lower(),
+        'subject': subject,
+        'level_type': str(item.get('level_type') or subject).strip(),
+        'level_id': level_id,
+        'level': level,
+        'year': year,
+        'province': province,
+        'school': school,
+        'temple': temple,
+        'person_id': person_id,
+        'source': source,
+        'source_record_id': source_record_id,
+        'name_normalized': name_normalized,
+        'search_text': search_text,
+        'license_text': str(item.get('license_text') or '').strip(),
+        'scraped_at': str(item.get('scraped_at') or '').strip(),
+        'updated_at': str(item.get('updated_at') or '').strip(),
+        'merged_from': item.get('merged_from') if isinstance(item.get('merged_from'), list) else [],
+    }
+
+
+def build_public_certificate_row(id_std, display_name, certificate, scraped_at):
+    return normalize_public_certificate_record({
+        'id_std': id_std,
+        'display_name': display_name,
+        'certificate_no': certificate.get('certificate_no'),
+        'subject': certificate.get('subject'),
+        'level': certificate.get('level'),
+        'year': certificate.get('year'),
+        'province': certificate.get('province'),
+        'school': certificate.get('school'),
+        'temple': certificate.get('temple'),
+        'scraped_at': scraped_at,
+        'source': 'legacy',
+        'source_record_id': f'{id_std}|{certificate.get("certificate_no") or ""}',
+    })
+
+
+def get_public_certificate_source_file():
+    if os.path.exists(LEGACY_CERTIFICATE_SUMMARY_FILE):
+        return LEGACY_CERTIFICATE_SUMMARY_FILE
+    if os.path.exists(LEGACY_CERTIFICATE_NDJSON_FILE):
+        return LEGACY_CERTIFICATE_NDJSON_FILE
+    return ''
+
+
+def get_certificate_snapshot_file(year):
+    return os.path.join(RESULTS_DATA_DIR, f'certificate_snapshot_{int(year)}.json')
+
+
+def load_certificate_snapshot(year):
+    snapshot_file = get_certificate_snapshot_file(year)
+    if not os.path.exists(snapshot_file):
+        return None
+    try:
+        with open(snapshot_file, 'r', encoding='utf-8') as fp:
+            payload = json.load(fp)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if isinstance(payload, dict) and isinstance(payload.get('data'), list):
+        return payload
+    return None
+
+
+def save_certificate_snapshot(year, api_rows):
+    os.makedirs(RESULTS_DATA_DIR, exist_ok=True)
+    payload = {
+        'year': int(year),
+        'fetched_at': datetime.now(timezone.utc).isoformat(),
+        'data': api_rows if isinstance(api_rows, list) else [],
+    }
+    with open(get_certificate_snapshot_file(year), 'w', encoding='utf-8') as fp:
+        json.dump(payload, fp, ensure_ascii=False)
+
+
+def build_current_public_certificate_row(item):
+    display_name = str(item.get('fullname') or '').strip()
+    if not display_name:
+        prefix = str(item.get('prefix_title') or '').strip()
+        first_name = str(item.get('firstname') or '').strip()
+        pali_name = str(item.get('paliname') or '').strip()
+        last_name = str(item.get('lastname') or '').strip()
+        first_section = ''.join(part for part in [prefix, first_name] if part)
+        if pali_name:
+            display_name = " ".join(part for part in [first_section, pali_name] if part)
+            if last_name:
+                display_name += f' ({last_name})'
+        else:
+            display_name = " ".join(part for part in [first_section, last_name] if part)
+    return normalize_public_certificate_record({
+        'display_name': display_name,
+        'certificate_no': item.get('license'),
+        'subject': item.get('level_type'),
+        'level_type': item.get('level_type'),
+        'level_id': item.get('level_id'),
+        'level': item.get('level'),
+        'year': item.get('year'),
+        'province': item.get('province'),
+        'school': item.get('sumnugrean') or item.get('school'),
+        'temple': item.get('school'),
+        'person_id': item.get('person_id'),
+        'source': 'current_api',
+        'source_record_id': item.get('license_id') or item.get('id'),
+        'license_text': item.get('license_text'),
+        'updated_at': item.get('updated_at'),
+    })
+
+
+def load_legacy_public_certificate_rows():
+    source_file = get_public_certificate_source_file()
+    if not source_file:
+        return [], {'timestamp': '-', 'certificate_count': 0, 'person_count': 0, 'source': ''}
+
+    try:
+        mtime = os.path.getmtime(source_file)
+    except OSError:
+        return [], {'timestamp': '-', 'certificate_count': 0, 'person_count': 0, 'source': ''}
+
+    rows = []
+    if source_file.endswith('.json'):
+        try:
+            with open(source_file, 'r', encoding='utf-8') as fp:
+                payload = json.load(fp)
+        except (OSError, json.JSONDecodeError):
+            payload = []
+        if isinstance(payload, list):
+            for item in payload:
+                row = normalize_public_certificate_record({**item, 'source': 'legacy'})
+                if row.get('display_name') and row.get('certificate_no'):
+                    rows.append(row)
+    else:
+        try:
+            with open(source_file, 'r', encoding='utf-8') as fp:
+                for line in fp:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        payload = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    display_name = str((payload.get('student') or {}).get('display_name') or '').strip()
+                    id_std = str(payload.get('id_std') or '').strip()
+                    scraped_at = str(payload.get('scraped_at') or '').strip()
+                    certificates = payload.get('certificates') or []
+                    for certificate in certificates:
+                        row = build_public_certificate_row(id_std, display_name, certificate, scraped_at)
+                        if row.get('display_name') and row.get('certificate_no'):
+                            rows.append(row)
+        except OSError:
+            rows = []
+
+    rows.sort(
+        key=lambda item: (
+            item.get('display_name', ''),
+            item.get('year', ''),
+            item.get('subject', ''),
+            item.get('level', ''),
+            item.get('certificate_no', ''),
+        )
+    )
+    person_count = len({row.get('display_name', '') for row in rows if row.get('display_name')})
+    timestamp = datetime.fromtimestamp(mtime).strftime('%d/%m/%Y %H:%M')
+    meta = {
+        'timestamp': timestamp,
+        'certificate_count': len(rows),
+        'person_count': person_count,
+        'source': os.path.basename(source_file),
+    }
+    return rows, meta
+
+
+def load_current_public_certificate_rows_for_year(year, force_refresh=False):
+    target_year_numeric = int(normalize_year_value(year) or CURRENT_YEAR_NUMERIC)
+    snapshot_file = get_certificate_snapshot_file(target_year_numeric)
+    snapshot_mtime = os.path.getmtime(snapshot_file) if os.path.exists(snapshot_file) else None
+    cached = CURRENT_CERTIFICATE_YEAR_CACHE.get(target_year_numeric)
+    if cached and cached.get('snapshot_mtime') == snapshot_mtime and not force_refresh:
+        return cached.get('rows', []), cached.get('meta', {})
+
+    snapshot = load_certificate_snapshot(target_year_numeric)
+    runtime_current_year = get_runtime_current_year_numeric()
+    snapshot_lock_max_year = get_effective_snapshot_lock_max_year()
+    locked_year = (
+        snapshot_lock_max_year is not None and target_year_numeric <= snapshot_lock_max_year
+    ) or (target_year_numeric < runtime_current_year)
+    api_rows = []
+    source_label = ''
+    error_message = ''
+
+    if not force_refresh and snapshot and (locked_year or is_snapshot_fresh(snapshot)):
+        api_rows = snapshot.get('data') or []
+        source_label = 'current_api_snapshot'
+    else:
+        if CERTIFICATE_API_URL and CERTIFICATE_API_USER and CERTIFICATE_API_PASS:
+            try:
+                response = requests.get(
+                    CERTIFICATE_API_URL,
+                    params={
+                        'user': CERTIFICATE_API_USER,
+                        'pass': CERTIFICATE_API_PASS,
+                        'filter_year': target_year_numeric,
+                    },
+                    timeout=60,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                if payload.get('status') != 'success' or not isinstance(payload.get('data'), list):
+                    raise RuntimeError('Invalid certificate API payload')
+                api_rows = payload.get('data') or []
+                save_certificate_snapshot(target_year_numeric, api_rows)
+                snapshot_mtime = os.path.getmtime(snapshot_file) if os.path.exists(snapshot_file) else None
+                source_label = 'current_api_live'
+            except Exception as exc:
+                error_message = str(exc)
+        if not api_rows and snapshot:
+            api_rows = snapshot.get('data') or []
+            source_label = 'current_api_snapshot_fallback'
+
+    rows = []
+    for item in api_rows:
+        row = build_current_public_certificate_row(item)
+        if row.get('display_name') and row.get('certificate_no'):
+            rows.append(row)
+    rows.sort(
+        key=lambda item: (
+            item.get('display_name', ''),
+            item.get('year', ''),
+            item.get('subject', ''),
+            item.get('level', ''),
+            item.get('certificate_no', ''),
+        )
+    )
+    meta = {
+        'year': str(target_year_numeric),
+        'certificate_count': len(rows),
+        'person_count': len({row.get('display_name', '') for row in rows if row.get('display_name')}),
+        'source': source_label,
+        'error': error_message,
+    }
+    CURRENT_CERTIFICATE_YEAR_CACHE[target_year_numeric] = {
+        'snapshot_mtime': snapshot_mtime,
+        'rows': rows,
+        'meta': meta,
+    }
+    return rows, meta
+
+
+def get_public_certificate_source_priority(source_name):
+    source_text = str(source_name or '').strip().lower()
+    if source_text == 'current_api':
+        return 2
+    if source_text == 'legacy':
+        return 1
+    return 0
+
+
+def build_public_certificate_merge_key(row):
+    cert_key = str(row.get('certificate_no_normalized') or '').strip()
+    level_id = str(row.get('level_id') or '').strip()
+    year_text = str(row.get('year') or '').strip()
+    person_id = str(row.get('person_id') or '').strip()
+    if cert_key:
+        return '|'.join(['cert', cert_key, year_text, level_id, person_id or str(row.get('name_normalized') or '').strip()])
+    source = str(row.get('source') or '').strip()
+    source_record_id = str(row.get('source_record_id') or '').strip()
+    if source and source_record_id:
+        return '|'.join(['source', source, source_record_id])
+    return '|'.join([
+        'fallback',
+        source,
+        str(row.get('display_name') or '').strip(),
+        year_text,
+        str(row.get('level') or '').strip(),
+        str(row.get('school') or '').strip(),
+    ])
+
+
+def merge_public_certificate_rows(rows):
+    merged = {}
+    for row in rows:
+        if not isinstance(row, dict) or not row.get('display_name') or not row.get('certificate_no'):
+            continue
+        merge_key = build_public_certificate_merge_key(row)
+        if merge_key not in merged:
+            merged_row = dict(row)
+            merged_row['merged_from'] = [{
+                'source': row.get('source', ''),
+                'source_record_id': row.get('source_record_id', ''),
+            }]
+            merged[merge_key] = merged_row
+            continue
+
+        current_row = merged[merge_key]
+        current_priority = get_public_certificate_source_priority(current_row.get('source'))
+        new_priority = get_public_certificate_source_priority(row.get('source'))
+        preferred_row = row if new_priority > current_priority else current_row
+        fallback_row = current_row if preferred_row is row else row
+        merged_row = dict(current_row)
+        for field_name in [
+            'display_name',
+            'certificate_no',
+            'certificate_no_normalized',
+            'subject',
+            'level_type',
+            'level_id',
+            'level',
+            'year',
+            'province',
+            'school',
+            'temple',
+            'person_id',
+            'source',
+            'source_record_id',
+            'name_normalized',
+            'search_text',
+            'license_text',
+            'scraped_at',
+            'updated_at',
+        ]:
+            preferred_value = preferred_row.get(field_name)
+            fallback_value = fallback_row.get(field_name)
+            merged_row[field_name] = preferred_value or fallback_value or merged_row.get(field_name, '')
+        merged_sources = list(current_row.get('merged_from') or [])
+        new_source_entry = {
+            'source': row.get('source', ''),
+            'source_record_id': row.get('source_record_id', ''),
+        }
+        if new_source_entry not in merged_sources:
+            merged_sources.append(new_source_entry)
+        merged_row['merged_from'] = merged_sources
+        merged[merge_key] = merged_row
+    return list(merged.values())
+
+
+def load_public_certificate_rows():
+    legacy_source_file = get_public_certificate_source_file()
+    legacy_mtime = os.path.getmtime(legacy_source_file) if legacy_source_file and os.path.exists(legacy_source_file) else None
+    available_years = tuple(sorted(set(list_available_years())))
+    cache_built_at = PUBLIC_CERTIFICATE_CACHE.get('built_at')
+    if (
+        isinstance(cache_built_at, datetime)
+        and PUBLIC_CERTIFICATE_CACHE.get('legacy_source') == legacy_source_file
+        and PUBLIC_CERTIFICATE_CACHE.get('legacy_mtime') == legacy_mtime
+        and tuple(PUBLIC_CERTIFICATE_CACHE.get('years') or ()) == available_years
+        and (datetime.now(timezone.utc) - cache_built_at).total_seconds() <= PUBLIC_CERTIFICATE_CACHE_TTL_SECONDS
+    ):
+        return PUBLIC_CERTIFICATE_CACHE.get('rows', []), PUBLIC_CERTIFICATE_CACHE.get('meta', {})
+
+    legacy_rows, legacy_meta = load_legacy_public_certificate_rows()
+    current_rows = []
+    current_sources = []
+    current_timestamps = []
+    for year_value in available_years:
+        year_rows, year_meta = load_current_public_certificate_rows_for_year(year_value)
+        current_rows.extend(year_rows)
+        source_text = str(year_meta.get('source') or '').strip()
+        if source_text:
+            current_sources.append(source_text)
+        if year_meta.get('source') and year_meta.get('certificate_count'):
+            current_timestamps.append(str(year_meta.get('year') or ''))
+
+    rows = merge_public_certificate_rows(legacy_rows + current_rows)
+    rows.sort(
+        key=lambda item: (
+            item.get('display_name', ''),
+            item.get('year', ''),
+            item.get('subject', ''),
+            item.get('level', ''),
+            item.get('certificate_no', ''),
+        )
+    )
+    person_count = len({row.get('display_name', '') for row in rows if row.get('display_name')})
+    timestamp_candidates = [legacy_meta.get('timestamp', '-')]
+    if current_timestamps:
+        timestamp_candidates.append(f'API {", ".join(sorted(set(current_timestamps), reverse=True))}')
+    meta = {
+        'timestamp': ' | '.join(candidate for candidate in timestamp_candidates if candidate and candidate != '-').strip() or '-',
+        'certificate_count': len(rows),
+        'person_count': person_count,
+        'source': ', '.join(sorted(set(
+            [legacy_meta.get('source', '')] + current_sources
+        ))).strip(', '),
+    }
+    PUBLIC_CERTIFICATE_CACHE['built_at'] = datetime.now(timezone.utc)
+    PUBLIC_CERTIFICATE_CACHE['legacy_source'] = legacy_source_file
+    PUBLIC_CERTIFICATE_CACHE['legacy_mtime'] = legacy_mtime
+    PUBLIC_CERTIFICATE_CACHE['years'] = available_years
+    PUBLIC_CERTIFICATE_CACHE['rows'] = rows
+    PUBLIC_CERTIFICATE_CACHE['meta'] = meta
+    return rows, meta
+
+
+def build_public_certificate_year_options(rows):
+    values = []
+    for row in rows:
+        year_text = str(row.get('year') or '').strip()
+        if not year_text or year_text == '0':
+            continue
+        if year_text.isdigit():
+            values.append(int(year_text))
+    return [str(value) for value in sorted(set(values), reverse=True)]
+
+
+def filter_public_certificate_rows(rows, query='', year=''):
+    query_text = str(query or '').strip().lower()
+    year_text = str(year or '').strip()
+    filtered_rows = rows
+    if year_text:
+        filtered_rows = [row for row in filtered_rows if str(row.get('year') or '').strip() == year_text]
+    if query_text:
+        filtered_rows = [
+            row for row in filtered_rows
+            if query_text in str(row.get('search_text') or '').lower()
+            or query_text in str(row.get('display_name') or '').lower()
+            or query_text in normalize_certificate_text(row.get('certificate_no')).lower()
+        ]
+    return filtered_rows
+
+
+def group_public_certificate_rows(rows):
+    grouped = {}
+    for row in rows:
+        display_name = str(row.get('display_name') or '').strip()
+        if not display_name:
+            continue
+        entry = grouped.setdefault(display_name, {'name': display_name, 'certificates': []})
+        entry['certificates'].append({
+            'certificate_no': row.get('certificate_no', ''),
+            'subject': row.get('subject', ''),
+            'level': row.get('level', ''),
+            'year': row.get('year', ''),
+            'province': row.get('province', ''),
+            'school': row.get('school', ''),
+            'temple': row.get('temple', ''),
+        })
+
+    results = []
+    for name, payload in grouped.items():
+        certificates = sorted(
+            payload['certificates'],
+            key=lambda item: (
+                str(item.get('year') or ''),
+                str(item.get('subject') or ''),
+                str(item.get('level') or ''),
+                str(item.get('certificate_no') or ''),
+            ),
+            reverse=True
+        )
+        results.append({
+            'name': name,
+            'certificate_count': len(certificates),
+            'certificates': certificates,
+        })
+    results.sort(key=lambda item: item['name'])
+    return results
+
+
+def build_certificate_verification_lookup(rows, year):
+    year_text = str(year or '').strip()
+    person_level_ids = set()
+    name_level_ids = set()
+    for row in rows:
+        if year_text and str(row.get('year') or '').strip() != year_text:
+            continue
+        level_id = str(row.get('level_id') or '').strip()
+        if not level_id:
+            continue
+        person_id = str(row.get('person_id') or '').strip()
+        name_key = str(row.get('name_normalized') or '').strip()
+        if person_id:
+            person_level_ids.add((person_id, level_id))
+        if name_key:
+            name_level_ids.add((name_key, level_id))
+    return {
+        'person_level_ids': person_level_ids,
+        'name_level_ids': name_level_ids,
+    }
+
+
+def row_has_verified_certificate_from_layer(row, verification_lookup):
+    level_id = str(row.get('level_id') or '').strip()
+    if not level_id:
+        level_id = str(CLASS_NAME_LEVEL_ID_MAP.get(str(row.get('class_name') or '').strip()) or '').strip()
+    if not level_id:
+        return False
+    person_id = str(row.get('person_id') or '').strip()
+    if person_id and (person_id, level_id) in (verification_lookup.get('person_level_ids') or set()):
+        return True
+    display_name = str(row.get('display_name') or '').strip()
+    name_key = build_base_name_key_from_display_name(display_name) or normalize_name_key(display_name)
+    if name_key and (name_key, level_id) in (verification_lookup.get('name_level_ids') or set()):
+        return True
+    return False
 
 
 def cert_matches_bali_year(cert_text, expected_year):
@@ -566,7 +1111,8 @@ def is_snapshot_fresh(snapshot_meta):
         fetched_dt = datetime.fromisoformat(fetched_at)
     except ValueError:
         return False
-    age = datetime.now() - fetched_dt
+    now_dt = datetime.now(fetched_dt.tzinfo) if fetched_dt.tzinfo else datetime.now()
+    age = now_dt - fetched_dt
     return age.total_seconds() <= (API_SNAPSHOT_MAX_AGE_HOURS * 3600)
 
 
@@ -1434,7 +1980,13 @@ def build_processed_df_from_api_rows(api_rows, target_year_numeric, store_global
     raw_df = raw_df.rename(columns={'status': 'reg_status', 'bureau': 'school_name', 'postx_type': 'group_name', 'card_id': 'id_card', 'mobile': 'tel'})
     raw_df['registration_key'] = raw_df.apply(build_registration_key, axis=1)
     raw_df['result_key'] = raw_df.apply(build_result_key, axis=1)
-    required_columns = ['sequence_thai', 'display_name', 'age_num', 'pansa_num', 'monk_year_num', 'monk_month_num', 'monk_day_num', 'ordain_after_num', 'dob_year_num', 'dob_month_num', 'dob_day_num', 'age_thai', 'pansa_thai', 'age_pansa', 'ordain_sort_key', 'birth_sort_key', 'reg_status', 'class_name', 'school_name', 'group_name', 'cert_nugdham_text', 'cert_pali_text', 'id_card', 'tel', 'registration_key', 'result_key']
+    required_columns = [
+        'sequence_thai', 'display_name', 'age_num', 'pansa_num', 'monk_year_num', 'monk_month_num',
+        'monk_day_num', 'ordain_after_num', 'dob_year_num', 'dob_month_num', 'dob_day_num',
+        'age_thai', 'pansa_thai', 'age_pansa', 'ordain_sort_key', 'birth_sort_key', 'reg_status',
+        'class_name', 'level_type', 'level_id', 'person_id', 'school_name', 'group_name',
+        'cert_nugdham_text', 'cert_pali_text', 'id_card', 'tel', 'registration_key', 'result_key'
+    ]
     for col in required_columns:
         if col not in raw_df.columns:
             raw_df[col] = ''
@@ -1469,6 +2021,9 @@ def build_processed_df_from_api_rows(api_rows, target_year_numeric, store_global
                 'birth_sort_key': str(manual_item.get('birth_sort_key') or ''),
                 'reg_status': str(manual_item.get('reg_status') or ''),
                 'class_name': manual_class,
+                'level_type': str(manual_item.get('level_type') or ''),
+                'level_id': str(manual_item.get('level_id') or ''),
+                'person_id': str(manual_item.get('person_id') or ''),
                 'school_name': str(manual_item.get('school_name') or ''),
                 'group_name': str(manual_item.get('group_name') or ''),
                 'cert_nugdham_text': str(manual_item.get('cert_nugdham_text') or ''),
@@ -1635,6 +2190,44 @@ def search():
         }
         final_results.append(person_data)
     return jsonify(final_results)
+
+
+@app.route('/certificates')
+def public_certificates():
+    rows, meta = load_public_certificate_rows()
+    selected_year = str(request.args.get('year', '') or '').strip()
+    available_years = build_public_certificate_year_options(rows)
+    if selected_year and selected_year not in available_years:
+        available_years = [selected_year] + available_years
+    return render_template(
+        'certificates.html',
+        selected_year=selected_year,
+        available_years=available_years,
+        certificate_data_info=meta,
+    )
+
+
+@app.route('/api/certificates/info')
+def public_certificates_info():
+    rows, meta = load_public_certificate_rows()
+    return jsonify({
+        'timestamp': meta.get('timestamp', '-'),
+        'certificate_count': int(meta.get('certificate_count') or 0),
+        'person_count': int(meta.get('person_count') or 0),
+        'source': meta.get('source', ''),
+        'available_years': build_public_certificate_year_options(rows),
+    })
+
+
+@app.route('/api/certificates/search')
+def public_certificates_search():
+    query = str(request.args.get('q', '') or '').strip()
+    selected_year = str(request.args.get('year', '') or '').strip()
+    if not query and not selected_year:
+        return jsonify([])
+    rows, _meta = load_public_certificate_rows()
+    filtered_rows = filter_public_certificate_rows(rows, query=query, year=selected_year)
+    return jsonify(group_public_certificate_rows(filtered_rows)[:50])
 
 
 @app.route('/get_classes')
@@ -1885,17 +2478,20 @@ def pass_list():
         available_levels = order_class_names(year_df['class_name'].unique().tolist())
         available_schools = sorted(year_df['school_name'].unique().tolist())
         available_groups = sorted(year_df['group_name'].unique().tolist())
+        certificate_rows, _certificate_meta = load_public_certificate_rows()
+        certificate_lookup = build_certificate_verification_lookup(certificate_rows, selected_year)
         
         for _, row in pass_df.iterrows():
             lookup_key = row.get('result_key') or row.get('registration_key')
             exam_name = names_map.get(str(lookup_key or ''), '')
             class_name = str(row.get('class_name') or '').strip()
-            cert_ok = False
-            if class_name in bali_class_names:
-                cert_ok = cert_matches_bali_year(row.get('cert_pali_text'), expected_bali_year)
-            elif class_name in tham_class_names:
-                tham_type_digit = get_tham_certificate_type_digit_from_class_name(class_name)
-                cert_ok = cert_matches_tham_year_and_type(row.get('cert_nugdham_text'), expected_tham_year_two, tham_type_digit)
+            cert_ok = row_has_verified_certificate_from_layer(row, certificate_lookup)
+            if not cert_ok:
+                if class_name in bali_class_names:
+                    cert_ok = cert_matches_bali_year(row.get('cert_pali_text'), expected_bali_year)
+                elif class_name in tham_class_names:
+                    tham_type_digit = get_tham_certificate_type_digit_from_class_name(class_name)
+                    cert_ok = cert_matches_tham_year_and_type(row.get('cert_nugdham_text'), expected_tham_year_two, tham_type_digit)
             pass_results.append({
                 'name': row['display_name'],
                 'exam_name': exam_name,
