@@ -1083,7 +1083,23 @@ def load_public_certificate_rows():
 
     disable_bootstrap = str(os.getenv('PUBLIC_CERTIFICATE_DISABLE_BOOTSTRAP') or '').strip().lower() in {'1', 'true', 'yes'}
     force_bootstrap = str(os.getenv('PUBLIC_CERTIFICATE_FORCE_BOOTSTRAP') or '').strip().lower() in {'1', 'true', 'yes'}
-    if not disable_bootstrap and os.path.exists(COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE) and (force_bootstrap or is_running_on_render()):
+    regular_legacy_available = os.path.exists(LEGACY_CERTIFICATE_SUMMARY_FILE) or os.path.exists(LEGACY_CERTIFICATE_NDJSON_FILE)
+    regular_current_snapshot_available = os.path.exists(get_certificate_snapshot_file('all'))
+    legacy_edits_available = os.path.exists(LEGACY_CERTIFICATE_OVERRIDES_FILE) or os.path.exists(LEGACY_CERTIFICATE_DELETIONS_FILE)
+    should_use_bootstrap = (
+        not disable_bootstrap
+        and os.path.exists(COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE)
+        and (
+            force_bootstrap
+            or (
+                is_running_on_render()
+                and not regular_legacy_available
+                and not regular_current_snapshot_available
+                and not legacy_edits_available
+            )
+        )
+    )
+    if should_use_bootstrap:
         try:
             with open(COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE, 'r', encoding='utf-8') as fp:
                 payload = json.load(fp)
@@ -1113,8 +1129,6 @@ def load_public_certificate_rows():
         except (OSError, json.JSONDecodeError, AttributeError, TypeError, ValueError):
             pass
 
-    regular_legacy_available = os.path.exists(LEGACY_CERTIFICATE_SUMMARY_FILE) or os.path.exists(LEGACY_CERTIFICATE_NDJSON_FILE)
-    regular_current_snapshot_available = os.path.exists(get_certificate_snapshot_file('all'))
     if (
         not regular_legacy_available
         and not regular_current_snapshot_available
