@@ -961,7 +961,10 @@ def get_public_certificate_year_key(row):
         parsed_year_two = str(info.get('year_two') or '').strip()
         if parsed_year_two:
             return f'yy:{parsed_year_two.zfill(2)}'
-    return normalize_year_value(year_text) or year_text
+    normalized = normalize_year_value(year_text)
+    if normalized is not None:
+        return str(normalized)
+    return str(year_text or '')
 
 
 def build_public_certificate_merge_key(row):
@@ -970,12 +973,18 @@ def build_public_certificate_merge_key(row):
     year_text = get_public_certificate_year_key(row)
     person_id = str(row.get('person_id') or '').strip()
     if cert_key:
-        return '|'.join(['cert', cert_key, year_text, level_id, person_id or str(row.get('name_normalized') or '').strip()])
+        return '|'.join(str(part or '') for part in [
+            'cert',
+            cert_key,
+            year_text,
+            level_id,
+            person_id or str(row.get('name_normalized') or '').strip(),
+        ])
     source = str(row.get('source') or '').strip()
     source_record_id = str(row.get('source_record_id') or '').strip()
     if source and source_record_id:
-        return '|'.join(['source', source, source_record_id])
-    return '|'.join([
+        return '|'.join(str(part or '') for part in ['source', source, source_record_id])
+    return '|'.join(str(part or '') for part in [
         'fallback',
         source,
         str(row.get('display_name') or '').strip(),
