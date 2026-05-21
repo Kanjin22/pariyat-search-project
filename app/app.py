@@ -336,6 +336,9 @@ def to_arabic_digits(text):
 
 
 CERTIFICATE_TEXT_SPACE_RE = re.compile(r'[\s\u200b\u200c\u200d\ufeff]+')
+NAME_KEY_SPACE_RE = re.compile(r'[\s\u200b\u200c\u200d\ufeff]+')
+DISPLAY_NAME_PAREN_CONTENT_RE = re.compile(r'\(([^)]+)\)')
+DISPLAY_NAME_PAREN_BLOCK_RE = re.compile(r'\s*\([^)]*\)\s*')
 
 
 def normalize_certificate_text(value):
@@ -1613,7 +1616,7 @@ def normalize_name_key(value):
         return ''
     text = text.replace('_', ' ').replace('-', ' ')
     text = text.replace('(', ' ').replace(')', ' ')
-    text = pd.Series([text]).str.replace(r'[\s\u200b\u200c\u200d\ufeff]+', '', regex=True).iloc[0]
+    text = NAME_KEY_SPACE_RE.sub('', text)
     return text
 
 
@@ -1650,10 +1653,10 @@ def build_base_name_key_from_display_name(display_name):
     text = str(display_name or '').strip()
     if not text:
         return ''
-    match = pd.Series([text]).str.extract(r'\(([^)]+)\)')[0].iloc[0]
-    if isinstance(match, str) and match.strip():
-        last_name = match.strip()
-        without_parentheses = pd.Series([text]).str.replace(r'\s*\([^)]*\)\s*', ' ', regex=True).iloc[0].strip()
+    match = DISPLAY_NAME_PAREN_CONTENT_RE.search(text)
+    if match and (match.group(1) or '').strip():
+        last_name = match.group(1).strip()
+        without_parentheses = DISPLAY_NAME_PAREN_BLOCK_RE.sub(' ', text).strip()
         first_token = without_parentheses.split()[0] if without_parentheses.split() else ''
         first_name = strip_thai_title_prefix(first_token)
         return normalize_name_key(f'{first_name}{last_name}')
@@ -1669,9 +1672,9 @@ def extract_last_name_from_display_name(display_name):
     text = str(display_name or '').strip()
     if not text:
         return ''
-    match = pd.Series([text]).str.extract(r'\(([^)]+)\)')[0].iloc[0]
-    if isinstance(match, str) and match.strip():
-        return match.strip()
+    match = DISPLAY_NAME_PAREN_CONTENT_RE.search(text)
+    if match and (match.group(1) or '').strip():
+        return match.group(1).strip()
     parts = [part for part in text.split() if part]
     return parts[-1] if len(parts) >= 2 else ''
 
