@@ -40,6 +40,7 @@ BALI_SUMMARY_FILE = os.path.join(RESULTS_DATA_DIR, 'bali_summary_2569.json')
 LEGACY_CERTIFICATE_SUMMARY_FILE = os.getenv('LEGACY_CERTIFICATE_SUMMARY_FILE', '').strip() or os.path.join(RESULTS_DATA_DIR, 'legacy_certificates_summary.json')
 LEGACY_CERTIFICATE_NDJSON_FILE = os.getenv('LEGACY_CERTIFICATE_NDJSON_FILE', '').strip() or os.path.join(RESULTS_DATA_DIR, 'legacy_certificates.ndjson')
 COMMITTED_LEGACY_CERTIFICATE_SUMMARY_FILE = os.path.join(BASE_DIR, 'app', 'data', 'legacy_certificates_summary.json')
+COMMITTED_CERTIFICATE_SNAPSHOT_ALL_FILE = os.path.join(BASE_DIR, 'app', 'data', 'certificate_snapshot_all.json')
 API_SNAPSHOT_MAX_AGE_HOURS = int(os.getenv('API_SNAPSHOT_MAX_AGE_HOURS', '24') or 24)
 try:
     API_SNAPSHOT_LOCK_MAX_YEAR = int((os.getenv('API_SNAPSHOT_LOCK_MAX_YEAR') or '').strip() or 0) or None
@@ -434,8 +435,18 @@ def get_certificate_snapshot_file(year=None):
     return os.path.join(RESULTS_DATA_DIR, f'certificate_snapshot_{int(year)}.json')
 
 
-def load_certificate_snapshot(year):
+def get_certificate_snapshot_read_file(year=None):
     snapshot_file = get_certificate_snapshot_file(year)
+    year_value = str(year or '').strip().lower()
+    if os.path.exists(snapshot_file):
+        return snapshot_file
+    if year_value in {'', 'all', '*'} and os.path.exists(COMMITTED_CERTIFICATE_SNAPSHOT_ALL_FILE):
+        return COMMITTED_CERTIFICATE_SNAPSHOT_ALL_FILE
+    return snapshot_file
+
+
+def load_certificate_snapshot(year):
+    snapshot_file = get_certificate_snapshot_read_file(year)
     if not os.path.exists(snapshot_file):
         return None
     try:
@@ -560,7 +571,7 @@ def load_legacy_public_certificate_rows():
 def load_current_public_certificate_rows_for_year(year=None, force_refresh=False):
     year_filter = normalize_year_value(year)
     snapshot_key = int(year_filter) if year_filter else 'all'
-    snapshot_file = get_certificate_snapshot_file(snapshot_key)
+    snapshot_file = get_certificate_snapshot_read_file(snapshot_key)
     snapshot_mtime = os.path.getmtime(snapshot_file) if os.path.exists(snapshot_file) else None
     cached = CURRENT_CERTIFICATE_YEAR_CACHE.get(snapshot_key)
     if cached and cached.get('snapshot_mtime') == snapshot_mtime and not force_refresh:

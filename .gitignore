@@ -3,6 +3,7 @@ desktop.ini
 data/
 !app/data/
 !app/data/legacy_certificates_summary.json
+!app/data/certificate_snapshot_all.json
 logs/
 backups/
 __pycache__/
