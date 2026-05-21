@@ -2340,9 +2340,7 @@ def staff_login_required(api=False):
 
 @app.context_processor
 def inject_auth_state():
-    group_descriptions = {}
-    if isinstance(bali_summary_data, dict):
-        group_descriptions = bali_summary_data.get('group_descriptions') or {}
+    group_descriptions = get_effective_pass_summary_group_descriptions()
     try:
         visitor_counter = get_visitor_counts()
     except Exception:
@@ -2401,29 +2399,47 @@ def normalize_summary_class_name(class_name):
     return str(class_name or '').replace(' ', '').strip()
 
 
-PASS_SUMMARY_GROUP_ORDER = ['กลุ่ม ๑', 'กลุ่ม ๒', 'กลุ่ม ๓', 'กลุ่ม ๔', 'กลุ่ม ๕', 'กลุ่ม ๖', 'กลุ่ม ๗', 'ไม่ระบุ']
+PASS_SUMMARY_GROUP_ORDER = ['กลุ่ม ๑', 'กลุ่ม ๒', 'กลุ่ม ๓', 'กลุ่ม ๔', 'กลุ่ม ๕', 'ไม่ระบุ']
 PASS_SUMMARY_ABSENT_STATUSES = {'ขาดสอบ', 'ขาดสิทธิ์'}
 PASS_SUMMARY_PASS_STATUSES = {'สอบได้', 'สอบซ่อมได้'}
+PASS_SUMMARY_GROUP_DESCRIPTIONS = {
+    'กลุ่ม ๑': ' - สมาชิกองค์กร สำนักพระปริยัติธรรม - สามเณรประจำหมู่กุฏิสามเณรเปรียญธรรม',
+    'กลุ่ม ๒': ' - สมาชิกองค์กรภายในวัด ทุกสำนัก - สมาชิกองค์กรศูนย์สาขา ต่างประเทศทั่วโลก - (ยกเว้น สำนักพระปริยัติธรรม) - (ยกเว้น สำนักการศึกษา)',
+    'กลุ่ม ๓': ' - สมาชิกศูนย์ส่งเสริมศีลธรรมจังหวัดทั่วประเทศ - พระภิกษุ-สามเณร วัดสาขาทั่วประเทศ',
+    'กลุ่ม ๔': ' - พระภิกษุ-สามเณร นิสิตปัจจุบันสถาบันธรรมชัย - สมาชิกองค์กร สำนักการศึกษา - สามเณรโรงเรียนเตรียมพุทธศาสตร์ (เขาแก้วเสด็จ)',
+    'กลุ่ม ๕': ' - พระภิกษุ-สามเณรทั่วไป (วัดอื่นๆ) - สาธุชนทั่วไป',
+    'ไม่ระบุ': '-',
+}
 PASS_SUMMARY_GROUP_MAP = {
     'None': 'ไม่ระบุ',
     '': 'ไม่ระบุ',
     'ไม่ระบุ': 'ไม่ระบุ',
     'พระภิกษุ/สามเณรวัดสาขา': 'กลุ่ม ๓',
     'พระภิกษุประจำหน่วยงาน': 'กลุ่ม ๒',
-    'เจ้าหน้าที่ภายในองค์กร': 'กลุ่ม ๖',
+    'เจ้าหน้าที่ภายในองค์กร': 'กลุ่ม ๒',
     'สามเณรปริยัติสามัญ': 'กลุ่ม ๔',
     'พระนิสิตปัจจุบันสถาบันธรรมชัย': 'กลุ่ม ๔',
     'สามเณรเปรียญธรรม': 'กลุ่ม ๑',
     'พระมหาเปรียญธรรม': 'กลุ่ม ๑',
-    'สาธุชนทั่วไป': 'กลุ่ม ๗'
+    'สาธุชนทั่วไป': 'กลุ่ม ๕'
 }
 
 
 def normalize_pass_summary_group(group_name):
     group_text = str(group_name or '').strip()
-    if group_text in {'กลุ่ม ๑', 'กลุ่ม ๒', 'กลุ่ม ๓', 'กลุ่ม ๔', 'กลุ่ม ๕', 'กลุ่ม ๖', 'กลุ่ม ๗'}:
+    if group_text in {'กลุ่ม ๑', 'กลุ่ม ๒', 'กลุ่ม ๓', 'กลุ่ม ๔', 'กลุ่ม ๕'}:
         return group_text
     return PASS_SUMMARY_GROUP_MAP.get(group_text, 'ไม่ระบุ')
+
+
+def get_effective_pass_summary_group_descriptions():
+    base = {}
+    if isinstance(bali_summary_data, dict):
+        loaded = bali_summary_data.get('group_descriptions') or {}
+        if isinstance(loaded, dict):
+            base = dict(loaded)
+    base.update(PASS_SUMMARY_GROUP_DESCRIPTIONS)
+    return base
 
 
 def build_pass_summary(
@@ -3909,8 +3925,7 @@ def staff_bali_summary():
         grand_total['total'] = grand_totals
 
         group_descriptions = {}
-        if isinstance(bali_summary_data, dict):
-            group_descriptions = bali_summary_data.get('group_descriptions') or {}
+        group_descriptions = get_effective_pass_summary_group_descriptions()
 
         summary = {
             'group_descriptions': group_descriptions,
@@ -4182,8 +4197,7 @@ def staff_tham_summary():
         grand_total['total'] = grand_totals
 
         group_descriptions = {}
-        if isinstance(bali_summary_data, dict):
-            group_descriptions = bali_summary_data.get('group_descriptions') or {}
+        group_descriptions = get_effective_pass_summary_group_descriptions()
 
         summary = {
             'group_descriptions': group_descriptions,
