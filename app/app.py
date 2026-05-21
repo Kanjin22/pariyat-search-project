@@ -839,13 +839,75 @@ def filter_public_certificate_rows(rows, query='', year=''):
     if year_text:
         filtered_rows = [row for row in filtered_rows if str(row.get('year') or '').strip() == year_text]
     if query_text:
+        query_normalized = normalize_certificate_text(query_text).lower()
         filtered_rows = [
             row for row in filtered_rows
-            if query_text in str(row.get('search_text') or '').lower()
-            or query_text in str(row.get('display_name') or '').lower()
-            or query_text in normalize_certificate_text(row.get('certificate_no')).lower()
+            if query_text in str(row.get('search_text') or '')
+            or (query_normalized and query_normalized in str(row.get('search_text') or ''))
         ]
     return filtered_rows
+
+
+def search_public_certificate_groups(rows, query='', year='', limit=50):
+    query_text = str(query or '').strip().lower()
+    query_normalized = normalize_certificate_text(query_text).lower() if query_text else ''
+    year_text = str(year or '').strip()
+    results = []
+    current_name = None
+    current_payload = None
+
+    def flush_current():
+        nonlocal current_payload
+        if not current_payload:
+            return
+        certificates = sorted(
+            current_payload['certificates'],
+            key=lambda item: (
+                str(item.get('year') or ''),
+                str(item.get('subject') or ''),
+                str(item.get('level') or ''),
+                str(item.get('certificate_no') or ''),
+            ),
+            reverse=True
+        )
+        results.append({
+            'name': current_payload['name'],
+            'certificate_count': len(certificates),
+            'certificates': certificates,
+        })
+        current_payload = None
+
+    for row in rows:
+        if year_text and str(row.get('year') or '').strip() != year_text:
+            continue
+        search_text = str(row.get('search_text') or '')
+        if query_text:
+            if query_text not in search_text and (not query_normalized or query_normalized not in search_text):
+                continue
+        display_name = str(row.get('display_name') or '').strip()
+        if not display_name:
+            continue
+        if current_name != display_name:
+            if current_payload is not None:
+                flush_current()
+                if len(results) >= int(limit or 50):
+                    break
+            current_name = display_name
+            current_payload = {'name': display_name, 'certificates': []}
+        current_payload['certificates'].append({
+            'certificate_no': row.get('certificate_no', ''),
+            'subject': row.get('subject', ''),
+            'level': row.get('level', ''),
+            'year': row.get('year', ''),
+            'province': row.get('province', ''),
+            'school': row.get('school', ''),
+            'temple': row.get('temple', ''),
+        })
+
+    if current_payload is not None and len(results) < int(limit or 50):
+        flush_current()
+
+    return results[: int(limit or 50)]
 
 
 def group_public_certificate_rows(rows):
@@ -2556,8 +2618,7 @@ def public_certificates_search():
         return jsonify([])
     try:
         rows, _meta = load_public_certificate_rows()
-        filtered_rows = filter_public_certificate_rows(rows, query=query, year=selected_year)
-        return jsonify(group_public_certificate_rows(filtered_rows)[:50])
+        return jsonify(search_public_certificate_groups(rows, query=query, year=selected_year, limit=50))
     except Exception as exc:
         logging.exception('public certificate search error')
         return jsonify({'results': [], 'error': str(exc)}), 500
