@@ -39,6 +39,7 @@ STAFF_ACCOUNTS_FILE = os.path.join(RESULTS_DATA_DIR, 'staff_accounts.json')
 BALI_SUMMARY_FILE = os.path.join(RESULTS_DATA_DIR, 'bali_summary_2569.json')
 LEGACY_CERTIFICATE_SUMMARY_FILE = os.getenv('LEGACY_CERTIFICATE_SUMMARY_FILE', '').strip() or os.path.join(RESULTS_DATA_DIR, 'legacy_certificates_summary.json')
 LEGACY_CERTIFICATE_NDJSON_FILE = os.getenv('LEGACY_CERTIFICATE_NDJSON_FILE', '').strip() or os.path.join(RESULTS_DATA_DIR, 'legacy_certificates.ndjson')
+COMMITTED_LEGACY_CERTIFICATE_SUMMARY_FILE = os.path.join(BASE_DIR, 'app', 'data', 'legacy_certificates_summary.json')
 API_SNAPSHOT_MAX_AGE_HOURS = int(os.getenv('API_SNAPSHOT_MAX_AGE_HOURS', '24') or 24)
 try:
     API_SNAPSHOT_LOCK_MAX_YEAR = int((os.getenv('API_SNAPSHOT_LOCK_MAX_YEAR') or '').strip() or 0) or None
@@ -421,6 +422,8 @@ def get_public_certificate_source_file():
         return LEGACY_CERTIFICATE_SUMMARY_FILE
     if os.path.exists(LEGACY_CERTIFICATE_NDJSON_FILE):
         return LEGACY_CERTIFICATE_NDJSON_FILE
+    if os.path.exists(COMMITTED_LEGACY_CERTIFICATE_SUMMARY_FILE):
+        return COMMITTED_LEGACY_CERTIFICATE_SUMMARY_FILE
     return ''
 
 

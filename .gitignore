@@ -1,6 +1,8 @@
 desktop.ini
 .env
 data/
+!app/data/
+!app/data/legacy_certificates_summary.json
 logs/
 backups/
 __pycache__/
