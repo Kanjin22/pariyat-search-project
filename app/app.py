@@ -335,10 +335,13 @@ def to_arabic_digits(text):
     return text.translate(arabic_digits)
 
 
+CERTIFICATE_TEXT_SPACE_RE = re.compile(r'[\s\u200b\u200c\u200d\ufeff]+')
+
+
 def normalize_certificate_text(value):
     text = to_arabic_digits(value)
     text = str(text or '').strip()
-    text = pd.Series([text]).str.replace(r'[\s\u200b\u200c\u200d\ufeff]+', ' ', regex=True).iloc[0]
+    text = CERTIFICATE_TEXT_SPACE_RE.sub(' ', text)
     text = text.replace(' /', '/').replace('/ ', '/')
     return text
 
