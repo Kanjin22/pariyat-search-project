@@ -25,6 +25,10 @@
           ผู้มีใบประกาศ <span id="certificate-info-person-count">{{ to_thai_digits(certificate_data_info.person_count or 0) }}</span> คน
           |
           จำนวนใบประกาศ <span id="certificate-info-count">{{ to_thai_digits(certificate_data_info.certificate_count or 0) }}</span> รายการ
+          {% if certificate_data_info.source %}
+          |
+          แหล่งข้อมูล <span id="certificate-info-source">{{ certificate_data_info.source }}</span>
+          {% endif %}
         </div>
       </section>
 
@@ -48,6 +52,9 @@
               {% endfor %}
             </select>
           </div>
+          <div class="filter-group filter-group-actions">
+            <button type="button" id="certificate-clear-btn" class="secondary-btn">ล้างคำค้น</button>
+          </div>
         </section>
 
         <div class="search-box">
@@ -58,6 +65,15 @@
             autocomplete="off"
           />
         </div>
+        <div class="certificate-search-help">
+          ตัวอย่างคำค้น:
+          <span class="search-example-chip">พระสมชาย</span>
+          <span class="search-example-chip">สมจิตฺโต</span>
+          <span class="search-example-chip">0123/2567</span>
+          <span class="search-example-chip">ปท 826/2567</span>
+        </div>
+
+        <div id="certificate-results-summary" class="certificate-results-summary hidden"></div>
 
         <div id="certificate-results-container">
           <div class="empty-state">

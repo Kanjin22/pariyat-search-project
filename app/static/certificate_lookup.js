@@ -2,9 +2,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('certificate-search-input');
     const yearFilter = document.getElementById('certificate-year-filter');
     const resultsContainer = document.getElementById('certificate-results-container');
+    const resultsSummary = document.getElementById('certificate-results-summary');
     const timestampSpan = document.getElementById('certificate-info-timestamp');
     const countSpan = document.getElementById('certificate-info-count');
     const personCountSpan = document.getElementById('certificate-info-person-count');
+    const sourceSpan = document.getElementById('certificate-info-source');
+    const clearButton = document.getElementById('certificate-clear-btn');
     const selectedYear = String(window.CERTIFICATE_SELECTED_YEAR ?? '').trim();
 
     let activeController = null;
@@ -25,20 +28,41 @@ document.addEventListener('DOMContentLoaded', () => {
             timestampSpan.textContent = data.timestamp || '-';
             countSpan.textContent = toThaiDigits(data.certificate_count || 0);
             personCountSpan.textContent = toThaiDigits(data.person_count || 0);
+            if (sourceSpan) {
+                sourceSpan.textContent = data.source || '-';
+            }
         } catch (error) {
             console.error('Failed to fetch certificate info:', error);
         }
     };
 
+    const setSummary = (html, hidden = false) => {
+        if (!resultsSummary) {
+            return;
+        }
+        resultsSummary.innerHTML = hidden ? '' : html;
+        resultsSummary.classList.toggle('hidden', hidden);
+    };
+
     const renderResults = (results, query) => {
         if (!query && !(yearFilter?.value || '')) {
+            setSummary('', true);
             resultsContainer.innerHTML = '<div class="empty-state">พิมพ์คำค้นเพื่อค้นหาใบประกาศนียบัตรของตนเอง</div>';
             return;
         }
         if (!results.length) {
+            setSummary(`<strong>ไม่พบข้อมูล</strong>${query ? ` สำหรับคำค้น <span class="summary-highlight">${escapeHtml(query)}</span>` : ''}`);
             resultsContainer.innerHTML = '<div class="empty-state">ไม่พบข้อมูลที่ตรงกับการค้นหา</div>';
             return;
         }
+
+        const totalCertificates = results.reduce((sum, person) => sum + Number(person.certificate_count || 0), 0);
+        const autoOpenSingle = results.length === 1;
+        setSummary(
+            `<strong>พบ ${escapeHtml(toThaiDigits(results.length))} คน</strong> และ <strong>${escapeHtml(toThaiDigits(totalCertificates))} ใบประกาศ</strong>`
+            + (query ? ` สำหรับคำค้น <span class="summary-highlight">${escapeHtml(query)}</span>` : '')
+            + ((yearFilter?.value || '') ? ` ในปี <span class="summary-highlight">${escapeHtml(toThaiDigits(yearFilter.value))}</span>` : '')
+        );
 
         resultsContainer.innerHTML = results.map((person, personIndex) => {
             const certificateItems = (person.certificates || []).map((item) => `
@@ -50,9 +74,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div><span class="certificate-label">ปี</span>${escapeHtml(toThaiDigits(item.year || '-'))}</div>
                         <div><span class="certificate-label">จังหวัด</span>${escapeHtml(item.province || '-')}</div>
                         <div><span class="certificate-label">สำนักเรียน</span>${escapeHtml(item.school || '-')}</div>
+                        <div><span class="certificate-label">สังกัดวัด</span>${escapeHtml(item.temple || '-')}</div>
                     </div>
                 </li>
             `).join('');
+            const shouldOpen = autoOpenSingle || Number(person.certificate_count || 0) === 1;
+            const detailsClass = shouldOpen ? 'details' : 'details hidden';
+            const buttonText = shouldOpen ? '[ ^ ซ่อนรายละเอียด ]' : '[ v ดูใบประกาศทั้งหมด ]';
 
             return `
                 <div class="result-group certificate-result-group">
@@ -63,9 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span class="status-chip">${toThaiDigits(person.certificate_count || 0)} ใบประกาศ</span>
                             </div>
                         </div>
-                        <button class="details-btn" data-target="certificate-details-${personIndex}">[ v ดูใบประกาศทั้งหมด ]</button>
+                        <button class="details-btn" data-target="certificate-details-${personIndex}">${buttonText}</button>
                     </div>
-                    <div class="details hidden" id="certificate-details-${personIndex}">
+                    <div class="${detailsClass}" id="certificate-details-${personIndex}">
                         <ul class="registrations-list certificate-list">
                             ${certificateItems}
                         </ul>
@@ -107,6 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
             activeController.abort();
         }
         activeController = new AbortController();
+        setSummary('<strong>กำลังค้นหา...</strong>');
+        resultsContainer.innerHTML = '<div class="empty-state">กำลังค้นหาข้อมูลใบประกาศนียบัตร</div>';
 
         try {
             const response = await fetch(`/api/certificates/search?${params.toString()}`, { signal: activeController.signal });
@@ -130,6 +160,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedYear) {
             yearFilter.value = selectedYear;
         }
+    }
+    if (clearButton) {
+        clearButton.addEventListener('click', () => {
+            searchInput.value = '';
+            if (yearFilter) {
+                yearFilter.value = '';
+            }
+            renderResults([], '');
+            searchInput.focus();
+        });
     }
 
     updateInfo();

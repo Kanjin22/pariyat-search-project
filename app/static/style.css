@@ -189,6 +189,40 @@ body {
     border-color: #4a90e2;
 }
 
+.certificate-search-help {
+    margin-top: 10px;
+    color: #64748b;
+    font-size: 0.95rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.search-example-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    font-size: 0.9rem;
+}
+
+.certificate-results-summary {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    color: #1e3a8a;
+}
+
+.summary-highlight {
+    font-weight: bold;
+}
+
 #results-container {
     margin-top: 20px;
 }
@@ -266,6 +300,25 @@ button.details-btn-reg {
     padding: 0 5px;
     font-family: 'Sarabun', sans-serif;
     font-weight: normal;
+}
+
+.secondary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #1e293b;
+    cursor: pointer;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 0.95rem;
+}
+
+.secondary-btn:hover {
+    background: #f8fafc;
 }
 
 .registrations-list .status-text {
@@ -510,6 +563,32 @@ a.phone-link:hover {
     font-size: 0.85rem;
     color: #6c757d;
     margin-bottom: 2px;
+}
+
+.dark-theme .certificate-search-help {
+    color: #cbd5e1;
+}
+
+.dark-theme .search-example-chip {
+    background: #1e293b;
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+.dark-theme .certificate-results-summary {
+    background: #172554;
+    border-color: #1d4ed8;
+    color: #dbeafe;
+}
+
+.dark-theme .secondary-btn {
+    background: #0f172a;
+    border-color: #475569;
+    color: #f8fafc;
+}
+
+.dark-theme .secondary-btn:hover {
+    background: #1e293b;
 }
 
 .manage-card .header {
