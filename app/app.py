@@ -309,11 +309,29 @@ def normalize_certificate_text(value):
     return text
 
 
+def is_meaningful_certificate_no(value):
+    text = normalize_certificate_text(value)
+    if not text:
+        return False
+    invalid_markers = [
+        'รอผลสอบ',
+        'ไม่มีข้อมูล',
+        'ไม่มีเลขที่',
+    ]
+    if any(marker in text for marker in invalid_markers):
+        return False
+    if text in {'ไม่มี', '-'}:
+        return False
+    return True
+
+
 def normalize_public_certificate_record(item):
     if not isinstance(item, dict):
         return {}
     display_name = str(item.get('display_name') or item.get('fullname') or '').strip()
     certificate_no = normalize_certificate_text(item.get('certificate_no') or item.get('license'))
+    if not is_meaningful_certificate_no(certificate_no):
+        return {}
     subject = str(item.get('subject') or item.get('level_type') or '').strip()
     level = str(item.get('level') or '').strip()
     year = str(item.get('year') or '').strip()
