@@ -1083,57 +1083,23 @@ def load_public_certificate_rows():
 
     disable_bootstrap = str(os.getenv('PUBLIC_CERTIFICATE_DISABLE_BOOTSTRAP') or '').strip().lower() in {'1', 'true', 'yes'}
     force_bootstrap = str(os.getenv('PUBLIC_CERTIFICATE_FORCE_BOOTSTRAP') or '').strip().lower() in {'1', 'true', 'yes'}
-    regular_legacy_available = os.path.exists(LEGACY_CERTIFICATE_SUMMARY_FILE) or os.path.exists(LEGACY_CERTIFICATE_NDJSON_FILE)
-    regular_current_snapshot_available = os.path.exists(get_certificate_snapshot_file('all'))
+    regular_legacy_available = bool(legacy_source_file and os.path.exists(legacy_source_file))
+    snapshot_read_file = get_certificate_snapshot_read_file('all')
+    regular_current_snapshot_available = bool(snapshot_read_file and os.path.exists(snapshot_read_file))
     legacy_edits_available = os.path.exists(LEGACY_CERTIFICATE_OVERRIDES_FILE) or os.path.exists(LEGACY_CERTIFICATE_DELETIONS_FILE)
+
     should_use_bootstrap = (
         not disable_bootstrap
         and os.path.exists(COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE)
+        and not legacy_edits_available
         and (
             force_bootstrap
-            or (
-                is_running_on_render()
-                and not regular_legacy_available
-                and not regular_current_snapshot_available
-                and not legacy_edits_available
-            )
+            or is_running_on_render()
+            or (not regular_legacy_available and not regular_current_snapshot_available)
         )
     )
-    if should_use_bootstrap:
-        try:
-            with open(COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE, 'r', encoding='utf-8') as fp:
-                payload = json.load(fp)
-            bootstrap_rows = payload.get('rows') if isinstance(payload, dict) else None
-            bootstrap_meta = payload.get('meta') if isinstance(payload, dict) else None
-            if isinstance(bootstrap_rows, list) and isinstance(bootstrap_meta, dict):
-                deduped_rows = dedupe_public_certificate_rows(bootstrap_rows)
-                deduped_rows.sort(
-                    key=lambda item: (
-                        item.get('display_name', ''),
-                        item.get('year', ''),
-                        item.get('subject', ''),
-                        item.get('level', ''),
-                        item.get('certificate_no', ''),
-                    )
-                )
-                bootstrap_meta = dict(bootstrap_meta)
-                bootstrap_meta['certificate_count'] = len(deduped_rows)
-                bootstrap_meta['person_count'] = len({row.get('display_name', '') for row in deduped_rows if row.get('display_name')})
-                PUBLIC_CERTIFICATE_CACHE['built_at'] = datetime.now(timezone.utc)
-                PUBLIC_CERTIFICATE_CACHE['legacy_source'] = legacy_source_file
-                PUBLIC_CERTIFICATE_CACHE['legacy_mtime'] = legacy_mtime
-                PUBLIC_CERTIFICATE_CACHE['years'] = ()
-                PUBLIC_CERTIFICATE_CACHE['rows'] = deduped_rows
-                PUBLIC_CERTIFICATE_CACHE['meta'] = bootstrap_meta
-                return deduped_rows, bootstrap_meta
-        except (OSError, json.JSONDecodeError, AttributeError, TypeError, ValueError):
-            pass
 
-    if (
-        not regular_legacy_available
-        and not regular_current_snapshot_available
-        and os.path.exists(COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE)
-    ):
+    if should_use_bootstrap:
         try:
             with open(COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE, 'r', encoding='utf-8') as fp:
                 payload = json.load(fp)
