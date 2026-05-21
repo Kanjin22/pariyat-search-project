@@ -383,6 +383,19 @@ def normalize_public_certificate_record(item):
     level = str(item.get('level') or '').strip()
     source_record_id = str(item.get('source_record_id') or item.get('license_id') or item.get('id') or '').strip()
     year = normalize_certificate_year(item.get('year'), source_record_id=source_record_id)
+    parsed_year = ''
+    try:
+        parsed_year = str(parse_certificate_number_pattern(certificate_no).get('year') or '').strip()
+    except Exception:
+        parsed_year = ''
+    if parsed_year.isdigit() and 2400 <= int(parsed_year) <= 2700:
+        year_text = str(year or '').strip()
+        if not year_text:
+            year = parsed_year
+        elif year_text.isdigit():
+            year_int = int(year_text)
+            if year_int < 2400 or year_int > 2700:
+                year = parsed_year
     province = str(item.get('province') or '').strip()
     school = str(item.get('school') or item.get('sumnugrean') or '').strip()
     temple = str(item.get('temple') or item.get('sumnugrean') or item.get('school') or '').strip()
@@ -934,10 +947,27 @@ def get_public_certificate_source_priority(source_name):
     return 0
 
 
+def get_public_certificate_year_key(row):
+    cert_text = str(row.get('certificate_no') or '').strip()
+    year_text = str(row.get('year') or '').strip()
+    if cert_text:
+        try:
+            info = parse_certificate_number_pattern(cert_text)
+        except Exception:
+            info = {}
+        parsed_year = str(info.get('year') or '').strip()
+        if parsed_year:
+            return parsed_year
+        parsed_year_two = str(info.get('year_two') or '').strip()
+        if parsed_year_two:
+            return f'yy:{parsed_year_two.zfill(2)}'
+    return normalize_year_value(year_text) or year_text
+
+
 def build_public_certificate_merge_key(row):
     cert_key = str(row.get('certificate_no_normalized') or '').strip()
     level_id = str(row.get('level_id') or '').strip()
-    year_text = str(row.get('year') or '').strip()
+    year_text = get_public_certificate_year_key(row)
     person_id = str(row.get('person_id') or '').strip()
     if cert_key:
         return '|'.join(['cert', cert_key, year_text, level_id, person_id or str(row.get('name_normalized') or '').strip()])
@@ -1022,7 +1052,7 @@ def dedupe_public_certificate_rows(rows):
         cert_key = str(row.get('certificate_no_normalized') or '').strip().lower()
         if not cert_key:
             cert_key = normalize_certificate_text(row.get('certificate_no')).lower()
-        year_text = str(row.get('year') or '').strip()
+        year_text = get_public_certificate_year_key(row)
         dedupe_key = '|'.join(['dedupe', identity, cert_key, year_text])
 
         if dedupe_key not in deduped:
