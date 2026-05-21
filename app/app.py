@@ -801,40 +801,79 @@ def group_public_certificate_rows(rows):
 
 
 def build_certificate_verification_lookup(rows, year):
-    year_text = str(year or '').strip()
     person_level_ids = set()
     name_level_ids = set()
+    person_level_year_ids = set()
+    name_level_year_ids = set()
+    person_level_ids_without_year = set()
+    name_level_ids_without_year = set()
     for row in rows:
-        if year_text and str(row.get('year') or '').strip() != year_text:
-            continue
         level_id = str(row.get('level_id') or '').strip()
         if not level_id:
             continue
         person_id = str(row.get('person_id') or '').strip()
         name_key = str(row.get('name_normalized') or '').strip()
+        row_year = str(row.get('year') or '').strip()
         if person_id:
             person_level_ids.add((person_id, level_id))
+            if row_year:
+                person_level_year_ids.add((person_id, level_id, row_year))
+            else:
+                person_level_ids_without_year.add((person_id, level_id))
         if name_key:
             name_level_ids.add((name_key, level_id))
+            if row_year:
+                name_level_year_ids.add((name_key, level_id, row_year))
+            else:
+                name_level_ids_without_year.add((name_key, level_id))
     return {
         'person_level_ids': person_level_ids,
+        'person_level_year_ids': person_level_year_ids,
+        'person_level_ids_without_year': person_level_ids_without_year,
         'name_level_ids': name_level_ids,
+        'name_level_year_ids': name_level_year_ids,
+        'name_level_ids_without_year': name_level_ids_without_year,
     }
 
 
-def row_has_verified_certificate_from_layer(row, verification_lookup):
+def get_expected_certificate_year_for_class_name(class_name, selected_year):
+    class_name_text = str(class_name or '').strip()
+    year_value = normalize_year_value(selected_year)
+    if not class_name_text or not year_value:
+        return ''
+    year_int = int(year_value)
+    if class_name_text in set(get_department_class_names('tham')):
+        return str(year_int - 1)
+    if class_name_text in set(get_department_class_names('bali')):
+        return str(year_int)
+    return str(year_int)
+
+
+def row_has_verified_certificate_from_layer(row, verification_lookup, selected_year=''):
     level_id = str(row.get('level_id') or '').strip()
     if not level_id:
         level_id = str(CLASS_NAME_LEVEL_ID_MAP.get(str(row.get('class_name') or '').strip()) or '').strip()
     if not level_id:
         return False
     person_id = str(row.get('person_id') or '').strip()
-    if person_id and (person_id, level_id) in (verification_lookup.get('person_level_ids') or set()):
-        return True
+    class_name = str(row.get('class_name') or '').strip()
+    expected_year = get_expected_certificate_year_for_class_name(class_name, selected_year)
+    if person_id:
+        if expected_year and (person_id, level_id, expected_year) in (verification_lookup.get('person_level_year_ids') or set()):
+            return True
+        if (person_id, level_id) in (verification_lookup.get('person_level_ids_without_year') or set()):
+            return True
+        if not expected_year and (person_id, level_id) in (verification_lookup.get('person_level_ids') or set()):
+            return True
     display_name = str(row.get('display_name') or '').strip()
     name_key = build_base_name_key_from_display_name(display_name) or normalize_name_key(display_name)
-    if name_key and (name_key, level_id) in (verification_lookup.get('name_level_ids') or set()):
-        return True
+    if name_key:
+        if expected_year and (name_key, level_id, expected_year) in (verification_lookup.get('name_level_year_ids') or set()):
+            return True
+        if (name_key, level_id) in (verification_lookup.get('name_level_ids_without_year') or set()):
+            return True
+        if not expected_year and (name_key, level_id) in (verification_lookup.get('name_level_ids') or set()):
+            return True
     return False
 
 
@@ -2135,6 +2174,8 @@ def search():
     tham_class_names = set(get_department_class_names('tham'))
     bali_class_names = set(get_department_class_names('bali'))
     expected_bali_year, expected_tham_year_two = get_expected_certificate_years(year_value)
+    certificate_rows, _certificate_meta = load_public_certificate_rows()
+    certificate_lookup = build_certificate_verification_lookup(certificate_rows, year_value)
     results_df = base_df[base_df['display_name'].str.contains(query, case=False, na=False)]
     if results_df.empty:
         return jsonify([])
@@ -2162,6 +2203,7 @@ def search():
         registrations = []
         for _, row in group.iterrows():
             class_name = str(row.get('class_name') or '').strip()
+            cert_ok_from_layer = row_has_verified_certificate_from_layer(row, certificate_lookup, year_value)
             tham_type_digit = get_tham_certificate_type_digit_from_class_name(class_name) if class_name in tham_class_names else ''
             cert_nugdham_ok = class_name in tham_class_names and cert_matches_tham_year_and_type(
                 row.get('cert_nugdham_text'),
@@ -2169,6 +2211,11 @@ def search():
                 tham_type_digit
             )
             cert_pali_ok = class_name in bali_class_names and cert_matches_bali_year(row.get('cert_pali_text'), expected_bali_year)
+            if cert_ok_from_layer:
+                if class_name in tham_class_names:
+                    cert_nugdham_ok = True
+                elif class_name in bali_class_names:
+                    cert_pali_ok = True
             registrations.append({
                 'class_name': row['class_name'],
                 'reg_status': row['reg_status'],
@@ -2485,7 +2532,7 @@ def pass_list():
             lookup_key = row.get('result_key') or row.get('registration_key')
             exam_name = names_map.get(str(lookup_key or ''), '')
             class_name = str(row.get('class_name') or '').strip()
-            cert_ok = row_has_verified_certificate_from_layer(row, certificate_lookup)
+            cert_ok = row_has_verified_certificate_from_layer(row, certificate_lookup, selected_year)
             if not cert_ok:
                 if class_name in bali_class_names:
                     cert_ok = cert_matches_bali_year(row.get('cert_pali_text'), expected_bali_year)
