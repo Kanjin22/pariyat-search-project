@@ -103,18 +103,15 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         resultsContainer.innerHTML = results.map((person, personIndex) => {
-            const certificateItems = (person.certificates || []).map((item) => `
-                <li class="certificate-item">
-                    <div class="certificate-grid">
-                        <div><span class="certificate-label">เลข ปกศ.</span><strong>${escapeHtml(item.certificate_no || '-')}</strong></div>
-                        <div><span class="certificate-label">วิชา</span>${escapeHtml(item.subject || '-')}</div>
-                        <div><span class="certificate-label">ชั้น</span>${escapeHtml(item.level || '-')}</div>
-                        <div><span class="certificate-label">ปี</span>${escapeHtml(toThaiDigits(item.year || '-'))}</div>
-                        <div><span class="certificate-label">จังหวัด</span>${escapeHtml(item.province || '-')}</div>
-                        <div><span class="certificate-label">สำนักเรียน</span>${escapeHtml(item.school || '-')}</div>
-                        <div><span class="certificate-label">สังกัดวัด</span>${escapeHtml(item.temple || '-')}</div>
-                    </div>
-                </li>
+            const certificateRows = (person.certificates || []).map((item) => `
+                <tr>
+                    <td>${escapeHtml(item.subject || '-')}</td>
+                    <td>${escapeHtml(item.level || '-')}</td>
+                    <td class="number-cell">${escapeHtml(toThaiDigits(item.year || '-'))}</td>
+                    <td><strong>${escapeHtml(item.certificate_no || '-')}</strong></td>
+                    <td>${escapeHtml(item.temple || '-')}</td>
+                    <td>${escapeHtml(item.school || '-')}</td>
+                </tr>
             `).join('');
             const shouldOpen = autoOpenSingle || Number(person.certificate_count || 0) === 1;
             const detailsClass = shouldOpen ? 'details' : 'details hidden';
@@ -132,9 +129,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button class="details-btn" data-target="certificate-details-${personIndex}">${buttonText}</button>
                     </div>
                     <div class="${detailsClass}" id="certificate-details-${personIndex}">
-                        <ul class="registrations-list certificate-list">
-                            ${certificateItems}
-                        </ul>
+                        <div class="pass-list-table-wrapper">
+                            <table class="pass-list-table">
+                                <thead>
+                                    <tr>
+                                        <th>วิชา</th>
+                                        <th>ชั้น</th>
+                                        <th>ปี</th>
+                                        <th>เลข ปกศ.</th>
+                                        <th>สังกัดวัด</th>
+                                        <th>สำนักเรียน</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${certificateRows}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             `;
