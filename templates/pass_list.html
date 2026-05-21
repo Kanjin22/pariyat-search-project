@@ -160,11 +160,11 @@
                       <th class="summary-col-full">ขาดสอบ</th>
                       <th class="summary-col-full">ขาดสิทธิ์</th>
                       <th>คงสอบ</th>
-                      <th class="summary-col-compact pass-cell">สอบได้</th>
-                      <th class="summary-col-full pass-cell">สอบได้</th>
+                      <th class="summary-col-compact pass-cell">สอบได้ (ปกศ.)</th>
+                      <th class="summary-col-full pass-cell">สอบได้ (ปกศ.)</th>
                       <th class="summary-col-full">สอบซ่อม</th>
-                      <th class="summary-col-full pass-cell">สอบซ่อมได้</th>
-                      <th class="summary-col-full pass-cell">รวมสอบได้</th>
+                      <th class="summary-col-full pass-cell">สอบซ่อมได้ (ปกศ.)</th>
+                      <th class="summary-col-full pass-cell">รวมสอบได้ (ปกศ.)</th>
                       <th class="fail-cell">สอบตก</th>
                       <th>% สอบได้</th>
                     </tr>
@@ -177,11 +177,11 @@
                         <td class="number-cell summary-col-full">{{ group_data.get('ขาดสอบ', 0) }}</td>
                         <td class="number-cell summary-col-full">{{ group_data.get('ขาดสิทธิ์', 0) }}</td>
                         <td class="number-cell">{{ group_data.get('คงสอบ', 0) }}</td>
-                        <td class="number-cell summary-col-compact pass-cell">{{ group_data.get('รวมสอบได้', 0) }}</td>
-                        <td class="number-cell summary-col-full pass-cell">{{ group_data.get('สอบได้', 0) }}</td>
+                        <td class="number-cell summary-col-compact pass-cell">{{ group_data.get('รวมสอบได้', 0) }} ({{ group_data.get('รวมสอบได้_ปกศ', 0) }})</td>
+                        <td class="number-cell summary-col-full pass-cell">{{ group_data.get('สอบได้', 0) }} ({{ group_data.get('สอบได้_ปกศ', 0) }})</td>
                         <td class="number-cell summary-col-full">{{ group_data.get('สอบซ่อม', 0) }}</td>
-                        <td class="number-cell summary-col-full pass-cell">{{ group_data.get('สอบซ่อมได้', 0) }}</td>
-                        <td class="number-cell summary-col-full pass-cell">{{ group_data.get('รวมสอบได้', 0) }}</td>
+                        <td class="number-cell summary-col-full pass-cell">{{ group_data.get('สอบซ่อมได้', 0) }} ({{ group_data.get('สอบซ่อมได้_ปกศ', 0) }})</td>
+                        <td class="number-cell summary-col-full pass-cell">{{ group_data.get('รวมสอบได้', 0) }} ({{ group_data.get('รวมสอบได้_ปกศ', 0) }})</td>
                         <td class="number-cell{% if group_data.get('สอบตก', 0) > 0 %} fail-cell{% endif %}">{{ group_data.get('สอบตก', 0) }}</td>
                         <td class="number-cell percentage-cell">
                           {% if group_data.get('ส่งสอบ', 0) > 0 %}
@@ -198,11 +198,11 @@
                       <td class="number-cell summary-col-full"><strong>{{ pass_summary.class_data.total.get('ขาดสอบ', 0) }}</strong></td>
                       <td class="number-cell summary-col-full"><strong>{{ pass_summary.class_data.total.get('ขาดสิทธิ์', 0) }}</strong></td>
                       <td class="number-cell"><strong>{{ pass_summary.class_data.total.get('คงสอบ', 0) }}</strong></td>
-                      <td class="number-cell summary-col-compact pass-cell"><strong>{{ pass_summary.class_data.total.get('รวมสอบได้', 0) }}</strong></td>
-                      <td class="number-cell summary-col-full pass-cell"><strong>{{ pass_summary.class_data.total.get('สอบได้', 0) }}</strong></td>
+                      <td class="number-cell summary-col-compact pass-cell"><strong>{{ pass_summary.class_data.total.get('รวมสอบได้', 0) }} ({{ pass_summary.class_data.total.get('รวมสอบได้_ปกศ', 0) }})</strong></td>
+                      <td class="number-cell summary-col-full pass-cell"><strong>{{ pass_summary.class_data.total.get('สอบได้', 0) }} ({{ pass_summary.class_data.total.get('สอบได้_ปกศ', 0) }})</strong></td>
                       <td class="number-cell summary-col-full"><strong>{{ pass_summary.class_data.total.get('สอบซ่อม', 0) }}</strong></td>
-                      <td class="number-cell summary-col-full pass-cell"><strong>{{ pass_summary.class_data.total.get('สอบซ่อมได้', 0) }}</strong></td>
-                      <td class="number-cell summary-col-full pass-cell"><strong>{{ pass_summary.class_data.total.get('รวมสอบได้', 0) }}</strong></td>
+                      <td class="number-cell summary-col-full pass-cell"><strong>{{ pass_summary.class_data.total.get('สอบซ่อมได้', 0) }} ({{ pass_summary.class_data.total.get('สอบซ่อมได้_ปกศ', 0) }})</strong></td>
+                      <td class="number-cell summary-col-full pass-cell"><strong>{{ pass_summary.class_data.total.get('รวมสอบได้', 0) }} ({{ pass_summary.class_data.total.get('รวมสอบได้_ปกศ', 0) }})</strong></td>
                       <td class="number-cell{% if pass_summary.class_data.total.get('สอบตก', 0) > 0 %} fail-cell{% endif %}"><strong>{{ pass_summary.class_data.total.get('สอบตก', 0) }}</strong></td>
                       <td class="number-cell percentage-cell">
                         {% if pass_summary.class_data.total.get('ส่งสอบ', 0) > 0 %}

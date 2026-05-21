@@ -2312,9 +2312,20 @@ def normalize_pass_summary_group(group_name):
     return PASS_SUMMARY_GROUP_MAP.get(group_text, 'ไม่ระบุ')
 
 
-def build_pass_summary(summary_df, class_name):
+def build_pass_summary(
+    summary_df,
+    class_name,
+    certificate_lookup=None,
+    selected_year=None,
+    expected_bali_year='',
+    expected_tham_year_two='',
+    tham_class_names=None,
+    bali_class_names=None,
+):
     if summary_df is None or summary_df.empty or not class_name:
         return None
+    tham_class_names = set(tham_class_names or set())
+    bali_class_names = set(bali_class_names or set())
 
     group_rows = {}
     totals = {
@@ -2323,11 +2334,28 @@ def build_pass_summary(summary_df, class_name):
         'ขาดสิทธิ์': 0,
         'คงสอบ': 0,
         'สอบได้': 0,
+        'สอบได้_ปกศ': 0,
         'สอบซ่อม': 0,
         'สอบซ่อมได้': 0,
+        'สอบซ่อมได้_ปกศ': 0,
         'รวมสอบได้': 0,
+        'รวมสอบได้_ปกศ': 0,
         'สอบตก': 0
     }
+
+    def evaluate_row_certificate_ok(row):
+        if certificate_lookup is None or not selected_year:
+            return False
+        class_name_value = str(row.get('class_name') or '').strip()
+        cert_decision = get_certificate_verification_decision(row, certificate_lookup, selected_year)
+        cert_ok = cert_decision.get('verdict') == CERTIFICATE_VERDICT_PASS
+        if not cert_ok:
+            if class_name_value in bali_class_names:
+                cert_ok = cert_matches_bali_year(row.get('cert_pali_text'), expected_bali_year)
+            elif class_name_value in tham_class_names:
+                tham_type_digit = get_tham_certificate_type_digit_from_class_name(class_name_value)
+                cert_ok = cert_matches_tham_year_and_type(row.get('cert_nugdham_text'), expected_tham_year_two, tham_type_digit)
+        return bool(cert_ok)
 
     for group_name in PASS_SUMMARY_GROUP_ORDER:
         group_df = summary_df[summary_df['summary_group'] == group_name]
@@ -2342,15 +2370,33 @@ def build_pass_summary(summary_df, class_name):
         total_pass_count = int(pass_count + remedial_pass_count)
         fail_count = max(int(active_count) - int(total_pass_count), 0)
 
+        pass_cert_ok_count = 0
+        remedial_pass_cert_ok_count = 0
+        if certificate_lookup is not None and selected_year:
+            for _, row in group_df.iterrows():
+                status_value = str(row.get('exam_result_status') or '').strip()
+                if status_value not in PASS_SUMMARY_PASS_STATUSES:
+                    continue
+                if not evaluate_row_certificate_ok(row):
+                    continue
+                if status_value == 'สอบได้':
+                    pass_cert_ok_count += 1
+                elif status_value == 'สอบซ่อมได้':
+                    remedial_pass_cert_ok_count += 1
+        total_pass_cert_ok_count = int(pass_cert_ok_count + remedial_pass_cert_ok_count)
+
         group_rows[group_name] = {
             'ส่งสอบ': sent_count,
             'ขาดสอบ': absent_count,
             'ขาดสิทธิ์': disqualified_count,
             'คงสอบ': active_count,
             'สอบได้': pass_count,
+            'สอบได้_ปกศ': pass_cert_ok_count,
             'สอบซ่อม': remedial_count,
             'สอบซ่อมได้': remedial_pass_count,
+            'สอบซ่อมได้_ปกศ': remedial_pass_cert_ok_count,
             'รวมสอบได้': total_pass_count,
+            'รวมสอบได้_ปกศ': total_pass_cert_ok_count,
             'สอบตก': fail_count
         }
         for key in totals:
@@ -3103,9 +3149,6 @@ def pass_list():
         if selected_group:
             summary_df = summary_df[summary_df['group_name'] == selected_group]
 
-        if selected_level:
-            pass_summary = build_pass_summary(summary_df, selected_level)
-
         pass_df = summary_df.copy()
         
         if selected_status:
@@ -3147,6 +3190,17 @@ def pass_list():
         available_groups = sorted(year_df['group_name'].unique().tolist())
         certificate_rows, _certificate_meta = load_public_certificate_rows()
         certificate_lookup = build_certificate_verification_lookup(certificate_rows, selected_year)
+        if selected_level:
+            pass_summary = build_pass_summary(
+                summary_df,
+                selected_level,
+                certificate_lookup=certificate_lookup,
+                selected_year=selected_year,
+                expected_bali_year=expected_bali_year,
+                expected_tham_year_two=expected_tham_year_two,
+                tham_class_names=tham_class_names,
+                bali_class_names=bali_class_names,
+            )
         
         for _, row in pass_df.iterrows():
             lookup_key = row.get('result_key') or row.get('registration_key')
