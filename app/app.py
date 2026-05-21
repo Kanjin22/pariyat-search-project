@@ -82,6 +82,17 @@ LEVEL_ID_MAP = {
 CLASS_NAME_ORDER = [LEVEL_ID_MAP[level_id] for level_id in LEVEL_ID_MAP]
 CLASS_NAME_ORDER_INDEX = {class_name: index for index, class_name in enumerate(CLASS_NAME_ORDER)}
 CLASS_NAME_LEVEL_ID_MAP = {class_name: level_id for level_id, class_name in LEVEL_ID_MAP.items()}
+CERTIFICATE_YEAR_OVERRIDES = {
+    '313': '2549',
+    '1198': '2531',
+    '5426': '2554',
+    '8590': '2565',
+    '9307': '2558',
+    '9672': '2567',
+    '11524': '2561',
+    '11922': '2552',
+    '12393': '2560',
+}
 
 DEPARTMENT_LEVELS = {
     'tham': {
@@ -325,6 +336,13 @@ def is_meaningful_certificate_no(value):
     return True
 
 
+def normalize_certificate_year(value, source_record_id=''):
+    year_text = to_arabic_digits(value)
+    year_text = str(year_text or '').strip()
+    override_value = str(CERTIFICATE_YEAR_OVERRIDES.get(str(source_record_id or '').strip()) or '').strip()
+    return override_value or year_text
+
+
 def normalize_public_certificate_record(item):
     if not isinstance(item, dict):
         return {}
@@ -334,14 +352,14 @@ def normalize_public_certificate_record(item):
         return {}
     subject = str(item.get('subject') or item.get('level_type') or '').strip()
     level = str(item.get('level') or '').strip()
-    year = str(item.get('year') or '').strip()
+    source_record_id = str(item.get('source_record_id') or item.get('license_id') or item.get('id') or '').strip()
+    year = normalize_certificate_year(item.get('year'), source_record_id=source_record_id)
     province = str(item.get('province') or '').strip()
     school = str(item.get('school') or item.get('sumnugrean') or '').strip()
     temple = str(item.get('temple') or item.get('sumnugrean') or item.get('school') or '').strip()
     source = str(item.get('source') or 'legacy').strip() or 'legacy'
     person_id = str(item.get('person_id') or item.get('source_person_id') or '').strip()
     level_id = str(item.get('level_id') or '').strip()
-    source_record_id = str(item.get('source_record_id') or item.get('license_id') or item.get('id') or '').strip()
     name_normalized = build_base_name_key_from_display_name(display_name) or normalize_name_key(display_name)
     search_text = ' '.join(
         part for part in [
@@ -406,7 +424,10 @@ def get_public_certificate_source_file():
     return ''
 
 
-def get_certificate_snapshot_file(year):
+def get_certificate_snapshot_file(year=None):
+    year_value = str(year or '').strip().lower()
+    if year_value in {'', 'all', '*'}:
+        return os.path.join(RESULTS_DATA_DIR, 'certificate_snapshot_all.json')
     return os.path.join(RESULTS_DATA_DIR, f'certificate_snapshot_{int(year)}.json')
 
 
@@ -426,8 +447,9 @@ def load_certificate_snapshot(year):
 
 def save_certificate_snapshot(year, api_rows):
     os.makedirs(RESULTS_DATA_DIR, exist_ok=True)
+    year_value = str(year or '').strip().lower()
     payload = {
-        'year': int(year),
+        'year': 'all' if year_value in {'', 'all', '*'} else int(year),
         'fetched_at': datetime.now(timezone.utc).isoformat(),
         'data': api_rows if isinstance(api_rows, list) else [],
     }
@@ -532,52 +554,46 @@ def load_legacy_public_certificate_rows():
     return rows, meta
 
 
-def load_current_public_certificate_rows_for_year(year, force_refresh=False):
-    target_year_numeric = int(normalize_year_value(year) or CURRENT_YEAR_NUMERIC)
-    snapshot_file = get_certificate_snapshot_file(target_year_numeric)
+def load_current_public_certificate_rows_for_year(year=None, force_refresh=False):
+    year_filter = normalize_year_value(year)
+    snapshot_key = int(year_filter) if year_filter else 'all'
+    snapshot_file = get_certificate_snapshot_file(snapshot_key)
     snapshot_mtime = os.path.getmtime(snapshot_file) if os.path.exists(snapshot_file) else None
-    cached = CURRENT_CERTIFICATE_YEAR_CACHE.get(target_year_numeric)
+    cached = CURRENT_CERTIFICATE_YEAR_CACHE.get(snapshot_key)
     if cached and cached.get('snapshot_mtime') == snapshot_mtime and not force_refresh:
         return cached.get('rows', []), cached.get('meta', {})
 
-    snapshot = load_certificate_snapshot(target_year_numeric)
-    runtime_current_year = get_runtime_current_year_numeric()
-    snapshot_lock_max_year = get_effective_snapshot_lock_max_year()
-    locked_year = (
-        snapshot_lock_max_year is not None and target_year_numeric <= snapshot_lock_max_year
-    ) or (target_year_numeric < runtime_current_year)
+    snapshot = load_certificate_snapshot(snapshot_key)
     api_rows = []
     source_label = ''
     error_message = ''
 
-    if not force_refresh and snapshot and (locked_year or is_snapshot_fresh(snapshot)):
+    if not force_refresh and snapshot and is_snapshot_fresh(snapshot):
         api_rows = snapshot.get('data') or []
-        source_label = 'current_api_snapshot'
+        source_label = 'current_api_snapshot' if year_filter else 'current_api_snapshot_all'
     else:
         if CERTIFICATE_API_URL and CERTIFICATE_API_USER and CERTIFICATE_API_PASS:
             try:
-                response = requests.get(
-                    CERTIFICATE_API_URL,
-                    params={
-                        'user': CERTIFICATE_API_USER,
-                        'pass': CERTIFICATE_API_PASS,
-                        'filter_year': target_year_numeric,
-                    },
-                    timeout=60,
-                )
+                params = {
+                    'user': CERTIFICATE_API_USER,
+                    'pass': CERTIFICATE_API_PASS,
+                }
+                if year_filter:
+                    params['filter_year'] = int(year_filter)
+                response = requests.get(CERTIFICATE_API_URL, params=params, timeout=120)
                 response.raise_for_status()
                 payload = response.json()
                 if payload.get('status') != 'success' or not isinstance(payload.get('data'), list):
                     raise RuntimeError('Invalid certificate API payload')
                 api_rows = payload.get('data') or []
-                save_certificate_snapshot(target_year_numeric, api_rows)
+                save_certificate_snapshot(snapshot_key, api_rows)
                 snapshot_mtime = os.path.getmtime(snapshot_file) if os.path.exists(snapshot_file) else None
-                source_label = 'current_api_live'
+                source_label = 'current_api_live' if year_filter else 'current_api_live_all'
             except Exception as exc:
                 error_message = str(exc)
         if not api_rows and snapshot:
             api_rows = snapshot.get('data') or []
-            source_label = 'current_api_snapshot_fallback'
+            source_label = 'current_api_snapshot_fallback' if year_filter else 'current_api_snapshot_fallback_all'
 
     rows = []
     for item in api_rows:
@@ -594,13 +610,13 @@ def load_current_public_certificate_rows_for_year(year, force_refresh=False):
         )
     )
     meta = {
-        'year': str(target_year_numeric),
+        'year': str(year_filter or ''),
         'certificate_count': len(rows),
         'person_count': len({row.get('display_name', '') for row in rows if row.get('display_name')}),
         'source': source_label,
         'error': error_message,
     }
-    CURRENT_CERTIFICATE_YEAR_CACHE[target_year_numeric] = {
+    CURRENT_CERTIFICATE_YEAR_CACHE[snapshot_key] = {
         'snapshot_mtime': snapshot_mtime,
         'rows': rows,
         'meta': meta,
@@ -698,29 +714,17 @@ def merge_public_certificate_rows(rows):
 def load_public_certificate_rows():
     legacy_source_file = get_public_certificate_source_file()
     legacy_mtime = os.path.getmtime(legacy_source_file) if legacy_source_file and os.path.exists(legacy_source_file) else None
-    available_years = tuple(sorted(set(list_available_years())))
     cache_built_at = PUBLIC_CERTIFICATE_CACHE.get('built_at')
     if (
         isinstance(cache_built_at, datetime)
         and PUBLIC_CERTIFICATE_CACHE.get('legacy_source') == legacy_source_file
         and PUBLIC_CERTIFICATE_CACHE.get('legacy_mtime') == legacy_mtime
-        and tuple(PUBLIC_CERTIFICATE_CACHE.get('years') or ()) == available_years
         and (datetime.now(timezone.utc) - cache_built_at).total_seconds() <= PUBLIC_CERTIFICATE_CACHE_TTL_SECONDS
     ):
         return PUBLIC_CERTIFICATE_CACHE.get('rows', []), PUBLIC_CERTIFICATE_CACHE.get('meta', {})
 
     legacy_rows, legacy_meta = load_legacy_public_certificate_rows()
-    current_rows = []
-    current_sources = []
-    current_timestamps = []
-    for year_value in available_years:
-        year_rows, year_meta = load_current_public_certificate_rows_for_year(year_value)
-        current_rows.extend(year_rows)
-        source_text = str(year_meta.get('source') or '').strip()
-        if source_text:
-            current_sources.append(source_text)
-        if year_meta.get('source') and year_meta.get('certificate_count'):
-            current_timestamps.append(str(year_meta.get('year') or ''))
+    current_rows, current_meta = load_current_public_certificate_rows_for_year(None)
 
     rows = merge_public_certificate_rows(legacy_rows + current_rows)
     rows.sort(
@@ -734,20 +738,20 @@ def load_public_certificate_rows():
     )
     person_count = len({row.get('display_name', '') for row in rows if row.get('display_name')})
     timestamp_candidates = [legacy_meta.get('timestamp', '-')]
-    if current_timestamps:
-        timestamp_candidates.append(f'API {", ".join(sorted(set(current_timestamps), reverse=True))}')
+    if current_meta.get('certificate_count'):
+        timestamp_candidates.append('API ทั้งหมด')
     meta = {
         'timestamp': ' | '.join(candidate for candidate in timestamp_candidates if candidate and candidate != '-').strip() or '-',
         'certificate_count': len(rows),
         'person_count': person_count,
         'source': ', '.join(sorted(set(
-            [legacy_meta.get('source', '')] + current_sources
+            [legacy_meta.get('source', ''), str(current_meta.get('source') or '').strip()]
         ))).strip(', '),
     }
     PUBLIC_CERTIFICATE_CACHE['built_at'] = datetime.now(timezone.utc)
     PUBLIC_CERTIFICATE_CACHE['legacy_source'] = legacy_source_file
     PUBLIC_CERTIFICATE_CACHE['legacy_mtime'] = legacy_mtime
-    PUBLIC_CERTIFICATE_CACHE['years'] = available_years
+    PUBLIC_CERTIFICATE_CACHE['years'] = ()
     PUBLIC_CERTIFICATE_CACHE['rows'] = rows
     PUBLIC_CERTIFICATE_CACHE['meta'] = meta
     return rows, meta
@@ -818,39 +822,117 @@ def group_public_certificate_rows(rows):
     return results
 
 
+CERTIFICATE_VERDICT_PASS = 'pass'
+CERTIFICATE_VERDICT_REVIEW = 'review'
+CERTIFICATE_VERDICT_FAIL = 'fail'
+
+
+def get_certificate_department_for_class_name(class_name):
+    class_name_text = str(class_name or '').strip()
+    if class_name_text in set(get_department_class_names('tham')):
+        return 'tham'
+    if class_name_text in set(get_department_class_names('bali')):
+        return 'bali'
+    return ''
+
+
+def parse_certificate_number_pattern(cert_no):
+    text = normalize_certificate_text(cert_no)
+    info = {
+        'text': text,
+        'pattern': 'unknown',
+        'province': '',
+        'area_digit': '',
+        'type_digit': '',
+        'education_digit': '',
+        'year': '',
+        'year_two': '',
+        'sequence': '',
+    }
+    if not text:
+        return info
+    tham_post_match = re.match(r'^([^\d\s/]{2})\s*([1-6])([1-6])(\d{2})/(\d{4,5})$', text)
+    if tham_post_match:
+        info.update({
+            'pattern': 'tham_post_2543',
+            'province': tham_post_match.group(1),
+            'area_digit': tham_post_match.group(2),
+            'type_digit': tham_post_match.group(3),
+            'year_two': tham_post_match.group(4),
+            'sequence': tham_post_match.group(5),
+            'year': f"25{tham_post_match.group(4)}",
+        })
+        return info
+    tham_studies_post_match = re.match(r'^([^\d\s/]{2})\s*([1-6])([4-6])([1-3])(\d{2})/(\d{4,5})$', text)
+    if tham_studies_post_match:
+        info.update({
+            'pattern': 'tham_post_2543_tham_studies_variant',
+            'province': tham_studies_post_match.group(1),
+            'area_digit': tham_studies_post_match.group(2),
+            'type_digit': tham_studies_post_match.group(3),
+            'education_digit': tham_studies_post_match.group(4),
+            'year_two': tham_studies_post_match.group(5),
+            'sequence': tham_studies_post_match.group(6),
+            'year': f"25{tham_studies_post_match.group(5)}",
+        })
+        return info
+    generic_match = re.match(r'^([^\d\s/]{2})\s*(\d{1,6})/(\d{4})$', text)
+    if generic_match:
+        info.update({
+            'pattern': 'generic_slash_year',
+            'province': generic_match.group(1),
+            'sequence': generic_match.group(2),
+            'year': generic_match.group(3),
+        })
+    return info
+
+
+def build_certificate_verification_context(row, selected_year):
+    class_name = str(row.get('class_name') or '').strip()
+    expected_year = get_expected_certificate_year_for_class_name(class_name, selected_year)
+    department = get_certificate_department_for_class_name(class_name)
+    expected_type_digit = get_tham_certificate_type_digit_from_class_name(class_name) if department == 'tham' else ''
+    try:
+        expected_year_int = int(expected_year) if expected_year else 0
+    except ValueError:
+        expected_year_int = 0
+    return {
+        'class_name': class_name,
+        'department': department,
+        'expected_year': expected_year,
+        'expected_year_two': expected_year[-2:] if expected_year else '',
+        'expected_type_digit': expected_type_digit,
+        'level_id': str(row.get('level_id') or CLASS_NAME_LEVEL_ID_MAP.get(class_name) or '').strip(),
+        'uses_tham_post_2543_policy': department == 'tham' and expected_year_int >= 2543,
+    }
+
+
+def build_certificate_candidate_key(row):
+    return '|'.join([
+        str(row.get('source') or '').strip(),
+        str(row.get('source_record_id') or '').strip(),
+        str(row.get('certificate_no') or '').strip(),
+        str(row.get('person_id') or '').strip(),
+        str(row.get('level_id') or '').strip(),
+    ])
+
+
 def build_certificate_verification_lookup(rows, year):
-    person_level_ids = set()
-    name_level_ids = set()
-    person_level_year_ids = set()
-    name_level_year_ids = set()
-    person_level_ids_without_year = set()
-    name_level_ids_without_year = set()
+    candidates_by_person_id = {}
+    candidates_by_name_key = {}
     for row in rows:
         level_id = str(row.get('level_id') or '').strip()
         if not level_id:
             continue
         person_id = str(row.get('person_id') or '').strip()
         name_key = str(row.get('name_normalized') or '').strip()
-        row_year = str(row.get('year') or '').strip()
         if person_id:
-            person_level_ids.add((person_id, level_id))
-            if row_year:
-                person_level_year_ids.add((person_id, level_id, row_year))
-            else:
-                person_level_ids_without_year.add((person_id, level_id))
+            candidates_by_person_id.setdefault(person_id, []).append(row)
         if name_key:
-            name_level_ids.add((name_key, level_id))
-            if row_year:
-                name_level_year_ids.add((name_key, level_id, row_year))
-            else:
-                name_level_ids_without_year.add((name_key, level_id))
+            candidates_by_name_key.setdefault(name_key, []).append(row)
     return {
-        'person_level_ids': person_level_ids,
-        'person_level_year_ids': person_level_year_ids,
-        'person_level_ids_without_year': person_level_ids_without_year,
-        'name_level_ids': name_level_ids,
-        'name_level_year_ids': name_level_year_ids,
-        'name_level_ids_without_year': name_level_ids_without_year,
+        'candidates_by_person_id': candidates_by_person_id,
+        'candidates_by_name_key': candidates_by_name_key,
     }
 
 
@@ -867,32 +949,131 @@ def get_expected_certificate_year_for_class_name(class_name, selected_year):
     return str(year_int)
 
 
-def row_has_verified_certificate_from_layer(row, verification_lookup, selected_year=''):
-    level_id = str(row.get('level_id') or '').strip()
-    if not level_id:
-        level_id = str(CLASS_NAME_LEVEL_ID_MAP.get(str(row.get('class_name') or '').strip()) or '').strip()
-    if not level_id:
-        return False
-    person_id = str(row.get('person_id') or '').strip()
-    class_name = str(row.get('class_name') or '').strip()
-    expected_year = get_expected_certificate_year_for_class_name(class_name, selected_year)
-    if person_id:
-        if expected_year and (person_id, level_id, expected_year) in (verification_lookup.get('person_level_year_ids') or set()):
-            return True
-        if (person_id, level_id) in (verification_lookup.get('person_level_ids_without_year') or set()):
-            return True
-        if not expected_year and (person_id, level_id) in (verification_lookup.get('person_level_ids') or set()):
-            return True
-    display_name = str(row.get('display_name') or '').strip()
+def get_certificate_identity_strength(exam_row, cert_row):
+    person_id = str(exam_row.get('person_id') or '').strip()
+    cert_person_id = str(cert_row.get('person_id') or '').strip()
+    if person_id and cert_person_id:
+        return 'person_id' if person_id == cert_person_id else 'mismatch'
+    exam_name_key = build_base_name_key_from_display_name(str(exam_row.get('display_name') or '').strip()) or normalize_name_key(
+        str(exam_row.get('display_name') or '').strip()
+    )
+    cert_name_key = str(cert_row.get('name_normalized') or '').strip()
+    if exam_name_key and cert_name_key:
+        return 'name' if exam_name_key == cert_name_key else 'mismatch'
+    return 'none'
+
+
+def get_candidate_certificate_rows(exam_row, verification_lookup):
+    candidates = []
+    seen = set()
+    person_id = str(exam_row.get('person_id') or '').strip()
+    display_name = str(exam_row.get('display_name') or '').strip()
     name_key = build_base_name_key_from_display_name(display_name) or normalize_name_key(display_name)
-    if name_key:
-        if expected_year and (name_key, level_id, expected_year) in (verification_lookup.get('name_level_year_ids') or set()):
-            return True
-        if (name_key, level_id) in (verification_lookup.get('name_level_ids_without_year') or set()):
-            return True
-        if not expected_year and (name_key, level_id) in (verification_lookup.get('name_level_ids') or set()):
-            return True
-    return False
+    for candidate in verification_lookup.get('candidates_by_person_id', {}).get(person_id, []):
+        candidate_key = build_certificate_candidate_key(candidate)
+        if candidate_key in seen:
+            continue
+        seen.add(candidate_key)
+        candidates.append(candidate)
+    for candidate in verification_lookup.get('candidates_by_name_key', {}).get(name_key, []):
+        candidate_key = build_certificate_candidate_key(candidate)
+        if candidate_key in seen:
+            continue
+        seen.add(candidate_key)
+        candidates.append(candidate)
+    return candidates
+
+
+def evaluate_certificate_candidate(exam_row, cert_row, selected_year):
+    """
+    Decision table:
+    - Placeholder/identity mismatch/level mismatch => fail
+    - ธรรมตั้งแต่ 2543: ต้องเป็น format tham_post_2543 + type/year ตรง => pass
+    - บาลีทุกยุค และธรรมก่อน 2543: ใช้ generic_slash_year + year ตรง => pass
+    - ข้อมูลที่คน/ชั้นตรง แต่เลขหรือปีไม่เข้า policy => review
+    """
+    context = build_certificate_verification_context(exam_row, selected_year)
+    level_id = context.get('level_id', '')
+    if not level_id:
+        return {'verdict': CERTIFICATE_VERDICT_FAIL, 'reason': 'missing_level'}
+    if not is_meaningful_certificate_no(cert_row.get('certificate_no')):
+        return {'verdict': CERTIFICATE_VERDICT_FAIL, 'reason': 'placeholder_certificate_no'}
+
+    cert_level_id = str(cert_row.get('level_id') or '').strip()
+    if not cert_level_id or cert_level_id != level_id:
+        return {'verdict': CERTIFICATE_VERDICT_FAIL, 'reason': 'level_mismatch'}
+
+    identity_strength = get_certificate_identity_strength(exam_row, cert_row)
+    if identity_strength in {'mismatch', 'none'}:
+        return {'verdict': CERTIFICATE_VERDICT_FAIL, 'reason': f'identity_{identity_strength}'}
+
+    expected_year = str(context.get('expected_year') or '').strip()
+    expected_year_two = str(context.get('expected_year_two') or '').strip()
+    cert_year = str(cert_row.get('year') or '').strip()
+    pattern_info = parse_certificate_number_pattern(cert_row.get('certificate_no'))
+    parsed_year = str(pattern_info.get('year') or '').strip()
+    parsed_year_two = str(pattern_info.get('year_two') or '').strip()
+
+    row_year_matches = bool(expected_year) and cert_year == expected_year
+    row_year_conflicts = bool(expected_year and cert_year and cert_year != expected_year)
+    parsed_year_matches = bool(expected_year and parsed_year and parsed_year == expected_year)
+    parsed_year_two_matches = bool(expected_year_two and parsed_year_two and parsed_year_two == expected_year_two)
+    parsed_year_conflicts = bool(
+        expected_year and (
+            (parsed_year and parsed_year != expected_year) or
+            (parsed_year_two and parsed_year_two != expected_year_two)
+        )
+    )
+
+    if context.get('uses_tham_post_2543_policy'):
+        type_digit_matches = str(pattern_info.get('type_digit') or '').strip() == str(context.get('expected_type_digit') or '').strip()
+        if (
+            pattern_info.get('pattern') in {'tham_post_2543', 'tham_post_2543_tham_studies_variant'}
+            and type_digit_matches
+            and (row_year_matches or parsed_year_two_matches)
+            and not row_year_conflicts
+            and not parsed_year_conflicts
+        ):
+            return {'verdict': CERTIFICATE_VERDICT_PASS, 'reason': f'tham_post_2543_{identity_strength}'}
+        if identity_strength in {'person_id', 'name'}:
+            return {'verdict': CERTIFICATE_VERDICT_REVIEW, 'reason': 'tham_post_2543_review'}
+        return {'verdict': CERTIFICATE_VERDICT_FAIL, 'reason': 'tham_post_2543_fail'}
+
+    if context.get('department') in {'bali', 'tham'}:
+        if (
+            pattern_info.get('pattern') == 'generic_slash_year'
+            and (row_year_matches or parsed_year_matches)
+            and not row_year_conflicts
+            and not parsed_year_conflicts
+        ):
+            return {'verdict': CERTIFICATE_VERDICT_PASS, 'reason': f'generic_slash_year_{identity_strength}'}
+        if identity_strength in {'person_id', 'name'} and (row_year_matches or parsed_year_matches):
+            return {'verdict': CERTIFICATE_VERDICT_REVIEW, 'reason': 'generic_year_review'}
+        if identity_strength in {'person_id', 'name'}:
+            return {'verdict': CERTIFICATE_VERDICT_REVIEW, 'reason': 'generic_identity_review'}
+
+    return {'verdict': CERTIFICATE_VERDICT_FAIL, 'reason': 'no_matching_policy'}
+
+
+def get_certificate_verification_decision(row, verification_lookup, selected_year=''):
+    best_decision = {'verdict': CERTIFICATE_VERDICT_FAIL, 'reason': 'no_candidate'}
+    verdict_priority = {
+        CERTIFICATE_VERDICT_PASS: 3,
+        CERTIFICATE_VERDICT_REVIEW: 2,
+        CERTIFICATE_VERDICT_FAIL: 1,
+    }
+    for candidate in get_candidate_certificate_rows(row, verification_lookup):
+        decision = evaluate_certificate_candidate(row, candidate, selected_year)
+        if verdict_priority[decision['verdict']] > verdict_priority[best_decision['verdict']]:
+            best_decision = decision
+        if decision['verdict'] == CERTIFICATE_VERDICT_PASS:
+            return decision
+    return best_decision
+
+
+def row_has_verified_certificate_from_layer(row, verification_lookup, selected_year=''):
+    decision = get_certificate_verification_decision(row, verification_lookup, selected_year)
+    return decision.get('verdict') == CERTIFICATE_VERDICT_PASS
 
 
 def cert_matches_bali_year(cert_text, expected_year):
@@ -2221,7 +2402,8 @@ def search():
         registrations = []
         for _, row in group.iterrows():
             class_name = str(row.get('class_name') or '').strip()
-            cert_ok_from_layer = row_has_verified_certificate_from_layer(row, certificate_lookup, year_value)
+            cert_decision = get_certificate_verification_decision(row, certificate_lookup, year_value)
+            cert_ok_from_layer = cert_decision.get('verdict') == CERTIFICATE_VERDICT_PASS
             tham_type_digit = get_tham_certificate_type_digit_from_class_name(class_name) if class_name in tham_class_names else ''
             cert_nugdham_ok = class_name in tham_class_names and cert_matches_tham_year_and_type(
                 row.get('cert_nugdham_text'),
@@ -2241,7 +2423,9 @@ def search():
                 'cert_nugdham': to_thai_digits(row['cert_nugdham_text']),
                 'cert_pali': to_thai_digits(row['cert_pali_text']),
                 'cert_nugdham_current_ok': bool(cert_nugdham_ok),
-                'cert_pali_current_ok': bool(cert_pali_ok)
+                'cert_pali_current_ok': bool(cert_pali_ok),
+                'cert_verdict': cert_decision.get('verdict'),
+                'cert_verdict_reason': cert_decision.get('reason'),
             })
 
         person_data = {
@@ -2550,7 +2734,8 @@ def pass_list():
             lookup_key = row.get('result_key') or row.get('registration_key')
             exam_name = names_map.get(str(lookup_key or ''), '')
             class_name = str(row.get('class_name') or '').strip()
-            cert_ok = row_has_verified_certificate_from_layer(row, certificate_lookup, selected_year)
+            cert_decision = get_certificate_verification_decision(row, certificate_lookup, selected_year)
+            cert_ok = cert_decision.get('verdict') == CERTIFICATE_VERDICT_PASS
             if not cert_ok:
                 if class_name in bali_class_names:
                     cert_ok = cert_matches_bali_year(row.get('cert_pali_text'), expected_bali_year)
