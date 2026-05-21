@@ -1006,6 +1006,69 @@ def merge_public_certificate_rows(rows):
     return list(merged.values())
 
 
+def dedupe_public_certificate_rows(rows):
+    deduped = {}
+    for row in rows:
+        if not isinstance(row, dict) or not row.get('display_name') or not row.get('certificate_no'):
+            continue
+        display_name = str(row.get('display_name') or '').strip()
+        identity = display_name
+        cert_key = str(row.get('certificate_no_normalized') or '').strip().lower()
+        if not cert_key:
+            cert_key = normalize_certificate_text(row.get('certificate_no')).lower()
+        year_text = str(row.get('year') or '').strip()
+        dedupe_key = '|'.join(['dedupe', identity, cert_key, year_text])
+
+        if dedupe_key not in deduped:
+            deduped[dedupe_key] = dict(row)
+            continue
+
+        current_row = deduped[dedupe_key]
+        current_priority = get_public_certificate_source_priority(current_row.get('source'))
+        new_priority = get_public_certificate_source_priority(row.get('source'))
+        preferred_row = row if new_priority > current_priority else current_row
+        fallback_row = current_row if preferred_row is row else row
+        merged_row = dict(current_row)
+        for field_name in [
+            'display_name',
+            'certificate_no',
+            'certificate_no_normalized',
+            'subject',
+            'level_type',
+            'level_id',
+            'level',
+            'year',
+            'province',
+            'school',
+            'temple',
+            'person_id',
+            'source',
+            'source_record_id',
+            'name_normalized',
+            'search_text',
+            'license_text',
+            'scraped_at',
+            'updated_at',
+        ]:
+            preferred_value = preferred_row.get(field_name)
+            fallback_value = fallback_row.get(field_name)
+            merged_row[field_name] = preferred_value or fallback_value or merged_row.get(field_name, '')
+        merged_sources = list(current_row.get('merged_from') or [])
+        new_sources = list(row.get('merged_from') or [])
+        for entry in new_sources:
+            if entry not in merged_sources:
+                merged_sources.append(entry)
+        new_source_entry = {
+            'source': row.get('source', ''),
+            'source_record_id': row.get('source_record_id', ''),
+        }
+        if new_source_entry not in merged_sources:
+            merged_sources.append(new_source_entry)
+        merged_row['merged_from'] = merged_sources
+        deduped[dedupe_key] = merged_row
+    return list(deduped.values())
+
+
 def load_public_certificate_rows():
     legacy_source_file = get_public_certificate_source_file()
     legacy_mtime = os.path.getmtime(legacy_source_file) if legacy_source_file and os.path.exists(legacy_source_file) else None
@@ -1027,13 +1090,26 @@ def load_public_certificate_rows():
             bootstrap_rows = payload.get('rows') if isinstance(payload, dict) else None
             bootstrap_meta = payload.get('meta') if isinstance(payload, dict) else None
             if isinstance(bootstrap_rows, list) and isinstance(bootstrap_meta, dict):
+                deduped_rows = dedupe_public_certificate_rows(bootstrap_rows)
+                deduped_rows.sort(
+                    key=lambda item: (
+                        item.get('display_name', ''),
+                        item.get('year', ''),
+                        item.get('subject', ''),
+                        item.get('level', ''),
+                        item.get('certificate_no', ''),
+                    )
+                )
+                bootstrap_meta = dict(bootstrap_meta)
+                bootstrap_meta['certificate_count'] = len(deduped_rows)
+                bootstrap_meta['person_count'] = len({row.get('display_name', '') for row in deduped_rows if row.get('display_name')})
                 PUBLIC_CERTIFICATE_CACHE['built_at'] = datetime.now(timezone.utc)
                 PUBLIC_CERTIFICATE_CACHE['legacy_source'] = legacy_source_file
                 PUBLIC_CERTIFICATE_CACHE['legacy_mtime'] = legacy_mtime
                 PUBLIC_CERTIFICATE_CACHE['years'] = ()
-                PUBLIC_CERTIFICATE_CACHE['rows'] = bootstrap_rows
+                PUBLIC_CERTIFICATE_CACHE['rows'] = deduped_rows
                 PUBLIC_CERTIFICATE_CACHE['meta'] = bootstrap_meta
-                return bootstrap_rows, bootstrap_meta
+                return deduped_rows, bootstrap_meta
         except (OSError, json.JSONDecodeError, AttributeError, TypeError, ValueError):
             pass
 
@@ -1050,20 +1126,33 @@ def load_public_certificate_rows():
             bootstrap_rows = payload.get('rows') if isinstance(payload, dict) else None
             bootstrap_meta = payload.get('meta') if isinstance(payload, dict) else None
             if isinstance(bootstrap_rows, list) and isinstance(bootstrap_meta, dict):
+                deduped_rows = dedupe_public_certificate_rows(bootstrap_rows)
+                deduped_rows.sort(
+                    key=lambda item: (
+                        item.get('display_name', ''),
+                        item.get('year', ''),
+                        item.get('subject', ''),
+                        item.get('level', ''),
+                        item.get('certificate_no', ''),
+                    )
+                )
+                bootstrap_meta = dict(bootstrap_meta)
+                bootstrap_meta['certificate_count'] = len(deduped_rows)
+                bootstrap_meta['person_count'] = len({row.get('display_name', '') for row in deduped_rows if row.get('display_name')})
                 PUBLIC_CERTIFICATE_CACHE['built_at'] = datetime.now(timezone.utc)
                 PUBLIC_CERTIFICATE_CACHE['legacy_source'] = legacy_source_file
                 PUBLIC_CERTIFICATE_CACHE['legacy_mtime'] = legacy_mtime
                 PUBLIC_CERTIFICATE_CACHE['years'] = ()
-                PUBLIC_CERTIFICATE_CACHE['rows'] = bootstrap_rows
+                PUBLIC_CERTIFICATE_CACHE['rows'] = deduped_rows
                 PUBLIC_CERTIFICATE_CACHE['meta'] = bootstrap_meta
-                return bootstrap_rows, bootstrap_meta
+                return deduped_rows, bootstrap_meta
         except (OSError, json.JSONDecodeError, AttributeError, TypeError, ValueError):
             pass
 
     legacy_rows, legacy_meta = load_legacy_public_certificate_rows()
     current_rows, current_meta = load_current_public_certificate_rows_for_year(None)
 
-    rows = merge_public_certificate_rows(legacy_rows + current_rows)
+    rows = dedupe_public_certificate_rows(merge_public_certificate_rows(legacy_rows + current_rows))
     rows.sort(
         key=lambda item: (
             item.get('display_name', ''),
