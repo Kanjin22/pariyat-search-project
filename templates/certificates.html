@@ -57,20 +57,21 @@
           </div>
         </section>
 
-        <div class="search-box">
+        <div class="search-box certificate-search-box">
           <input
             type="text"
             id="certificate-search-input"
             placeholder="พิมพ์ชื่อ ฉายา นามสกุล หรือเลข ปกศ."
             autocomplete="off"
           />
+          <button type="button" id="certificate-search-btn" class="primary-btn">ค้นหา</button>
         </div>
         <div class="certificate-search-help">
           ตัวอย่างคำค้น:
-          <span class="search-example-chip">พระสมชาย</span>
-          <span class="search-example-chip">สมจิตฺโต</span>
-          <span class="search-example-chip">0123/2567</span>
-          <span class="search-example-chip">ปท 826/2567</span>
+          <button type="button" class="search-example-chip" data-search-example="พระสมชาย">พระสมชาย</button>
+          <button type="button" class="search-example-chip" data-search-example="สมจิตฺโต">สมจิตฺโต</button>
+          <button type="button" class="search-example-chip" data-search-example="0123/2567">0123/2567</button>
+          <button type="button" class="search-example-chip" data-search-example="ปท 826/2567">ปท 826/2567</button>
         </div>
 
         <div id="certificate-results-summary" class="certificate-results-summary hidden"></div>

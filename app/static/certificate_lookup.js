@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('certificate-search-input');
+    const searchButton = document.getElementById('certificate-search-btn');
     const yearFilter = document.getElementById('certificate-year-filter');
     const resultsContainer = document.getElementById('certificate-results-container');
     const resultsSummary = document.getElementById('certificate-results-summary');
@@ -11,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedYear = String(window.CERTIFICATE_SELECTED_YEAR ?? '').trim();
 
     let activeController = null;
+    let isSearching = false;
 
     const toThaiDigits = (value) => String(value ?? '').replace(/\d/g, (digit) => '0123456789'.indexOf(digit) >= 0 ? '๐๑๒๓๔๕๖๗๘๙'[Number(digit)] : digit);
 
@@ -44,6 +46,17 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsSummary.classList.toggle('hidden', hidden);
     };
 
+    const setSearchState = (searching) => {
+        isSearching = Boolean(searching);
+        if (searchButton) {
+            searchButton.disabled = isSearching;
+            searchButton.textContent = isSearching ? 'กำลังค้นหา...' : 'ค้นหา';
+        }
+        if (clearButton) {
+            clearButton.disabled = isSearching;
+        }
+    };
+
     const renderResults = (results, query) => {
         if (!query && !(yearFilter?.value || '')) {
             setSummary('', true);
@@ -51,8 +64,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (!results.length) {
-            setSummary(`<strong>ไม่พบข้อมูล</strong>${query ? ` สำหรับคำค้น <span class="summary-highlight">${escapeHtml(query)}</span>` : ''}`);
-            resultsContainer.innerHTML = '<div class="empty-state">ไม่พบข้อมูลที่ตรงกับการค้นหา</div>';
+            setSummary(
+                `<strong>ยังไม่พบข้อมูลใบประกาศ</strong>${query ? ` สำหรับคำค้น <span class="summary-highlight">${escapeHtml(query)}</span>` : ''}`
+            );
+            resultsContainer.innerHTML = `
+                <div class="empty-state">
+                    ยังไม่พบข้อมูลใบประกาศในชุดข้อมูลที่นำเข้ามาแสดง
+                    <div class="empty-state-note">
+                        อาจมีข้อมูลเพิ่มเติมจากระบบเก่าที่กำลังทยอยรวมเข้าระบบ หรือยังไม่มีการบันทึกใบประกาศในระบบปัจจุบัน
+                    </div>
+                </div>
+            `;
             return;
         }
 
@@ -119,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = searchInput.value.trim();
         const year = yearFilter?.value || '';
         if (query.length < 2 && !year) {
+            setSearchState(false);
             renderResults([], '');
             return;
         }
@@ -135,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             activeController.abort();
         }
         activeController = new AbortController();
+        setSearchState(true);
         setSummary('<strong>กำลังค้นหา...</strong>');
         resultsContainer.innerHTML = '<div class="empty-state">กำลังค้นหาข้อมูลใบประกาศนียบัตร</div>';
 
@@ -147,6 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Failed to search certificates:', error);
                 resultsContainer.innerHTML = '<div class="empty-state">เกิดข้อผิดพลาดระหว่างค้นหา</div>';
             }
+        } finally {
+            setSearchState(false);
         }
     };
 
@@ -155,11 +181,29 @@ document.addEventListener('DOMContentLoaded', () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(runSearch, 250);
     });
+    searchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            clearTimeout(debounceTimer);
+            runSearch();
+            return;
+        }
+        if (event.key === 'Escape') {
+            searchInput.value = '';
+            renderResults([], '');
+        }
+    });
     if (yearFilter) {
         yearFilter.addEventListener('change', runSearch);
         if (selectedYear) {
             yearFilter.value = selectedYear;
         }
+    }
+    if (searchButton) {
+        searchButton.addEventListener('click', () => {
+            clearTimeout(debounceTimer);
+            runSearch();
+        });
     }
     if (clearButton) {
         clearButton.addEventListener('click', () => {
@@ -171,6 +215,19 @@ document.addEventListener('DOMContentLoaded', () => {
             searchInput.focus();
         });
     }
+    document.querySelectorAll('[data-search-example]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const exampleText = String(button.getAttribute('data-search-example') || '').trim();
+            if (!exampleText) {
+                return;
+            }
+            searchInput.value = exampleText;
+            clearTimeout(debounceTimer);
+            runSearch();
+            searchInput.focus();
+            searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+        });
+    });
 
     updateInfo();
     if (selectedYear) {

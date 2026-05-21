@@ -189,6 +189,42 @@ body {
     border-color: #4a90e2;
 }
 
+.certificate-search-box {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
+.certificate-search-box input {
+    flex: 1;
+}
+
+.primary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0 18px;
+    border-radius: 10px;
+    border: 1px solid #1d4ed8;
+    background: #2563eb;
+    color: #ffffff;
+    cursor: pointer;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 0.98rem;
+    font-weight: bold;
+}
+
+.primary-btn:hover {
+    background: #1d4ed8;
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
 .certificate-search-help {
     margin-top: 10px;
     color: #64748b;
@@ -208,6 +244,12 @@ body {
     border: 1px solid #cbd5e1;
     color: #334155;
     font-size: 0.9rem;
+    font-family: 'Sarabun', sans-serif;
+    cursor: pointer;
+}
+
+.search-example-chip:hover {
+    background: #e2e8f0;
 }
 
 .certificate-results-summary {
@@ -540,6 +582,13 @@ a.phone-link:hover {
     padding: 10px 0;
 }
 
+.empty-state-note {
+    margin-top: 8px;
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
 .certificate-result-group .header {
     align-items: flex-start;
 }
@@ -569,10 +618,24 @@ a.phone-link:hover {
     color: #cbd5e1;
 }
 
+.dark-theme .primary-btn {
+    background: #2563eb;
+    border-color: #3b82f6;
+    color: #eff6ff;
+}
+
+.dark-theme .primary-btn:hover {
+    background: #1d4ed8;
+}
+
 .dark-theme .search-example-chip {
     background: #1e293b;
     border-color: #475569;
     color: #e2e8f0;
+}
+
+.dark-theme .search-example-chip:hover {
+    background: #334155;
 }
 
 .dark-theme .certificate-results-summary {
@@ -589,6 +652,17 @@ a.phone-link:hover {
 
 .dark-theme .secondary-btn:hover {
     background: #1e293b;
+}
+
+@media (max-width: 768px) {
+    .certificate-search-box {
+        flex-direction: column;
+    }
+
+    .primary-btn,
+    .secondary-btn {
+        width: 100%;
+    }
 }
 
 .manage-card .header {
