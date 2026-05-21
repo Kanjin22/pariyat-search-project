@@ -22,9 +22,9 @@
         <div class="info-text">
           ข้อมูล ณ <span id="certificate-info-timestamp">{{ certificate_data_info.timestamp or '-' }}</span>
           |
-          ผู้มีใบประกาศ <span id="certificate-info-person-count">{{ to_thai_digits(certificate_data_info.person_count or 0) }}</span> คน
+          ผู้มีใบประกาศ <span id="certificate-info-person-count">{{ to_thai_digits(certificate_data_info.person_count) if certificate_data_info.person_count else '-' }}</span> คน
           |
-          จำนวนใบประกาศ <span id="certificate-info-count">{{ to_thai_digits(certificate_data_info.certificate_count or 0) }}</span> รายการ
+          จำนวนใบประกาศ <span id="certificate-info-count">{{ to_thai_digits(certificate_data_info.certificate_count) if certificate_data_info.certificate_count else '-' }}</span> รายการ
           {% if certificate_data_info.source %}
           |
           แหล่งข้อมูล <span id="certificate-info-source">{{ certificate_data_info.source }}</span>

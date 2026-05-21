@@ -3004,7 +3004,7 @@ def public_certificates():
         available_years = build_public_certificate_year_options(rows)
     except Exception:
         logging.exception('public certificate page error')
-        meta = {'timestamp': '-', 'certificate_count': 0, 'person_count': 0, 'source': ''}
+        meta = {'timestamp': '-', 'certificate_count': '', 'person_count': '', 'source': ''}
         available_years = []
     if selected_year and selected_year not in available_years:
         available_years = [selected_year] + available_years
