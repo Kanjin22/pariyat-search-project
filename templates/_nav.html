@@ -33,6 +33,7 @@
         <button type="button" class="nav-link nav-button nav-dropdown-toggle">เครื่องมือ ▾</button>
         <div class="nav-dropdown-menu" role="menu">
           <a role="menuitem" href="{{ url_for('manage_results', mode=nav_mode, year=nav_year) }}">จัดการผลการสอบ</a>
+          <a role="menuitem" href="{{ url_for('manage_legacy_certificates') }}">แก้ไขใบประกาศ (ฐานเก่า)</a>
           <a role="menuitem" href="{{ url_for('staff_import_excel', mode=nav_mode, year=nav_year) }}">นำเข้าจาก Excel</a>
           <a role="menuitem" href="{{ url_for('staff_manual_add', mode=nav_mode, year=nav_year) }}">เพิ่มรายชื่อ manual</a>
           <a role="menuitem" href="{{ url_for('staff_data_source', mode=nav_mode, year=nav_year) }}">แหล่งข้อมูล API/Snapshot</a>

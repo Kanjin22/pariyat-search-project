@@ -40,6 +40,9 @@ BALI_SUMMARY_FILE = os.path.join(RESULTS_DATA_DIR, 'bali_summary_2569.json')
 LEGACY_CERTIFICATE_SUMMARY_FILE = os.getenv('LEGACY_CERTIFICATE_SUMMARY_FILE', '').strip() or os.path.join(RESULTS_DATA_DIR, 'legacy_certificates_summary.json')
 LEGACY_CERTIFICATE_NDJSON_FILE = os.getenv('LEGACY_CERTIFICATE_NDJSON_FILE', '').strip() or os.path.join(RESULTS_DATA_DIR, 'legacy_certificates.ndjson')
 COMMITTED_LEGACY_CERTIFICATE_SUMMARY_FILE = os.path.join(BASE_DIR, 'app', 'data', 'legacy_certificates_summary.json')
+LEGACY_CERTIFICATE_BASELINE_FILE = os.getenv('LEGACY_CERTIFICATE_BASELINE_FILE', '').strip()
+LEGACY_CERTIFICATE_OVERRIDES_FILE = os.path.join(RESULTS_DATA_DIR, 'legacy_certificate_overrides.json')
+LEGACY_CERTIFICATE_DELETIONS_FILE = os.path.join(RESULTS_DATA_DIR, 'legacy_certificate_deletions.json')
 COMMITTED_CERTIFICATE_SNAPSHOT_ALL_FILE = os.path.join(BASE_DIR, 'app', 'data', 'certificate_snapshot_all.json')
 COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE = os.path.join(BASE_DIR, 'app', 'data', 'public_certificates_bootstrap.json')
 API_SNAPSHOT_MAX_AGE_HOURS = int(os.getenv('API_SNAPSHOT_MAX_AGE_HOURS', '24') or 24)
@@ -65,6 +68,16 @@ PUBLIC_CERTIFICATE_CACHE = {
     'meta': {}
 }
 CURRENT_CERTIFICATE_YEAR_CACHE = {}
+LEGACY_CERTIFICATE_EDIT_CACHE_TTL_SECONDS = int(os.getenv('LEGACY_CERTIFICATE_EDIT_CACHE_TTL_SECONDS', '30') or 30)
+LEGACY_CERTIFICATE_EDIT_CACHE = {
+    'built_at': None,
+    'baseline_file': '',
+    'baseline_mtime': None,
+    'overrides_mtime': None,
+    'deletions_mtime': None,
+    'rows': [],
+    'search_texts': [],
+}
 
 bali_summary_data = None
 LOGIN_ATTEMPTS_FILE = os.path.join(RESULTS_DATA_DIR, 'login_attempts.json')
@@ -513,6 +526,57 @@ def build_current_public_certificate_row(item):
 
 
 def load_legacy_public_certificate_rows():
+    baseline_file = get_legacy_certificate_baseline_source_file()
+    if baseline_file:
+        applied_rows, _texts, _source_file, baseline_mtime = load_legacy_certificate_rows_cached(include_deleted=False)
+        rows = []
+        for item in applied_rows:
+            year_text = str(item.get('year') or '').strip()
+            if year_text.isdigit() and int(year_text) >= 2567:
+                continue
+            normalized = normalize_public_certificate_record({
+                **item,
+                'source': 'legacy',
+                'source_record_id': str(item.get('legacy_id') or '').strip(),
+            })
+            if normalized.get('display_name') and normalized.get('certificate_no'):
+                rows.append(normalized)
+
+        rows.sort(
+            key=lambda row: (
+                row.get('display_name', ''),
+                row.get('year', ''),
+                row.get('subject', ''),
+                row.get('level', ''),
+                row.get('certificate_no', ''),
+            )
+        )
+        person_count = len({row.get('display_name', '') for row in rows if row.get('display_name')})
+        stamp_mtime = baseline_mtime
+        try:
+            overrides_mtime = os.path.getmtime(LEGACY_CERTIFICATE_OVERRIDES_FILE) if os.path.exists(LEGACY_CERTIFICATE_OVERRIDES_FILE) else None
+        except OSError:
+            overrides_mtime = None
+        try:
+            deletions_mtime = os.path.getmtime(LEGACY_CERTIFICATE_DELETIONS_FILE) if os.path.exists(LEGACY_CERTIFICATE_DELETIONS_FILE) else None
+        except OSError:
+            deletions_mtime = None
+        for candidate in [overrides_mtime, deletions_mtime]:
+            if candidate is not None and (stamp_mtime is None or candidate > stamp_mtime):
+                stamp_mtime = candidate
+        timestamp = datetime.fromtimestamp(stamp_mtime).strftime('%d/%m/%Y %H:%M') if stamp_mtime else '-'
+        meta = {
+            'timestamp': timestamp,
+            'certificate_count': len(rows),
+            'person_count': person_count,
+            'source': ', '.join(part for part in [
+                os.path.basename(baseline_file),
+                'legacy_overrides' if overrides_mtime else '',
+                'legacy_deletions' if deletions_mtime else '',
+            ] if part),
+        }
+        return rows, meta
+
     source_file = get_public_certificate_source_file()
     if not source_file:
         return [], {'timestamp': '-', 'certificate_count': 0, 'person_count': 0, 'source': ''}
@@ -574,6 +638,215 @@ def load_legacy_public_certificate_rows():
         'source': os.path.basename(source_file),
     }
     return rows, meta
+
+
+def invalidate_public_certificate_cache():
+    PUBLIC_CERTIFICATE_CACHE['built_at'] = None
+    PUBLIC_CERTIFICATE_CACHE['legacy_source'] = ''
+    PUBLIC_CERTIFICATE_CACHE['legacy_mtime'] = None
+    PUBLIC_CERTIFICATE_CACHE['years'] = ()
+    PUBLIC_CERTIFICATE_CACHE['rows'] = []
+    PUBLIC_CERTIFICATE_CACHE['meta'] = {}
+
+
+def invalidate_legacy_certificate_edit_cache():
+    LEGACY_CERTIFICATE_EDIT_CACHE['built_at'] = None
+    LEGACY_CERTIFICATE_EDIT_CACHE['baseline_file'] = ''
+    LEGACY_CERTIFICATE_EDIT_CACHE['baseline_mtime'] = None
+    LEGACY_CERTIFICATE_EDIT_CACHE['overrides_mtime'] = None
+    LEGACY_CERTIFICATE_EDIT_CACHE['deletions_mtime'] = None
+    LEGACY_CERTIFICATE_EDIT_CACHE['rows'] = []
+    LEGACY_CERTIFICATE_EDIT_CACHE['search_texts'] = []
+
+
+def get_legacy_certificate_baseline_source_file():
+    baseline_env = str(LEGACY_CERTIFICATE_BASELINE_FILE or '').strip()
+    if baseline_env and os.path.exists(baseline_env):
+        return baseline_env
+    if os.path.exists(LEGACY_CERTIFICATE_SUMMARY_FILE):
+        return LEGACY_CERTIFICATE_SUMMARY_FILE
+    if os.path.exists(COMMITTED_LEGACY_CERTIFICATE_SUMMARY_FILE):
+        return COMMITTED_LEGACY_CERTIFICATE_SUMMARY_FILE
+    return ''
+
+
+def load_legacy_certificate_overrides():
+    if not os.path.exists(LEGACY_CERTIFICATE_OVERRIDES_FILE):
+        return {}
+    try:
+        with open(LEGACY_CERTIFICATE_OVERRIDES_FILE, 'r', encoding='utf-8') as fp:
+            payload = json.load(fp)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if isinstance(payload, dict):
+        return payload
+    return {}
+
+
+def save_legacy_certificate_overrides(payload):
+    write_json_atomic(LEGACY_CERTIFICATE_OVERRIDES_FILE, payload if isinstance(payload, dict) else {})
+
+
+def load_legacy_certificate_deletions():
+    if not os.path.exists(LEGACY_CERTIFICATE_DELETIONS_FILE):
+        return {}
+    try:
+        with open(LEGACY_CERTIFICATE_DELETIONS_FILE, 'r', encoding='utf-8') as fp:
+            payload = json.load(fp)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if isinstance(payload, dict):
+        return payload
+    return {}
+
+
+def save_legacy_certificate_deletions(payload):
+    write_json_atomic(LEGACY_CERTIFICATE_DELETIONS_FILE, payload if isinstance(payload, dict) else {})
+
+
+def build_legacy_certificate_id(index):
+    return f'legacy:{int(index)}'
+
+
+def merge_legacy_certificate_row(baseline_row, override_row):
+    if not isinstance(baseline_row, dict):
+        return {}
+    merged = dict(baseline_row)
+    if isinstance(override_row, dict):
+        fields = override_row.get('fields') if isinstance(override_row.get('fields'), dict) else {}
+        merged.update(fields)
+    return merged
+
+
+def is_legacy_certificate_deleted(legacy_id, deletions_map):
+    deletion = deletions_map.get(legacy_id) if isinstance(deletions_map, dict) else None
+    if not isinstance(deletion, dict):
+        return False
+    return deletion.get('deleted') is True
+
+
+def legacy_certificate_row_fingerprint(baseline_row, override_row=None, deletion_row=None):
+    payload = {
+        'baseline': baseline_row if isinstance(baseline_row, dict) else {},
+        'override': override_row if isinstance(override_row, dict) else {},
+        'deletion': deletion_row if isinstance(deletion_row, dict) else {},
+    }
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha1(encoded.encode('utf-8')).hexdigest()
+
+
+def load_legacy_certificate_baseline_rows(baseline_file):
+    if not baseline_file:
+        return []
+    try:
+        with open(baseline_file, 'r', encoding='utf-8') as fp:
+            payload = json.load(fp)
+    except (OSError, json.JSONDecodeError):
+        payload = []
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    return []
+
+
+def load_legacy_certificate_rows_cached(include_deleted=False):
+    baseline_file = get_legacy_certificate_baseline_source_file()
+    try:
+        baseline_mtime = os.path.getmtime(baseline_file) if baseline_file else None
+    except OSError:
+        baseline_mtime = None
+    try:
+        overrides_mtime = os.path.getmtime(LEGACY_CERTIFICATE_OVERRIDES_FILE) if os.path.exists(LEGACY_CERTIFICATE_OVERRIDES_FILE) else None
+    except OSError:
+        overrides_mtime = None
+    try:
+        deletions_mtime = os.path.getmtime(LEGACY_CERTIFICATE_DELETIONS_FILE) if os.path.exists(LEGACY_CERTIFICATE_DELETIONS_FILE) else None
+    except OSError:
+        deletions_mtime = None
+
+    built_at = LEGACY_CERTIFICATE_EDIT_CACHE.get('built_at')
+    if (
+        isinstance(built_at, datetime)
+        and LEGACY_CERTIFICATE_EDIT_CACHE.get('baseline_file') == baseline_file
+        and LEGACY_CERTIFICATE_EDIT_CACHE.get('baseline_mtime') == baseline_mtime
+        and LEGACY_CERTIFICATE_EDIT_CACHE.get('overrides_mtime') == overrides_mtime
+        and LEGACY_CERTIFICATE_EDIT_CACHE.get('deletions_mtime') == deletions_mtime
+        and (datetime.now(timezone.utc) - built_at).total_seconds() <= LEGACY_CERTIFICATE_EDIT_CACHE_TTL_SECONDS
+    ):
+        rows = LEGACY_CERTIFICATE_EDIT_CACHE.get('rows', [])
+        texts = LEGACY_CERTIFICATE_EDIT_CACHE.get('search_texts', [])
+        if not include_deleted:
+            filtered_rows = []
+            filtered_texts = []
+            for idx, row in enumerate(rows):
+                if row.get('deleted') is True:
+                    continue
+                filtered_rows.append(row)
+                filtered_texts.append(texts[idx] if idx < len(texts) else '')
+            return filtered_rows, filtered_texts, baseline_file, baseline_mtime
+        return rows, texts, baseline_file, baseline_mtime
+
+    baseline_rows = load_legacy_certificate_baseline_rows(baseline_file)
+    overrides_map = load_legacy_certificate_overrides()
+    deletions_map = load_legacy_certificate_deletions()
+
+    rows = []
+    search_texts = []
+    for idx, baseline_row in enumerate(baseline_rows):
+        legacy_id = build_legacy_certificate_id(idx)
+        override_row = overrides_map.get(legacy_id) if isinstance(overrides_map, dict) else None
+        deletion_row = deletions_map.get(legacy_id) if isinstance(deletions_map, dict) else None
+        merged = merge_legacy_certificate_row(baseline_row, override_row)
+        deleted = is_legacy_certificate_deleted(legacy_id, deletions_map)
+
+        display_name = str(merged.get('display_name') or '').strip()
+        id_std = str(merged.get('id_std') or '').strip()
+        certificate_no = str(merged.get('certificate_no') or '').strip()
+        subject = str(merged.get('subject') or '').strip()
+        level = str(merged.get('level') or '').strip()
+        year = str(merged.get('year') or '').strip()
+        province = str(merged.get('province') or '').strip()
+        school = str(merged.get('school') or '').strip()
+        temple = str(merged.get('temple') or '').strip()
+
+        row_payload = dict(merged)
+        row_payload['legacy_id'] = legacy_id
+        row_payload['deleted'] = deleted
+        row_payload['fingerprint'] = legacy_certificate_row_fingerprint(baseline_row, override_row=override_row, deletion_row=deletion_row)
+        rows.append(row_payload)
+        search_texts.append(
+            ' '.join(part for part in [
+                display_name,
+                normalize_name_key(display_name),
+                id_std,
+                certificate_no,
+                normalize_certificate_text(certificate_no),
+                subject,
+                level,
+                year,
+                province,
+                school,
+                temple,
+            ] if part).lower()
+        )
+
+    LEGACY_CERTIFICATE_EDIT_CACHE['built_at'] = datetime.now(timezone.utc)
+    LEGACY_CERTIFICATE_EDIT_CACHE['baseline_file'] = baseline_file
+    LEGACY_CERTIFICATE_EDIT_CACHE['baseline_mtime'] = baseline_mtime
+    LEGACY_CERTIFICATE_EDIT_CACHE['overrides_mtime'] = overrides_mtime
+    LEGACY_CERTIFICATE_EDIT_CACHE['deletions_mtime'] = deletions_mtime
+    LEGACY_CERTIFICATE_EDIT_CACHE['rows'] = rows
+    LEGACY_CERTIFICATE_EDIT_CACHE['search_texts'] = search_texts
+
+    if not include_deleted:
+        filtered_rows = []
+        filtered_texts = []
+        for idx, row in enumerate(rows):
+            if row.get('deleted') is True:
+                continue
+            filtered_rows.append(row)
+            filtered_texts.append(search_texts[idx] if idx < len(search_texts) else '')
+        return filtered_rows, filtered_texts, baseline_file, baseline_mtime
+    return rows, search_texts, baseline_file, baseline_mtime
 
 
 def load_current_public_certificate_rows_for_year(year=None, force_refresh=False):
@@ -3919,6 +4192,237 @@ def manage_results():
         available_years=available_years,
         result_status_options=status_options
     )
+
+
+@app.route('/manage-legacy-certificates')
+@staff_login_required()
+def manage_legacy_certificates():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    rows, _search_texts, source_file, source_mtime = load_legacy_certificate_rows_cached(include_deleted=True)
+    stamp_mtime = source_mtime
+    try:
+        overrides_mtime = os.path.getmtime(LEGACY_CERTIFICATE_OVERRIDES_FILE) if os.path.exists(LEGACY_CERTIFICATE_OVERRIDES_FILE) else None
+    except OSError:
+        overrides_mtime = None
+    try:
+        deletions_mtime = os.path.getmtime(LEGACY_CERTIFICATE_DELETIONS_FILE) if os.path.exists(LEGACY_CERTIFICATE_DELETIONS_FILE) else None
+    except OSError:
+        deletions_mtime = None
+    for candidate in [overrides_mtime, deletions_mtime]:
+        if candidate is not None and (stamp_mtime is None or candidate > stamp_mtime):
+            stamp_mtime = candidate
+    timestamp = datetime.fromtimestamp(stamp_mtime).strftime('%d/%m/%Y %H:%M') if stamp_mtime else '-'
+    return render_template(
+        'legacy_certificates_manage.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        legacy_source=os.path.basename(source_file or '') if source_file else '',
+        legacy_timestamp=timestamp,
+        legacy_record_count=len(rows),
+    )
+
+
+@app.route('/api/legacy-certificates/info')
+@staff_login_required(api=True)
+def legacy_certificates_info():
+    rows, _search_texts, source_file, source_mtime = load_legacy_certificate_rows_cached(include_deleted=True)
+    stamp_mtime = source_mtime
+    try:
+        overrides_mtime = os.path.getmtime(LEGACY_CERTIFICATE_OVERRIDES_FILE) if os.path.exists(LEGACY_CERTIFICATE_OVERRIDES_FILE) else None
+    except OSError:
+        overrides_mtime = None
+    try:
+        deletions_mtime = os.path.getmtime(LEGACY_CERTIFICATE_DELETIONS_FILE) if os.path.exists(LEGACY_CERTIFICATE_DELETIONS_FILE) else None
+    except OSError:
+        deletions_mtime = None
+    for candidate in [overrides_mtime, deletions_mtime]:
+        if candidate is not None and (stamp_mtime is None or candidate > stamp_mtime):
+            stamp_mtime = candidate
+    timestamp = datetime.fromtimestamp(stamp_mtime).strftime('%d/%m/%Y %H:%M') if stamp_mtime else '-'
+    return jsonify({
+        'source': os.path.basename(source_file or '') if source_file else '',
+        'timestamp': timestamp,
+        'record_count': len(rows),
+    })
+
+
+@app.route('/api/legacy-certificates/search')
+@staff_login_required(api=True)
+def legacy_certificates_search():
+    query = str(request.args.get('q', '') or '').strip().lower()
+    year_text = str(request.args.get('year', '') or '').strip()
+    include_deleted = str(request.args.get('include_deleted') or '').strip().lower() in {'1', 'true', 'yes'}
+    try:
+        limit = int(request.args.get('limit', '50') or 50)
+    except ValueError:
+        limit = 50
+    limit = max(1, min(limit, 200))
+
+    if not query and not year_text:
+        return jsonify({'results': [], 'total': 0})
+
+    rows, search_texts, source_file, _source_mtime = load_legacy_certificate_rows_cached(include_deleted=include_deleted)
+    results = []
+    total = 0
+    for idx, row in enumerate(rows):
+        if year_text and str(row.get('year') or '').strip() != year_text:
+            continue
+        search_text = search_texts[idx] if idx < len(search_texts) else ''
+        if query and query not in search_text:
+            continue
+        total += 1
+        if len(results) >= limit:
+            continue
+        results.append({
+            'legacy_id': str(row.get('legacy_id') or '').strip(),
+            'fingerprint': str(row.get('fingerprint') or '').strip(),
+            'deleted': row.get('deleted') is True,
+            'id_std': str(row.get('id_std') or '').strip(),
+            'display_name': str(row.get('display_name') or '').strip(),
+            'certificate_no': str(row.get('certificate_no') or '').strip(),
+            'subject': str(row.get('subject') or '').strip(),
+            'level': str(row.get('level') or '').strip(),
+            'year': str(row.get('year') or '').strip(),
+            'province': str(row.get('province') or '').strip(),
+            'school': str(row.get('school') or '').strip(),
+            'temple': str(row.get('temple') or '').strip(),
+            'scraped_at': str(row.get('scraped_at') or '').strip(),
+            'source': os.path.basename(source_file or '') if source_file else '',
+        })
+    return jsonify({'results': results, 'total': total})
+
+
+@app.route('/api/legacy-certificates/update', methods=['POST'])
+@staff_login_required(api=True)
+def legacy_certificates_update():
+    payload = request.get_json(silent=True) or {}
+    legacy_id = str(payload.get('legacy_id') or '').strip()
+    if not legacy_id.startswith('legacy:'):
+        return jsonify({'success': False, 'message': 'legacy_id ไม่ถูกต้อง'}), 400
+    try:
+        index = int(legacy_id.split(':', 1)[1])
+    except (IndexError, ValueError):
+        return jsonify({'success': False, 'message': 'legacy_id ไม่ถูกต้อง'}), 400
+    fingerprint = str(payload.get('fingerprint') or '').strip()
+    patch = payload.get('patch') or {}
+    if not isinstance(patch, dict) or not patch:
+        return jsonify({'success': False, 'message': 'ไม่พบข้อมูลที่ต้องการแก้ไข'}), 400
+
+    allowed_fields = {'display_name', 'id_std', 'certificate_no', 'subject', 'level', 'year', 'province', 'school', 'temple', 'scraped_at'}
+    cleaned_patch = {}
+    for key, value in patch.items():
+        if key not in allowed_fields:
+            continue
+        cleaned_patch[key] = str(value or '').strip()
+    if not cleaned_patch:
+        return jsonify({'success': False, 'message': 'ไม่มีฟิลด์ที่อนุญาตให้แก้ไข'}), 400
+
+    baseline_file = get_legacy_certificate_baseline_source_file()
+    if not baseline_file:
+        return jsonify({'success': False, 'message': 'ไม่พบไฟล์ฐานเก่าเพื่อแก้ไข'}), 400
+    try:
+        baseline_rows = load_legacy_certificate_baseline_rows(baseline_file)
+    except Exception:
+        baseline_rows = []
+    if index < 0 or index >= len(baseline_rows) or not isinstance(baseline_rows[index], dict):
+        return jsonify({'success': False, 'message': 'ไม่พบรายการที่ต้องการแก้ไข'}), 404
+
+    overrides_map = load_legacy_certificate_overrides()
+    deletions_map = load_legacy_certificate_deletions()
+    baseline_row = baseline_rows[index]
+    override_row = overrides_map.get(legacy_id) if isinstance(overrides_map, dict) else None
+    deletion_row = deletions_map.get(legacy_id) if isinstance(deletions_map, dict) else None
+    current_fingerprint = legacy_certificate_row_fingerprint(baseline_row, override_row=override_row, deletion_row=deletion_row)
+    if fingerprint and fingerprint != current_fingerprint:
+        return jsonify({'success': False, 'message': 'ข้อมูลถูกแก้ไขจากที่อื่นแล้ว กรุณารีเฟรชแล้วลองใหม่', 'conflict': True}), 409
+
+    if not isinstance(overrides_map, dict):
+        overrides_map = {}
+    existing = overrides_map.get(legacy_id)
+    if not isinstance(existing, dict):
+        existing = {}
+    existing_fields = existing.get('fields') if isinstance(existing.get('fields'), dict) else {}
+    updated_fields = dict(existing_fields)
+    updated_fields.update(cleaned_patch)
+    overrides_map[legacy_id] = {
+        'fields': updated_fields,
+        'updated_at': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        'updated_by': session.get('staff_username', ''),
+    }
+    save_legacy_certificate_overrides(overrides_map)
+    invalidate_legacy_certificate_edit_cache()
+    invalidate_public_certificate_cache()
+    write_staff_log(
+        action='legacy_certificate_update',
+        outcome='success',
+        username=session.get('staff_username', ''),
+        detail=f"legacy_id={legacy_id}|fields={','.join(sorted(cleaned_patch.keys()))}"
+    )
+    return jsonify({
+        'success': True,
+        'message': 'บันทึกเรียบร้อยแล้ว',
+        'fingerprint': legacy_certificate_row_fingerprint(baseline_row, override_row=overrides_map.get(legacy_id), deletion_row=deletion_row),
+    })
+
+
+@app.route('/api/legacy-certificates/delete', methods=['POST'])
+@staff_login_required(api=True)
+def legacy_certificates_delete():
+    payload = request.get_json(silent=True) or {}
+    legacy_id = str(payload.get('legacy_id') or '').strip()
+    if not legacy_id.startswith('legacy:'):
+        return jsonify({'success': False, 'message': 'legacy_id ไม่ถูกต้อง'}), 400
+    try:
+        index = int(legacy_id.split(':', 1)[1])
+    except (IndexError, ValueError):
+        return jsonify({'success': False, 'message': 'legacy_id ไม่ถูกต้อง'}), 400
+    fingerprint = str(payload.get('fingerprint') or '').strip()
+    deleted = payload.get('deleted') is True
+    reason = str(payload.get('reason') or '').strip()
+
+    baseline_file = get_legacy_certificate_baseline_source_file()
+    if not baseline_file:
+        return jsonify({'success': False, 'message': 'ไม่พบไฟล์ฐานเก่าเพื่อแก้ไข'}), 400
+    baseline_rows = load_legacy_certificate_baseline_rows(baseline_file)
+    if index < 0 or index >= len(baseline_rows) or not isinstance(baseline_rows[index], dict):
+        return jsonify({'success': False, 'message': 'ไม่พบรายการที่ต้องการแก้ไข'}), 404
+
+    overrides_map = load_legacy_certificate_overrides()
+    deletions_map = load_legacy_certificate_deletions()
+    baseline_row = baseline_rows[index]
+    override_row = overrides_map.get(legacy_id) if isinstance(overrides_map, dict) else None
+    deletion_row = deletions_map.get(legacy_id) if isinstance(deletions_map, dict) else None
+    current_fingerprint = legacy_certificate_row_fingerprint(baseline_row, override_row=override_row, deletion_row=deletion_row)
+    if fingerprint and fingerprint != current_fingerprint:
+        return jsonify({'success': False, 'message': 'ข้อมูลถูกแก้ไขจากที่อื่นแล้ว กรุณารีเฟรชแล้วลองใหม่', 'conflict': True}), 409
+
+    if not isinstance(deletions_map, dict):
+        deletions_map = {}
+    if deleted:
+        deletions_map[legacy_id] = {
+            'deleted': True,
+            'reason': reason,
+            'deleted_at': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
+            'deleted_by': session.get('staff_username', ''),
+        }
+    else:
+        deletions_map.pop(legacy_id, None)
+    save_legacy_certificate_deletions(deletions_map)
+    invalidate_legacy_certificate_edit_cache()
+    invalidate_public_certificate_cache()
+    write_staff_log(
+        action='legacy_certificate_delete' if deleted else 'legacy_certificate_undelete',
+        outcome='success',
+        username=session.get('staff_username', ''),
+        detail=f"legacy_id={legacy_id}|reason={reason or '-'}"
+    )
+    updated_deletion = deletions_map.get(legacy_id) if deleted else None
+    return jsonify({
+        'success': True,
+        'message': 'ลบรายการเรียบร้อยแล้ว' if deleted else 'ยกเลิกลบเรียบร้อยแล้ว',
+        'fingerprint': legacy_certificate_row_fingerprint(baseline_row, override_row=override_row, deletion_row=updated_deletion),
+        'deleted': deleted,
+    })
 
 
 EXCEL_IMPORT_STATUS_MAP = {

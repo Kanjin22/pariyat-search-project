@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>แก้ไขใบประกาศ (ฐานเก่า)</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container container-wide">
+      <header class="main-header">
+        <h1>แก้ไขข้อมูลใบประกาศนียบัตร (ฐานข้อมูลเก่า)</h1>
+        <p>แก้ไขข้อมูลเฉพาะชุดฐานเก่า (legacy) สำหรับใช้รวมผลในหน้า “ตรวจสอบใบประกาศ”</p>
+        {% include '_nav.html' %}
+      </header>
+
+      <main class="search-area">
+        <section class="page-intro">
+          <h2>ค้นหาและแก้ไข</h2>
+          <p>พิมพ์ชื่อ ฉายา นามสกุล เลข ปกศ. หรือ id_std เพื่อค้นหา แล้วแก้ไขข้อมูลและบันทึก</p>
+        </section>
+
+        <div class="config-notice api">
+          ข้อมูลฐานเก่า: {{ legacy_source or '-' }} | อัปเดตล่าสุด: {{ legacy_timestamp or '-' }} | จำนวนรายการ: {{ to_thai_digits(legacy_record_count or 0) }}
+        </div>
+
+        <section class="pass-list-filters">
+          <div class="filter-group">
+            <label for="legacy-year-filter">ปี พ.ศ. (ไม่บังคับ)</label>
+            <input type="text" id="legacy-year-filter" class="form-input" placeholder="เช่น 2567" />
+          </div>
+          <div class="filter-group">
+            <label for="legacy-include-deleted">
+              <input type="checkbox" id="legacy-include-deleted" />
+              แสดงรายการที่ถูกลบ
+            </label>
+          </div>
+        </section>
+
+        <div class="search-box">
+          <input type="text" id="legacy-search-input" placeholder="พิมพ์คำค้น..." autocomplete="off" />
+        </div>
+
+        <div id="legacy-message" class="save-message" aria-live="polite"></div>
+        <div id="legacy-results" class="manage-list"></div>
+      </main>
+
+      {% include '_site_footer.html' %}
+    </div>
+
+    <script src="{{ static_asset_url('theme.js') }}"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('legacy-search-input');
+        const yearInput = document.getElementById('legacy-year-filter');
+        const resultsContainer = document.getElementById('legacy-results');
+        const messageEl = document.getElementById('legacy-message');
+        let debounceTimer = null;
+        let activeController = null;
+
+        const escapeHtml = (value) => String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+
+        const setMessage = (text, type = '') => {
+          if (!messageEl) {
+            return;
+          }
+          messageEl.textContent = text || '';
+          messageEl.classList.remove('success', 'error');
+          if (type) {
+            messageEl.classList.add(type);
+          }
+        };
+
+        const renderEmpty = (text) => {
+          resultsContainer.innerHTML = `<div class="empty-state">${escapeHtml(text || '')}</div>`;
+        };
+
+        const buildRowCard = (item) => {
+          const container = document.createElement('div');
+          container.className = 'result-group manage-card';
+          container.dataset.legacyId = String(item.legacy_id || '');
+          container.dataset.fingerprint = String(item.fingerprint || '');
+          container.dataset.deleted = String(Boolean(item.deleted));
+
+          const deleted = Boolean(item.deleted);
+          const deleteButtonLabel = deleted ? 'ยกเลิกลบ' : 'ลบ';
+          container.innerHTML = `
+            <div class="header">
+              <div class="result-manage-title">
+                <h3>${escapeHtml(item.display_name || '-')}</h3>
+                <div class="person-subtitle">
+                  <span class="status-chip">id_std: ${escapeHtml(item.id_std || '-')}</span>
+                  <span class="status-chip">เลข ปกศ.: ${escapeHtml(item.certificate_no || '-')}</span>
+                  <span class="status-chip">ปี: ${escapeHtml(item.year || '-')}</span>
+                  <span class="status-chip legacy-deleted-chip"${deleted ? '' : ' style="display:none"'}>ถูกลบ</span>
+                </div>
+              </div>
+              <div class="result-manage-actions">
+                <button type="button" class="secondary-btn legacy-save-btn">บันทึก</button>
+                <button type="button" class="secondary-btn legacy-delete-btn">${deleteButtonLabel}</button>
+              </div>
+            </div>
+            <div class="details">
+              <div class="form-row">
+                <div class="form-group">
+                  <div class="form-label">ชื่อที่แสดง</div>
+                  <input type="text" class="form-input legacy-field" data-field="display_name" value="${escapeHtml(item.display_name || '')}" />
+                </div>
+                <div class="form-group">
+                  <div class="form-label">id_std</div>
+                  <input type="text" class="form-input legacy-field" data-field="id_std" value="${escapeHtml(item.id_std || '')}" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <div class="form-label">เลข ปกศ.</div>
+                  <input type="text" class="form-input legacy-field" data-field="certificate_no" value="${escapeHtml(item.certificate_no || '')}" />
+                </div>
+                <div class="form-group">
+                  <div class="form-label">วิชา</div>
+                  <input type="text" class="form-input legacy-field" data-field="subject" value="${escapeHtml(item.subject || '')}" />
+                </div>
+                <div class="form-group">
+                  <div class="form-label">ชั้น</div>
+                  <input type="text" class="form-input legacy-field" data-field="level" value="${escapeHtml(item.level || '')}" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <div class="form-label">ปี</div>
+                  <input type="text" class="form-input legacy-field" data-field="year" value="${escapeHtml(item.year || '')}" />
+                </div>
+                <div class="form-group">
+                  <div class="form-label">จังหวัด</div>
+                  <input type="text" class="form-input legacy-field" data-field="province" value="${escapeHtml(item.province || '')}" />
+                </div>
+                <div class="form-group">
+                  <div class="form-label">สำนักเรียน</div>
+                  <input type="text" class="form-input legacy-field" data-field="school" value="${escapeHtml(item.school || '')}" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <div class="form-label">สังกัดวัด</div>
+                  <input type="text" class="form-input legacy-field" data-field="temple" value="${escapeHtml(item.temple || '')}" />
+                </div>
+                <div class="form-group">
+                  <div class="form-label">scraped_at</div>
+                  <input type="text" class="form-input legacy-field" data-field="scraped_at" value="${escapeHtml(item.scraped_at || '')}" />
+                </div>
+              </div>
+            </div>
+          `;
+          return container;
+        };
+
+        const runSearch = async () => {
+          const q = String(searchInput.value || '').trim();
+          const year = String(yearInput.value || '').trim();
+          const includeDeleted = Boolean(document.getElementById('legacy-include-deleted')?.checked);
+          if (q.length < 2 && !year) {
+            setMessage('');
+            renderEmpty('พิมพ์คำค้นอย่างน้อย 2 ตัวอักษร หรือระบุปี เพื่อเริ่มค้นหา');
+            return;
+          }
+
+          if (activeController) {
+            activeController.abort();
+          }
+          activeController = new AbortController();
+          setMessage('กำลังค้นหา...');
+          renderEmpty('กำลังค้นหา...');
+
+          const params = new URLSearchParams();
+          if (q) {
+            params.set('q', q);
+          }
+          if (year) {
+            params.set('year', year);
+          }
+          if (includeDeleted) {
+            params.set('include_deleted', '1');
+          }
+          params.set('limit', '50');
+
+          try {
+            const response = await fetch(`/api/legacy-certificates/search?${params.toString()}`, { signal: activeController.signal });
+            const payload = await response.json();
+            if (!response.ok) {
+              throw new Error(payload?.message || `HTTP ${response.status}`);
+            }
+            const results = Array.isArray(payload?.results) ? payload.results : [];
+            if (!results.length) {
+              setMessage('ยังไม่พบข้อมูล', 'error');
+              renderEmpty('ยังไม่พบข้อมูล');
+              return;
+            }
+            setMessage(`พบ ${payload.total ?? results.length} รายการ (แสดง ${results.length} รายการแรก)`, 'success');
+            resultsContainer.innerHTML = '';
+            results.forEach((item) => {
+              resultsContainer.appendChild(buildRowCard(item));
+            });
+          } catch (err) {
+            if (err.name !== 'AbortError') {
+              setMessage(`ค้นหาไม่สำเร็จ: ${err.message || err}`, 'error');
+              renderEmpty('ค้นหาไม่สำเร็จ');
+            }
+          }
+        };
+
+        const collectPatch = (card) => {
+          const patch = {};
+          card.querySelectorAll('.legacy-field').forEach((input) => {
+            const field = String(input.dataset.field || '').trim();
+            if (!field) {
+              return;
+            }
+            patch[field] = String(input.value ?? '').trim();
+          });
+          return patch;
+        };
+
+        const handleSaveClick = async (button) => {
+          const card = button.closest('.manage-card');
+          if (!card) {
+            return;
+          }
+          const legacyId = String(card.dataset.legacyId || '');
+          const fingerprint = String(card.dataset.fingerprint || '');
+          const patch = collectPatch(card);
+          button.disabled = true;
+          setMessage('กำลังบันทึก...');
+          try {
+            const response = await fetch('/api/legacy-certificates/update', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ legacy_id: legacyId, fingerprint, patch })
+            });
+            const payload = await response.json();
+            if (!response.ok) {
+              throw new Error(payload?.message || `HTTP ${response.status}`);
+            }
+            card.dataset.fingerprint = String(payload.fingerprint || '');
+            setMessage(payload?.message || 'บันทึกเรียบร้อยแล้ว', 'success');
+          } catch (err) {
+            setMessage(`บันทึกไม่สำเร็จ: ${err.message || err}`, 'error');
+          } finally {
+            button.disabled = false;
+          }
+        };
+
+        const handleDeleteClick = async (button) => {
+          const card = button.closest('.manage-card');
+          if (!card) {
+            return;
+          }
+          const legacyId = String(card.dataset.legacyId || '');
+          const fingerprint = String(card.dataset.fingerprint || '');
+          const currentlyDeleted = String(card.dataset.deleted || '') === 'true';
+          const nextDeleted = !currentlyDeleted;
+          let reason = '';
+          if (nextDeleted) {
+            reason = String(window.prompt('เหตุผลการลบ (ไม่บังคับ)', '') || '').trim();
+          }
+          button.disabled = true;
+          setMessage(nextDeleted ? 'กำลังลบรายการ...' : 'กำลังยกเลิกลบ...');
+          try {
+            const response = await fetch('/api/legacy-certificates/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ legacy_id: legacyId, fingerprint, deleted: nextDeleted, reason })
+            });
+            const payload = await response.json();
+            if (!response.ok) {
+              throw new Error(payload?.message || `HTTP ${response.status}`);
+            }
+            card.dataset.fingerprint = String(payload.fingerprint || '');
+            card.dataset.deleted = String(Boolean(payload.deleted));
+            const deletedChip = card.querySelector('.legacy-deleted-chip');
+            if (deletedChip) {
+              deletedChip.style.display = payload.deleted ? '' : 'none';
+            }
+            button.textContent = payload.deleted ? 'ยกเลิกลบ' : 'ลบ';
+            setMessage(payload?.message || 'อัปเดตเรียบร้อยแล้ว', 'success');
+          } catch (err) {
+            setMessage(`ทำรายการไม่สำเร็จ: ${err.message || err}`, 'error');
+          } finally {
+            button.disabled = false;
+          }
+        };
+
+        resultsContainer.addEventListener('click', (event) => {
+          const target = event.target;
+          if (target && target.classList && target.classList.contains('legacy-save-btn')) {
+            handleSaveClick(target);
+          }
+          if (target && target.classList && target.classList.contains('legacy-delete-btn')) {
+            handleDeleteClick(target);
+          }
+        });
+
+        searchInput.addEventListener('input', () => {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(runSearch, 300);
+        });
+        yearInput.addEventListener('input', () => {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(runSearch, 300);
+        });
+        document.getElementById('legacy-include-deleted')?.addEventListener('change', () => {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(runSearch, 50);
+        });
+
+        renderEmpty('พิมพ์คำค้นอย่างน้อย 2 ตัวอักษร หรือระบุปี เพื่อเริ่มค้นหา');
+      });
+    </script>
+  </body>
+</html>
