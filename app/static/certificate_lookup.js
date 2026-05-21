@@ -23,10 +23,26 @@ document.addEventListener('DOMContentLoaded', () => {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 
+    const readJsonResponse = async (response) => {
+        const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+        const text = await response.text();
+        if (!contentType.includes('application/json')) {
+            throw new Error(`Unexpected content-type (${contentType || 'unknown'})`);
+        }
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            throw new Error('Invalid JSON response');
+        }
+    };
+
     const updateInfo = async () => {
         try {
             const response = await fetch('/api/certificates/info');
-            const data = await response.json();
+            const data = await readJsonResponse(response);
+            if (!response.ok) {
+                throw new Error(data?.error || `HTTP ${response.status}`);
+            }
             timestampSpan.textContent = data.timestamp || '-';
             countSpan.textContent = toThaiDigits(data.certificate_count || 0);
             personCountSpan.textContent = toThaiDigits(data.person_count || 0);
@@ -164,11 +180,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetch(`/api/certificates/search?${params.toString()}`, { signal: activeController.signal });
-            const results = await response.json();
-            renderResults(results, query);
+            const payload = await readJsonResponse(response);
+            if (!response.ok) {
+                throw new Error(payload?.error || `HTTP ${response.status}`);
+            }
+            const results = Array.isArray(payload) ? payload : (payload?.results || []);
+            renderResults(Array.isArray(results) ? results : [], query);
         } catch (error) {
             if (error.name !== 'AbortError') {
                 console.error('Failed to search certificates:', error);
+                setSummary('<strong>เกิดข้อผิดพลาดระหว่างค้นหา</strong>');
                 resultsContainer.innerHTML = '<div class="empty-state">เกิดข้อผิดพลาดระหว่างค้นหา</div>';
             }
         } finally {

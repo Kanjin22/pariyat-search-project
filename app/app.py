@@ -97,6 +97,13 @@ CERTIFICATE_YEAR_OVERRIDES = {
     '12393': '2560',
 }
 
+
+def is_running_on_render():
+    for key in ('RENDER', 'RENDER_SERVICE_ID', 'RENDER_EXTERNAL_URL', 'RENDER_REGION'):
+        if str(os.getenv(key) or '').strip():
+            return True
+    return False
+
 DEPARTMENT_LEVELS = {
     'tham': {
         'name': 'แผนกธรรม',
@@ -737,6 +744,25 @@ def load_public_certificate_rows():
         and (datetime.now(timezone.utc) - cache_built_at).total_seconds() <= PUBLIC_CERTIFICATE_CACHE_TTL_SECONDS
     ):
         return PUBLIC_CERTIFICATE_CACHE.get('rows', []), PUBLIC_CERTIFICATE_CACHE.get('meta', {})
+
+    disable_bootstrap = str(os.getenv('PUBLIC_CERTIFICATE_DISABLE_BOOTSTRAP') or '').strip().lower() in {'1', 'true', 'yes'}
+    force_bootstrap = str(os.getenv('PUBLIC_CERTIFICATE_FORCE_BOOTSTRAP') or '').strip().lower() in {'1', 'true', 'yes'}
+    if not disable_bootstrap and os.path.exists(COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE) and (force_bootstrap or is_running_on_render()):
+        try:
+            with open(COMMITTED_PUBLIC_CERTIFICATE_BOOTSTRAP_FILE, 'r', encoding='utf-8') as fp:
+                payload = json.load(fp)
+            bootstrap_rows = payload.get('rows') if isinstance(payload, dict) else None
+            bootstrap_meta = payload.get('meta') if isinstance(payload, dict) else None
+            if isinstance(bootstrap_rows, list) and isinstance(bootstrap_meta, dict):
+                PUBLIC_CERTIFICATE_CACHE['built_at'] = datetime.now(timezone.utc)
+                PUBLIC_CERTIFICATE_CACHE['legacy_source'] = legacy_source_file
+                PUBLIC_CERTIFICATE_CACHE['legacy_mtime'] = legacy_mtime
+                PUBLIC_CERTIFICATE_CACHE['years'] = ()
+                PUBLIC_CERTIFICATE_CACHE['rows'] = bootstrap_rows
+                PUBLIC_CERTIFICATE_CACHE['meta'] = bootstrap_meta
+                return bootstrap_rows, bootstrap_meta
+        except (OSError, json.JSONDecodeError, AttributeError, TypeError, ValueError):
+            pass
 
     regular_legacy_available = os.path.exists(LEGACY_CERTIFICATE_SUMMARY_FILE) or os.path.exists(LEGACY_CERTIFICATE_NDJSON_FILE)
     regular_current_snapshot_available = os.path.exists(get_certificate_snapshot_file('all'))
@@ -1868,6 +1894,11 @@ def inject_auth_state():
     group_descriptions = {}
     if isinstance(bali_summary_data, dict):
         group_descriptions = bali_summary_data.get('group_descriptions') or {}
+    try:
+        visitor_counter = get_visitor_counts()
+    except Exception:
+        logging.exception('visitor analytics read error')
+        visitor_counter = {'visitors_today': 0, 'total_unique_visitors': 0, 'total_pageviews': 0}
     current_year_numeric = int(CURRENT_YEAR_NUMERIC)
     return {
         'staff_logged_in': is_staff_logged_in(),
@@ -1879,7 +1910,7 @@ def inject_auth_state():
         'current_year_numeric': current_year_numeric,
         'current_academic_year_label': f"{to_thai_digits(current_year_numeric - 1)}-{to_thai_digits(current_year_numeric)}",
         'current_mode': get_current_mode(),
-        'visitor_counter': get_visitor_counts()
+        'visitor_counter': visitor_counter
     }
 
 
@@ -2481,29 +2512,40 @@ def search():
 
 @app.route('/certificates')
 def public_certificates():
-    rows, meta = load_public_certificate_rows()
     selected_year = str(request.args.get('year', '') or '').strip()
-    available_years = build_public_certificate_year_options(rows)
+    try:
+        rows, meta = load_public_certificate_rows()
+        available_years = build_public_certificate_year_options(rows)
+    except Exception:
+        logging.exception('public certificate page error')
+        meta = {'timestamp': '-', 'certificate_count': 0, 'person_count': 0, 'source': ''}
+        available_years = []
     if selected_year and selected_year not in available_years:
         available_years = [selected_year] + available_years
-    return render_template(
-        'certificates.html',
-        selected_year=selected_year,
-        available_years=available_years,
-        certificate_data_info=meta,
-    )
+    return render_template('certificates.html', selected_year=selected_year, available_years=available_years, certificate_data_info=meta)
 
 
 @app.route('/api/certificates/info')
 def public_certificates_info():
-    rows, meta = load_public_certificate_rows()
-    return jsonify({
-        'timestamp': meta.get('timestamp', '-'),
-        'certificate_count': int(meta.get('certificate_count') or 0),
-        'person_count': int(meta.get('person_count') or 0),
-        'source': meta.get('source', ''),
-        'available_years': build_public_certificate_year_options(rows),
-    })
+    try:
+        rows, meta = load_public_certificate_rows()
+        return jsonify({
+            'timestamp': meta.get('timestamp', '-'),
+            'certificate_count': int(meta.get('certificate_count') or 0),
+            'person_count': int(meta.get('person_count') or 0),
+            'source': meta.get('source', ''),
+            'available_years': build_public_certificate_year_options(rows),
+        })
+    except Exception as exc:
+        logging.exception('public certificate info error')
+        return jsonify({
+            'timestamp': '-',
+            'certificate_count': 0,
+            'person_count': 0,
+            'source': '',
+            'available_years': [],
+            'error': str(exc),
+        }), 500
 
 
 @app.route('/api/certificates/search')
@@ -2512,9 +2554,13 @@ def public_certificates_search():
     selected_year = str(request.args.get('year', '') or '').strip()
     if not query and not selected_year:
         return jsonify([])
-    rows, _meta = load_public_certificate_rows()
-    filtered_rows = filter_public_certificate_rows(rows, query=query, year=selected_year)
-    return jsonify(group_public_certificate_rows(filtered_rows)[:50])
+    try:
+        rows, _meta = load_public_certificate_rows()
+        filtered_rows = filter_public_certificate_rows(rows, query=query, year=selected_year)
+        return jsonify(group_public_certificate_rows(filtered_rows)[:50])
+    except Exception as exc:
+        logging.exception('public certificate search error')
+        return jsonify({'results': [], 'error': str(exc)}), 500
 
 
 @app.route('/get_classes')
