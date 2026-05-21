@@ -1635,6 +1635,50 @@ a.phone-link:hover {
     display: none;
 }
 
+.legacy-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: 12px 14px;
+}
+
+.legacy-field-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.legacy-field-span-2 {
+    grid-column: span 2;
+}
+
+.legacy-edit-details {
+    margin-top: 12px;
+}
+
+.manage-card.legacy-deleted {
+    opacity: 0.78;
+    border-color: #fca5a5;
+}
+
+.manage-card.legacy-deleted .header h3 {
+    text-decoration: line-through;
+}
+
+@media (max-width: 1200px) {
+    .legacy-fields-grid {
+        grid-template-columns: repeat(3, minmax(160px, 1fr));
+    }
+}
+
+@media (max-width: 820px) {
+    .legacy-fields-grid {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+    }
+    .legacy-field-span-2 {
+        grid-column: span 2;
+    }
+}
+
 .page-explanation {
     font-size: 0.9em;
     color: #666;

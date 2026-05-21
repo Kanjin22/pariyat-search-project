@@ -84,7 +84,7 @@
           resultsContainer.innerHTML = `<div class="empty-state">${escapeHtml(text || '')}</div>`;
         };
 
-        const buildRowCard = (item) => {
+        const buildRowCard = (item, autoOpen = false) => {
           const container = document.createElement('div');
           container.className = 'result-group manage-card';
           container.dataset.legacyId = String(item.legacy_id || '');
@@ -93,67 +93,68 @@
 
           const deleted = Boolean(item.deleted);
           const deleteButtonLabel = deleted ? 'ยกเลิกลบ' : 'ลบ';
+          const detailsHidden = autoOpen ? '' : ' hidden';
+          if (deleted) {
+            container.classList.add('legacy-deleted');
+          }
           container.innerHTML = `
             <div class="header">
               <div class="result-manage-title">
                 <h3>${escapeHtml(item.display_name || '-')}</h3>
                 <div class="person-subtitle">
                   <span class="status-chip">id_std: ${escapeHtml(item.id_std || '-')}</span>
+                  <span class="status-chip">วิชา: ${escapeHtml(item.subject || '-')}</span>
+                  <span class="status-chip">ชั้น: ${escapeHtml(item.level || '-')}</span>
                   <span class="status-chip">เลข ปกศ.: ${escapeHtml(item.certificate_no || '-')}</span>
                   <span class="status-chip">ปี: ${escapeHtml(item.year || '-')}</span>
                   <span class="status-chip legacy-deleted-chip"${deleted ? '' : ' style="display:none"'}>ถูกลบ</span>
                 </div>
               </div>
               <div class="result-manage-actions">
+                <button type="button" class="secondary-btn legacy-toggle-btn">${autoOpen ? 'ซ่อนฟอร์ม' : 'แก้ไข'}</button>
                 <button type="button" class="secondary-btn legacy-save-btn">บันทึก</button>
                 <button type="button" class="secondary-btn legacy-delete-btn">${deleteButtonLabel}</button>
               </div>
             </div>
-            <div class="details">
-              <div class="form-row">
-                <div class="form-group">
-                  <div class="form-label">ชื่อที่แสดง</div>
-                  <input type="text" class="form-input legacy-field" data-field="display_name" value="${escapeHtml(item.display_name || '')}" />
-                </div>
-                <div class="form-group">
-                  <div class="form-label">id_std</div>
-                  <input type="text" class="form-input legacy-field" data-field="id_std" value="${escapeHtml(item.id_std || '')}" />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
+            <div class="details legacy-edit-details${detailsHidden}">
+              <div class="legacy-fields-grid">
+                <div class="legacy-field-item">
                   <div class="form-label">เลข ปกศ.</div>
                   <input type="text" class="form-input legacy-field" data-field="certificate_no" value="${escapeHtml(item.certificate_no || '')}" />
                 </div>
-                <div class="form-group">
-                  <div class="form-label">วิชา</div>
-                  <input type="text" class="form-input legacy-field" data-field="subject" value="${escapeHtml(item.subject || '')}" />
-                </div>
-                <div class="form-group">
-                  <div class="form-label">ชั้น</div>
-                  <input type="text" class="form-input legacy-field" data-field="level" value="${escapeHtml(item.level || '')}" />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
+                <div class="legacy-field-item">
                   <div class="form-label">ปี</div>
                   <input type="text" class="form-input legacy-field" data-field="year" value="${escapeHtml(item.year || '')}" />
                 </div>
-                <div class="form-group">
+                <div class="legacy-field-item">
+                  <div class="form-label">วิชา</div>
+                  <input type="text" class="form-input legacy-field" data-field="subject" value="${escapeHtml(item.subject || '')}" />
+                </div>
+                <div class="legacy-field-item">
+                  <div class="form-label">ชั้น</div>
+                  <input type="text" class="form-input legacy-field" data-field="level" value="${escapeHtml(item.level || '')}" />
+                </div>
+                <div class="legacy-field-item">
                   <div class="form-label">จังหวัด</div>
                   <input type="text" class="form-input legacy-field" data-field="province" value="${escapeHtml(item.province || '')}" />
                 </div>
-                <div class="form-group">
+                <div class="legacy-field-item legacy-field-span-2">
                   <div class="form-label">สำนักเรียน</div>
                   <input type="text" class="form-input legacy-field" data-field="school" value="${escapeHtml(item.school || '')}" />
                 </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
+                <div class="legacy-field-item legacy-field-span-2">
                   <div class="form-label">สังกัดวัด</div>
                   <input type="text" class="form-input legacy-field" data-field="temple" value="${escapeHtml(item.temple || '')}" />
                 </div>
-                <div class="form-group">
+                <div class="legacy-field-item legacy-field-span-2">
+                  <div class="form-label">ชื่อที่แสดง</div>
+                  <input type="text" class="form-input legacy-field" data-field="display_name" value="${escapeHtml(item.display_name || '')}" />
+                </div>
+                <div class="legacy-field-item">
+                  <div class="form-label">id_std</div>
+                  <input type="text" class="form-input legacy-field" data-field="id_std" value="${escapeHtml(item.id_std || '')}" />
+                </div>
+                <div class="legacy-field-item">
                   <div class="form-label">scraped_at</div>
                   <input type="text" class="form-input legacy-field" data-field="scraped_at" value="${escapeHtml(item.scraped_at || '')}" />
                 </div>
@@ -206,8 +207,29 @@
             }
             setMessage(`พบ ${payload.total ?? results.length} รายการ (แสดง ${results.length} รายการแรก)`, 'success');
             resultsContainer.innerHTML = '';
-            results.forEach((item) => {
-              resultsContainer.appendChild(buildRowCard(item));
+            const autoOpen = results.length === 1;
+            const sorted = results.slice().sort((a, b) => {
+              const yearA = Number(String(a?.year ?? '').replace(/[^\d]/g, '')) || 0;
+              const yearB = Number(String(b?.year ?? '').replace(/[^\d]/g, '')) || 0;
+              if (yearA !== yearB) {
+                return yearB - yearA;
+              }
+              const subjA = String(a?.subject ?? '');
+              const subjB = String(b?.subject ?? '');
+              const subjCmp = subjA.localeCompare(subjB, 'th');
+              if (subjCmp !== 0) {
+                return subjCmp;
+              }
+              const levelA = String(a?.level ?? '');
+              const levelB = String(b?.level ?? '');
+              const levelCmp = levelA.localeCompare(levelB, 'th');
+              if (levelCmp !== 0) {
+                return levelCmp;
+              }
+              return String(a?.certificate_no ?? '').localeCompare(String(b?.certificate_no ?? ''), 'th');
+            });
+            sorted.forEach((item) => {
+              resultsContainer.appendChild(buildRowCard(item, autoOpen));
             });
           } catch (err) {
             if (err.name !== 'AbortError') {
@@ -305,6 +327,16 @@
           }
           if (target && target.classList && target.classList.contains('legacy-delete-btn')) {
             handleDeleteClick(target);
+          }
+          if (target && target.classList && target.classList.contains('legacy-toggle-btn')) {
+            const card = target.closest('.manage-card');
+            const details = card?.querySelector('.legacy-edit-details');
+            if (!details) {
+              return;
+            }
+            const isHidden = details.classList.contains('hidden');
+            details.classList.toggle('hidden');
+            target.textContent = isHidden ? 'ซ่อนฟอร์ม' : 'แก้ไข';
           }
         });
 
