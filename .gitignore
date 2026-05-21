@@ -23,3 +23,5 @@ pariyat-search-project.git/
 *.xls
 *.xlsm
 *.csv
+.dbg/
+debug-*.md
