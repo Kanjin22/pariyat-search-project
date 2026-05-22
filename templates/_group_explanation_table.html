@@ -13,6 +13,10 @@
       {% for group in groups %}
         {% set desc = group_descriptions.get(group) if group_descriptions else None %}
         {% set desc_text = desc if desc else '-' %}
+        {% set desc_text = desc_text|trim %}
+        {% if desc_text.startswith(' - ') %}
+          {% set desc_text = desc_text[1:] %}
+        {% endif %}
         <tr class="{{ 'alt-row' if loop.index is even else '' }}">
           <td class="group-name">{{ group }}</td>
           <td>{{ desc_text|replace(' - ', '<br>- ')|safe }}</td>
