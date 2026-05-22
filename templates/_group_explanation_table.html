@@ -17,9 +17,12 @@
         {% if desc_text.startswith(' - ') %}
           {% set desc_text = desc_text[1:] %}
         {% endif %}
+        {% set rendered_desc = desc_text|replace(' - ', '<br>- ') %}
+        {% set rendered_desc = rendered_desc|replace('- (ยกเว้น สำนักพระปริยัติธรรม)', '<span class=\"group-exception\">- (ยกเว้น สำนักพระปริยัติธรรม)</span>') %}
+        {% set rendered_desc = rendered_desc|replace('- (ยกเว้น สำนักการศึกษา)', '<span class=\"group-exception\">- (ยกเว้น สำนักการศึกษา)</span>') %}
         <tr class="{{ 'alt-row' if loop.index is even else '' }}">
           <td class="group-name">{{ group }}</td>
-          <td>{{ desc_text|replace(' - ', '<br>- ')|safe }}</td>
+          <td>{{ rendered_desc|safe }}</td>
         </tr>
       {% endfor %}
     </tbody>

@@ -1153,6 +1153,10 @@ a.phone-link:hover {
     background: #16213e;
 }
 
+.dark-mode .group-explanation .group-exception {
+    color: #ff6b6b;
+}
+
 .dark-mode .manage-class-filter label {
     color: #c7d2fe;
 }
@@ -1722,6 +1726,11 @@ a.phone-link:hover {
 
 .group-explanation .alt-row {
     background: #f9f9f9;
+}
+
+.group-explanation .group-exception {
+    color: #c62828;
+    font-weight: 600;
 }
 
 .manage-class-filter {
