@@ -146,6 +146,9 @@ DEPARTMENT_LEVELS = {
     }
 }
 
+THAM_LEVEL_TYPES = {'นักธรรม', 'ธรรมศึกษา'}
+BALI_LEVEL_TYPES = {'บาลี', 'บาลีศึกษา'}
+
 MODE_OVERVIEW = 'overview'
 MODE_THAM = 'tham'
 MODE_BALI = 'bali'
@@ -2871,11 +2874,51 @@ def load_data_from_api(year=None, store_global=True, force_refresh=False, allow_
     API_USER = (os.getenv('PARIYAT_API_USER') or '').strip()
     API_PASS = (os.getenv('PARIYAT_API_PASS') or '').strip()
     target_year_numeric = int(year or CURRENT_YEAR_NUMERIC)
-    PARAMS = {'user': API_USER, 'pass': API_PASS, 'filter_year': target_year_numeric}
     runtime_current_year = get_runtime_current_year_numeric()
     snapshot_lock_max_year = get_effective_snapshot_lock_max_year()
     locked_year = (snapshot_lock_max_year is not None and target_year_numeric <= snapshot_lock_max_year) or (target_year_numeric < runtime_current_year)
     
+    def fetch_exam_api_rows(fetch_year_numeric):
+        response = requests.get(
+            API_URL,
+            params={'user': API_USER, 'pass': API_PASS, 'filter_year': int(fetch_year_numeric)},
+            timeout=60
+        )
+        response.raise_for_status()
+        json_data = response.json()
+        if json_data.get('status') != 'success' or 'data' not in json_data:
+            raise RuntimeError('Invalid exam API payload')
+        api_rows = json_data.get('data') or []
+        if not isinstance(api_rows, list):
+            raise RuntimeError('Invalid exam API data list')
+        return api_rows
+
+    def has_any_level_type(api_rows, allowed_level_types):
+        for item in api_rows or []:
+            level_type = str((item or {}).get('level_type') or '').strip()
+            if level_type in allowed_level_types:
+                return True
+        return False
+
+    def ensure_combined_api_rows_for_academic_year(api_rows):
+        has_tham = has_any_level_type(api_rows, THAM_LEVEL_TYPES)
+        has_bali = has_any_level_type(api_rows, BALI_LEVEL_TYPES)
+        if has_tham and has_bali:
+            return api_rows
+        if has_bali and not has_tham:
+            try:
+                prev_rows = fetch_exam_api_rows(target_year_numeric - 1)
+            except Exception:
+                return api_rows
+            tham_rows = [
+                item for item in (prev_rows or [])
+                if str((item or {}).get('level_type') or '').strip() in THAM_LEVEL_TYPES
+            ]
+            if not tham_rows:
+                return api_rows
+            return list(api_rows or []) + tham_rows
+        return api_rows
+
     try:
         snapshot = None
         snapshot = load_api_snapshot(target_year_numeric)
@@ -2891,15 +2934,12 @@ def load_data_from_api(year=None, store_global=True, force_refresh=False, allow_
         if not API_USER or not API_PASS:
             raise RuntimeError('Missing PARIYAT_API_USER or PARIYAT_API_PASS')
 
-        response = requests.get(API_URL, params=PARAMS, timeout=60)
-        json_data = response.json()
-        
-        if json_data.get('status') == 'success' and 'data' in json_data:
-            api_rows = json_data.get('data') or []
-            save_api_snapshot(target_year_numeric, api_rows)
-            result_df = build_processed_df_from_api_rows(api_rows, target_year_numeric, store_global)
-            print(f"--- [SUCCESS] Data processed. Final records: {len(result_df)}")
-            return result_df
+        api_rows = fetch_exam_api_rows(target_year_numeric)
+        api_rows = ensure_combined_api_rows_for_academic_year(api_rows)
+        save_api_snapshot(target_year_numeric, api_rows)
+        result_df = build_processed_df_from_api_rows(api_rows, target_year_numeric, store_global)
+        print(f"--- [SUCCESS] Data processed. Final records: {len(result_df)}")
+        return result_df
     except Exception as e:
         if store_global:
             df = pd.DataFrame()
