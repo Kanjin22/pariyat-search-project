@@ -1903,13 +1903,6 @@ def ensure_year_result_file(year):
     year_file = get_exam_results_file(year)
     if os.path.exists(year_file):
         return year_file
-    if int(year) == int(CURRENT_YEAR_NUMERIC) and os.path.exists(RESULTS_FILE):
-        try:
-            import shutil
-            shutil.copy2(RESULTS_FILE, year_file)
-            return year_file
-        except Exception:
-            return RESULTS_FILE
     return year_file
 
 
@@ -2574,6 +2567,22 @@ def load_exam_results_for_year(year):
         with open(result_file, 'r', encoding='utf-8') as fp:
             loaded_data = json.load(fp)
         if isinstance(loaded_data, dict):
+            try:
+                runtime_current_year = int(get_runtime_current_year_numeric())
+                target_year_int = int(normalize_year_value(year) or CURRENT_YEAR_NUMERIC)
+            except Exception:
+                runtime_current_year = int(CURRENT_YEAR_NUMERIC)
+                target_year_int = int(CURRENT_YEAR_NUMERIC)
+
+            if target_year_int >= runtime_current_year and loaded_data and os.path.exists(RESULTS_FILE):
+                try:
+                    with open(RESULTS_FILE, 'r', encoding='utf-8') as fp:
+                        legacy_data = json.load(fp)
+                except (OSError, json.JSONDecodeError):
+                    legacy_data = None
+
+                if isinstance(legacy_data, dict) and legacy_data == loaded_data:
+                    return {}
             return loaded_data
     except (OSError, json.JSONDecodeError):
         pass
