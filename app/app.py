@@ -1918,6 +1918,19 @@ def list_available_years():
     years.add(int(CURRENT_YEAR_NUMERIC))
     if CURRENT_YEAR_NUMERIC and int(CURRENT_YEAR_NUMERIC) > 1:
         years.add(int(CURRENT_YEAR_NUMERIC) - 1)
+    try:
+        current_year_int = int(CURRENT_YEAR_NUMERIC)
+        next_year_int = current_year_int + 1
+        next_exam_file = get_exam_results_file(next_year_int)
+        next_snapshot_file = get_api_snapshot_file(next_year_int)
+        today = datetime.now()
+        should_include_next_year = int(today.month) < 6
+        if not should_include_next_year:
+            should_include_next_year = os.path.exists(next_exam_file) or os.path.exists(next_snapshot_file)
+        if should_include_next_year:
+            years.add(next_year_int)
+    except Exception:
+        pass
     if os.path.exists(RESULTS_DATA_DIR):
         for filename in os.listdir(RESULTS_DATA_DIR):
             if filename.startswith('exam_results_') and filename.endswith('.json'):
