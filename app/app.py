@@ -342,6 +342,7 @@ CERTIFICATE_TEXT_SPACE_RE = re.compile(r'[\s\u200b\u200c\u200d\ufeff]+')
 NAME_KEY_SPACE_RE = re.compile(r'[\s\u200b\u200c\u200d\ufeff]+')
 DISPLAY_NAME_PAREN_CONTENT_RE = re.compile(r'\(([^)]+)\)')
 DISPLAY_NAME_PAREN_BLOCK_RE = re.compile(r'\s*\([^)]*\)\s*')
+CERTIFICATE_NO_FROM_LICENSE_TEXT_RE = re.compile(r'([ก-๙A-Za-z]{1,6}\s*\d{1,8}\s*/\s*\d{4}|\d{1,8}\s*/\s*\d{4}|\d{4}\s*/\s*\d{3,8})')
 
 
 def normalize_certificate_text(value):
@@ -379,7 +380,14 @@ def normalize_public_certificate_record(item):
     if not isinstance(item, dict):
         return {}
     display_name = str(item.get('display_name') or item.get('fullname') or '').strip()
-    certificate_no = normalize_certificate_text(item.get('certificate_no') or item.get('license'))
+    certificate_candidate = item.get('certificate_no') or item.get('license') or ''
+    if not is_meaningful_certificate_no(certificate_candidate):
+        license_text = str(item.get('license_text') or '').strip()
+        if license_text:
+            match = CERTIFICATE_NO_FROM_LICENSE_TEXT_RE.search(to_arabic_digits(license_text))
+            if match:
+                certificate_candidate = match.group(0)
+    certificate_no = normalize_certificate_text(certificate_candidate)
     if not is_meaningful_certificate_no(certificate_no):
         return {}
     subject = str(item.get('subject') or item.get('level_type') or '').strip()
