@@ -2716,8 +2716,16 @@ def apply_exam_results(dataframe, year=None):
                     mapped_val if mapped_val else existing_val
                     for mapped_val, existing_val in zip(mapped, dataframe.loc[missing_mask, 'exam_result_status'].tolist())
                 ]
-    target_mask = dataframe['class_name'].astype(str).str.startswith('ป.') | dataframe['class_name'].astype(str).str.startswith('บ.ศ')
-    dataframe.loc[target_mask & (dataframe['exam_result_status'] == ''), 'exam_result_status'] = 'สอบตก'
+    try:
+        runtime_current_year = int(get_runtime_current_year_numeric())
+        target_year_int = int(normalize_year_value(year_value) or CURRENT_YEAR_NUMERIC)
+    except Exception:
+        runtime_current_year = int(CURRENT_YEAR_NUMERIC)
+        target_year_int = int(CURRENT_YEAR_NUMERIC)
+
+    if target_year_int < runtime_current_year:
+        target_mask = dataframe['class_name'].astype(str).str.startswith('ป.') | dataframe['class_name'].astype(str).str.startswith('บ.ศ')
+        dataframe.loc[target_mask & (dataframe['exam_result_status'] == ''), 'exam_result_status'] = 'สอบตก'
     return dataframe
 
 
