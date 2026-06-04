@@ -103,10 +103,56 @@
             </tbody>
           </table>
         </section>
+
+        <section class="page-intro">
+          <h2>Snapshot ใบประกาศนียบัตร (ปกศ.)</h2>
+        </section>
+
+        <section class="pass-list-filters">
+          <form class="filter-group" method="post">
+            <input type="hidden" name="action" value="refresh_certificate_snapshot_all" />
+            <div><strong>ไฟล์รวม (all)</strong>: {{ '✓' if certificate_all_snapshot_exists else '-' }}</div>
+            <div><strong>แก้ไขล่าสุด</strong>: {{ to_thai_digits(certificate_all_snapshot_modified_at) if certificate_all_snapshot_modified_at else '-' }}</div>
+            <button type="submit" class="search-btn">ดึงจาก API และบันทึก snapshot (ทั้งหมด)</button>
+          </form>
+        </section>
+
+        <section class="pass-list-filters">
+          <form class="filter-group" method="post">
+            <input type="hidden" name="action" value="refresh_certificate_snapshot_year" />
+            <label for="refresh-certificate-year">อัปเดต snapshot ใบประกาศ ปี</label>
+            <select id="refresh-certificate-year" name="refresh_certificate_year" class="filter-select">
+              {% for year in available_years %}
+                <option value="{{ year }}" {{ 'selected' if selected_year == year else '' }}>{{ to_thai_digits(year) }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="search-btn">ดึงจาก API และบันทึก snapshot (รายปี)</button>
+          </form>
+        </section>
+
+        <section class="pass-list-table-wrapper">
+          <table class="pass-list-table">
+            <thead>
+              <tr>
+                <th>ปี</th>
+                <th>มี snapshot</th>
+                <th>แก้ไขล่าสุด</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in certificate_snapshot_items %}
+                <tr>
+                  <td class="number-cell">{{ to_thai_digits(item.year) }}</td>
+                  <td class="number-cell">{{ '✓' if item.snapshot_exists else '-' }}</td>
+                  <td>{{ to_thai_digits(item.snapshot_modified_at) if item.snapshot_modified_at else '-' }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </section>
       </main>
 
       {% include '_site_footer.html' %}
     </div>
   </body>
 </html>
-

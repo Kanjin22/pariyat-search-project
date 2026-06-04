@@ -4350,6 +4350,28 @@ def staff_data_source():
             'snapshot_modified_at': fetched_at,
         })
 
+    certificate_snapshot_items = []
+    for year in available_years:
+        snapshot_file = get_certificate_snapshot_read_file(year)
+        fetched_at = ''
+        if snapshot_file and os.path.exists(snapshot_file):
+            try:
+                fetched_at = datetime.fromtimestamp(os.path.getmtime(snapshot_file)).isoformat()
+            except OSError:
+                fetched_at = ''
+        certificate_snapshot_items.append({
+            'year': int(year),
+            'snapshot_exists': bool(snapshot_file and os.path.exists(snapshot_file)),
+            'snapshot_modified_at': fetched_at,
+        })
+    certificate_all_snapshot_file = get_certificate_snapshot_read_file('all')
+    certificate_all_modified_at = ''
+    if certificate_all_snapshot_file and os.path.exists(certificate_all_snapshot_file):
+        try:
+            certificate_all_modified_at = datetime.fromtimestamp(os.path.getmtime(certificate_all_snapshot_file)).isoformat()
+        except OSError:
+            certificate_all_modified_at = ''
+
     message = ''
     message_type = 'success'
     if request.method == 'POST':
@@ -4403,6 +4425,33 @@ def staff_data_source():
                     'snapshot_modified_at': fetched_at,
                 })
 
+        if action == 'refresh_certificate_snapshot_all':
+            try:
+                load_current_public_certificate_rows_for_year(None, force_refresh=True)
+                invalidate_public_certificate_cache()
+                CURRENT_CERTIFICATE_YEAR_CACHE.pop('all', None)
+                write_staff_log(action='data_source', outcome='success', username=session.get('staff_username', ''), detail='refresh_certificate_snapshot_all')
+                message = 'อัปเดต snapshot ใบประกาศ (ทั้งหมด) สำเร็จ'
+                message_type = 'success'
+            except Exception as e:
+                write_staff_log(action='data_source', outcome='failed', username=session.get('staff_username', ''), detail=f'refresh_certificate_snapshot_all:{e}')
+                message = f'อัปเดต snapshot ใบประกาศ (ทั้งหมด) ไม่สำเร็จ: {e}'
+                message_type = 'error'
+
+        if action == 'refresh_certificate_snapshot_year':
+            target_year = normalize_year_value(request.form.get('refresh_certificate_year')) or selected_year
+            try:
+                load_current_public_certificate_rows_for_year(target_year, force_refresh=True)
+                invalidate_public_certificate_cache()
+                CURRENT_CERTIFICATE_YEAR_CACHE.pop(int(target_year), None)
+                write_staff_log(action='data_source', outcome='success', username=session.get('staff_username', ''), detail=f'refresh_certificate_snapshot_year:{target_year}')
+                message = f'อัปเดต snapshot ใบประกาศ ปี {to_thai_digits(target_year)} สำเร็จ'
+                message_type = 'success'
+            except Exception as e:
+                write_staff_log(action='data_source', outcome='failed', username=session.get('staff_username', ''), detail=f'refresh_certificate_snapshot_year:{target_year}:{e}')
+                message = f'อัปเดต snapshot ใบประกาศ ไม่สำเร็จ: {e}'
+                message_type = 'error'
+
     return render_template(
         'staff_data_source.html',
         current_buddhist_year=current_year_thai,
@@ -4414,6 +4463,9 @@ def staff_data_source():
         override_lock_max_year=settings.get('snapshot_lock_max_year'),
         effective_lock_max_year=effective_lock_max_year,
         snapshot_items=snapshot_items,
+        certificate_snapshot_items=certificate_snapshot_items,
+        certificate_all_snapshot_exists=bool(certificate_all_snapshot_file and os.path.exists(certificate_all_snapshot_file)),
+        certificate_all_snapshot_modified_at=certificate_all_modified_at,
         message=message,
         message_type=message_type
     )
