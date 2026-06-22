@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>พิมพ์รายชื่อผู้สอบผ่าน + เบอร์โทร</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>พิมพ์รายชื่อผู้สอบผ่าน + เบอร์โทร</h1>
+        {% if selected_year %}
+          {% if mode == 'tham' %}
+            <p>แผนกธรรม | ปี พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}</p>
+          {% elif mode == 'bali' %}
+            <p>แผนกบาลี | ปี พ.ศ. {{ to_thai_digits(selected_year) }}</p>
+          {% else %}
+            <p>ภาพรวม | ปีการศึกษา พ.ศ. {{ to_thai_digits((selected_year|int) - 1) }}-{{ to_thai_digits(selected_year) }}</p>
+          {% endif %}
+        {% else %}
+          <p>ภาพรวม | ปีการศึกษา พ.ศ. {{ current_academic_year_label }}</p>
+        {% endif %}
+        {% include '_nav.html' %}
+      </header>
+
+      <main class="search-area">
+        <section class="page-intro screen-only">
+          <h2>ไฟล์สำหรับส่งต่อ/พิมพ์</h2>
+          <p>หน้านี้แสดงเฉพาะผู้สอบผ่าน (สอบได้ และ/หรือ สอบซ่อมได้) พร้อมเบอร์โทร สำหรับใช้งานภายใน</p>
+        </section>
+
+        {% if snapshot_lock and snapshot_lock.locked %}
+          <div class="config-notice screen-only">
+            <strong>ตอนนี้กำลังล็อก snapshot อยู่</strong><br />
+            {% if snapshot_lock.reason == 'override' %}
+              ตั้งค่าโดยเจ้าหน้าที่: ล็อกถึงปี {{ to_thai_digits(snapshot_lock.lock_max_year) }}
+            {% else %}
+              ระบบล็อกอัตโนมัติ: ปีที่น้อยกว่า {{ to_thai_digits(snapshot_lock.runtime_current_year) }}
+            {% endif %}
+          </div>
+        {% endif %}
+
+        <section class="pass-list-filters screen-only">
+          <form class="filter-group" method="get">
+            <label for="year">ปี</label>
+            <select id="year" name="year" class="filter-select">
+              {% for year in available_years %}
+                <option value="{{ year }}" {{ 'selected' if (selected_year|int) == (year|int) else '' }}>{{ to_thai_digits(year) }}</option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="mode" value="{{ mode }}" />
+          </form>
+
+          <form class="filter-group" method="get">
+            <label for="pass-variant">ผู้สอบผ่าน</label>
+            <select id="pass-variant" name="pass_variant" class="filter-select">
+              {% for item in pass_variant_options %}
+                <option value="{{ item }}" {{ 'selected' if pass_variant == item else '' }}>{{ item }}</option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="year" value="{{ selected_year }}" />
+            <input type="hidden" name="mode" value="{{ mode }}" />
+          </form>
+
+          <form class="filter-group" method="get">
+            <label for="level">ชั้น</label>
+            <select id="level" name="level" class="filter-select">
+              <option value="">ทั้งหมด</option>
+              {% for level in available_levels %}
+                <option value="{{ level }}" {{ 'selected' if selected_level == level else '' }}>{{ level }}</option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="year" value="{{ selected_year }}" />
+            <input type="hidden" name="mode" value="{{ mode }}" />
+            <input type="hidden" name="pass_variant" value="{{ pass_variant }}" />
+          </form>
+
+          <form class="filter-group" method="get">
+            <label for="school">สังกัด</label>
+            <select id="school" name="school" class="filter-select">
+              <option value="">ทั้งหมด</option>
+              {% for school in available_schools %}
+                <option value="{{ school }}" {{ 'selected' if selected_school == school else '' }}>{{ school }}</option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="year" value="{{ selected_year }}" />
+            <input type="hidden" name="mode" value="{{ mode }}" />
+            <input type="hidden" name="pass_variant" value="{{ pass_variant }}" />
+            <input type="hidden" name="level" value="{{ selected_level }}" />
+          </form>
+
+          <form class="filter-group" method="get">
+            <label for="group">กลุ่ม</label>
+            <select id="group" name="group" class="filter-select">
+              <option value="">ทั้งหมด</option>
+              {% for group in available_groups %}
+                <option value="{{ group }}" {{ 'selected' if selected_group == group else '' }}>{{ group }}</option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="year" value="{{ selected_year }}" />
+            <input type="hidden" name="mode" value="{{ mode }}" />
+            <input type="hidden" name="pass_variant" value="{{ pass_variant }}" />
+            <input type="hidden" name="level" value="{{ selected_level }}" />
+            <input type="hidden" name="school" value="{{ selected_school }}" />
+          </form>
+
+          <form class="filter-group" method="get">
+            <label for="sort-by">เรียงตาม</label>
+            <select id="sort-by" name="sort_by" class="filter-select">
+              <option value="class_name" {{ 'selected' if sort_by == 'class_name' else '' }}>ชั้น</option>
+              <option value="ordination" {{ 'selected' if sort_by == 'ordination' else '' }}>พรรษา</option>
+              <option value="name" {{ 'selected' if sort_by == 'name' else '' }}>ชื่อ</option>
+              <option value="school_name" {{ 'selected' if sort_by == 'school_name' else '' }}>สังกัด</option>
+              <option value="group_name" {{ 'selected' if sort_by == 'group_name' else '' }}>กลุ่ม</option>
+            </select>
+            <input type="hidden" name="year" value="{{ selected_year }}" />
+            <input type="hidden" name="mode" value="{{ mode }}" />
+            <input type="hidden" name="pass_variant" value="{{ pass_variant }}" />
+            <input type="hidden" name="level" value="{{ selected_level }}" />
+            <input type="hidden" name="school" value="{{ selected_school }}" />
+            <input type="hidden" name="group" value="{{ selected_group }}" />
+          </form>
+
+          <div class="filter-group filter-group-actions">
+            <a
+              class="secondary-btn"
+              href="{{ url_for('staff_pass_export', year=selected_year, mode=mode, pass_variant=pass_variant, level=selected_level, school=selected_school, group=selected_group, sort_by=sort_by, format='csv') }}"
+            >ดาวน์โหลด CSV</a>
+            <button type="button" class="search-btn" onclick="window.print()">พิมพ์</button>
+          </div>
+        </section>
+
+        <section class="pass-list-stats">
+          <div class="stat-card pass-stat-card">
+            <div class="stat-number">{{ pass_rows|length }}</div>
+            <div class="stat-label">ผู้สอบผ่าน</div>
+          </div>
+        </section>
+
+        <div class="pass-list-table-wrapper">
+          <table class="pass-list-table">
+            <thead>
+              <tr>
+                <th>ลำดับ</th>
+                <th>ชื่อ-ฉายา (สกุล)</th>
+                <th>ชั้น</th>
+                <th>สังกัด</th>
+                <th>กลุ่ม</th>
+                <th>สถานะ</th>
+                <th>เบอร์โทร</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if pass_rows %}
+                {% for item in pass_rows %}
+                  <tr>
+                    <td class="number-cell">{{ loop.index }}</td>
+                    <td class="name-cell">{{ item.name }}</td>
+                    <td class="level-cell">{{ item.class_name }}</td>
+                    <td class="school-cell">{{ item.school_name }}</td>
+                    <td class="group-cell">{{ item.group_name }}</td>
+                    <td class="status-cell">{{ item.status }}</td>
+                    <td class="number-cell">{{ item.tel }}</td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="7">ไม่พบข้อมูลผู้สอบผ่านตามเงื่อนไขที่เลือก</td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </main>
+
+      {% include '_site_footer.html' %}
+    </div>
+  </body>
+</html>

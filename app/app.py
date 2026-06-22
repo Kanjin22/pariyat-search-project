@@ -5,6 +5,8 @@ import os
 import re
 import sqlite3
 import uuid
+import csv
+import io
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, Response
 import pandas as pd
@@ -4768,6 +4770,125 @@ def staff_data_source():
         certificate_all_snapshot_modified_at=certificate_all_modified_at,
         message=message,
         message_type=message_type
+    )
+
+
+@app.route('/staff/pass-export')
+@staff_login_required()
+def staff_pass_export():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    selected_year = get_selected_year()
+    mode = get_mode_value(request.args.get('mode'))
+    selected_level = str(request.args.get('level') or '').strip()
+    selected_school = str(request.args.get('school') or '').strip()
+    selected_group = str(request.args.get('group') or '').strip()
+    pass_variant = str(request.args.get('pass_variant') or 'รวมสอบได้').strip() or 'รวมสอบได้'
+    sort_by = str(request.args.get('sort_by') or 'class_name').strip() or 'class_name'
+    output_format = str(request.args.get('format') or '').strip().lower()
+
+    available_years = list_available_years()
+    if selected_year not in available_years:
+        available_years.append(selected_year)
+        available_years = sorted(available_years)
+    snapshot_lock = get_snapshot_lock_status(selected_year)
+
+    statuses = set(PASS_SUMMARY_PASS_STATUSES)
+    if pass_variant == 'สอบได้':
+        statuses = {'สอบได้'}
+    elif pass_variant == 'สอบซ่อมได้':
+        statuses = {'สอบซ่อมได้'}
+
+    pass_rows = []
+    available_levels = []
+    available_schools = []
+    available_groups = []
+
+    year_df = get_df_for_year(selected_year)
+    year_df = filter_df_by_mode(year_df, mode)
+    if year_df is not None and not year_df.empty:
+        available_levels = order_class_names(year_df['class_name'].unique().tolist())
+        available_schools = sorted(year_df['school_name'].unique().tolist())
+        available_groups = sorted(year_df['group_name'].unique().tolist())
+
+        export_df = year_df.copy()
+        if selected_level:
+            export_df = export_df[export_df['class_name'] == selected_level]
+        if selected_school:
+            export_df = export_df[export_df['school_name'] == selected_school]
+        if selected_group:
+            export_df = export_df[export_df['group_name'] == selected_group]
+
+        export_df = export_df[export_df['exam_result_status'].isin(statuses)].copy()
+
+        if sort_by == 'name':
+            export_df = export_df.sort_values(by='display_name', ascending=True)
+        elif sort_by == 'ordination':
+            export_df = export_df.assign(
+                pansa_num=pd.to_numeric(export_df.get('pansa_num', ''), errors='coerce').fillna(0).astype(int),
+                age_num=pd.to_numeric(export_df.get('age_num', ''), errors='coerce').fillna(0).astype(int),
+                has_pansa=lambda df_: df_['pansa_num'] > 0,
+                ordain_sort_key=export_df['ordain_sort_key'].replace('', '99999999'),
+                birth_sort_key=export_df['birth_sort_key'].replace('', '99999999')
+            ).sort_values(
+                by=['has_pansa', 'pansa_num', 'ordain_sort_key', 'age_num', 'birth_sort_key', 'display_name'],
+                ascending=[False, False, True, False, True, True]
+            ).drop(columns=['has_pansa', 'age_num', 'ordain_sort_key', 'birth_sort_key'])
+        elif sort_by == 'class_name':
+            export_df = export_df.assign(
+                class_order=export_df['class_name'].map(
+                    lambda class_name: CLASS_NAME_ORDER_INDEX.get(class_name, len(CLASS_NAME_ORDER))
+                )
+            ).sort_values(by=['class_order', 'display_name'], ascending=[True, True]).drop(columns=['class_order'])
+        elif sort_by == 'school_name':
+            export_df = export_df.sort_values(by=['school_name', 'display_name'], ascending=[True, True])
+        elif sort_by == 'group_name':
+            export_df = export_df.sort_values(by=['group_name', 'display_name'], ascending=[True, True])
+        else:
+            export_df = export_df.sort_values(by='display_name', ascending=True)
+
+        for _, row in export_df.iterrows():
+            tel = str(row.get('tel') or '').strip()
+            pass_rows.append({
+                'name': str(row.get('display_name') or '').strip() or '-',
+                'class_name': str(row.get('class_name') or '').strip() or '-',
+                'school_name': str(row.get('school_name') or '').strip() or '-',
+                'group_name': str(row.get('group_name') or '').strip() or '-',
+                'status': str(row.get('exam_result_status') or '').strip() or '-',
+                'tel': tel or '-',
+            })
+
+    pass_variant_options = ['รวมสอบได้', 'สอบได้', 'สอบซ่อมได้']
+
+    if output_format == 'csv':
+        buffer = io.StringIO(newline='')
+        writer = csv.writer(buffer)
+        writer.writerow(['ลำดับ', 'ชื่อ-ฉายา (สกุล)', 'ชั้น', 'สังกัด', 'กลุ่ม', 'สถานะ', 'เบอร์โทร'])
+        for idx, item in enumerate(pass_rows, start=1):
+            writer.writerow([idx, item['name'], item['class_name'], item['school_name'], item['group_name'], item['status'], item['tel']])
+        csv_text = '\ufeff' + buffer.getvalue()
+        filename = f'pass_export_{selected_year}_{mode}.csv'
+        response = Response(csv_text, content_type='text/csv; charset=utf-8')
+        response.headers['Content-Disposition'] = f'attachment; filename=\"{filename}\"'
+        return response
+
+    return render_template(
+        'staff_pass_export.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        selected_year=selected_year,
+        available_years=available_years,
+        mode=mode,
+        selected_level=selected_level,
+        selected_school=selected_school,
+        selected_group=selected_group,
+        sort_by=sort_by,
+        pass_variant=pass_variant,
+        pass_variant_options=pass_variant_options,
+        available_levels=available_levels,
+        available_schools=available_schools,
+        available_groups=available_groups,
+        pass_rows=pass_rows,
+        snapshot_lock=snapshot_lock
     )
 
 

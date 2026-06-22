@@ -3,6 +3,8 @@
   {% set nav_mode = current_mode if current_mode else 'overview' %}
   {% if request.path.startswith('/pass-list') %}
     {% set nav_target = 'pass_list' %}
+  {% elif request.path.startswith('/staff/pass-export') %}
+    {% set nav_target = 'staff_pass_export' %}
   {% elif request.path.startswith('/certificates') %}
     {% set nav_target = 'public_certificates' %}
   {% elif request.path.startswith('/statistics') %}
@@ -36,6 +38,7 @@
           <a role="menuitem" href="{{ url_for('manage_legacy_certificates') }}">แก้ไขใบประกาศ (ฐานเก่า)</a>
           <a role="menuitem" href="{{ url_for('staff_import_excel', mode=nav_mode, year=nav_year) }}">นำเข้าจาก Excel</a>
           <a role="menuitem" href="{{ url_for('staff_manual_add', mode=nav_mode, year=nav_year) }}">เพิ่มรายชื่อ manual</a>
+          <a role="menuitem" href="{{ url_for('staff_pass_export', mode=nav_mode, year=nav_year) }}">พิมพ์ผู้สอบผ่าน+เบอร์</a>
           <a role="menuitem" href="{{ url_for('staff_data_source', mode=nav_mode, year=nav_year) }}">แหล่งข้อมูล API/Snapshot</a>
           {% if session.staff_username and is_admin(session.staff_username) %}
             <a role="menuitem" href="{{ url_for('staff_manage', mode=nav_mode, year=nav_year) }}">จัดการเจ้าหน้าที่</a>
