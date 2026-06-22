@@ -4792,13 +4792,9 @@ def staff_pass_export():
         available_years = sorted(available_years)
     snapshot_lock = get_snapshot_lock_status(selected_year)
 
-    statuses = set(PASS_SUMMARY_PASS_STATUSES)
-    if pass_variant == 'สอบได้':
-        statuses = {'สอบได้'}
-    elif pass_variant == 'สอบซ่อมได้':
-        statuses = {'สอบซ่อมได้'}
-
     pass_rows = []
+    status_counts = {}
+    pass_counts = {'สอบได้': 0, 'สอบซ่อมได้': 0, 'รวมสอบได้': 0}
     available_levels = []
     available_schools = []
     available_groups = []
@@ -4818,7 +4814,21 @@ def staff_pass_export():
         if selected_group:
             export_df = export_df[export_df['group_name'] == selected_group]
 
-        export_df = export_df[export_df['exam_result_status'].isin(statuses)].copy()
+        status_series = export_df.get('exam_result_status', '').fillna('').astype(str).str.strip()
+        status_counts = status_series.value_counts().to_dict()
+        pass_counts = {
+            'สอบได้': int(status_counts.get('สอบได้', 0) or 0),
+            'สอบซ่อมได้': int(status_counts.get('สอบซ่อมได้', 0) or 0),
+            'รวมสอบได้': int(status_counts.get('สอบได้', 0) or 0) + int(status_counts.get('สอบซ่อมได้', 0) or 0),
+        }
+
+        if pass_variant != 'ทั้งหมด':
+            statuses = set(PASS_SUMMARY_PASS_STATUSES)
+            if pass_variant == 'สอบได้':
+                statuses = {'สอบได้'}
+            elif pass_variant == 'สอบซ่อมได้':
+                statuses = {'สอบซ่อมได้'}
+            export_df = export_df[export_df['exam_result_status'].isin(statuses)].copy()
 
         if sort_by == 'name':
             export_df = export_df.sort_values(by='display_name', ascending=True)
@@ -4857,7 +4867,7 @@ def staff_pass_export():
                 'tel': tel or '-',
             })
 
-    pass_variant_options = ['รวมสอบได้', 'สอบได้', 'สอบซ่อมได้']
+    pass_variant_options = ['รวมสอบได้', 'สอบได้', 'สอบซ่อมได้', 'ทั้งหมด']
 
     if output_format == 'csv':
         buffer = io.StringIO(newline='')
@@ -4866,7 +4876,8 @@ def staff_pass_export():
         for idx, item in enumerate(pass_rows, start=1):
             writer.writerow([idx, item['name'], item['class_name'], item['school_name'], item['group_name'], item['status'], item['tel']])
         csv_text = '\ufeff' + buffer.getvalue()
-        filename = f'pass_export_{selected_year}_{mode}.csv'
+        filename_prefix = 'pass_export' if pass_variant != 'ทั้งหมด' else 'exam_export'
+        filename = f'{filename_prefix}_{selected_year}_{mode}.csv'
         response = Response(csv_text, content_type='text/csv; charset=utf-8')
         response.headers['Content-Disposition'] = f'attachment; filename=\"{filename}\"'
         return response
@@ -4888,6 +4899,8 @@ def staff_pass_export():
         available_schools=available_schools,
         available_groups=available_groups,
         pass_rows=pass_rows,
+        status_counts=status_counts,
+        pass_counts=pass_counts,
         snapshot_lock=snapshot_lock
     )
 

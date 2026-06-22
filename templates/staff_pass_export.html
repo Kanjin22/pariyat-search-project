@@ -53,21 +53,14 @@
                 <option value="{{ year }}" {{ 'selected' if (selected_year|int) == (year|int) else '' }}>{{ to_thai_digits(year) }}</option>
               {% endfor %}
             </select>
-            <input type="hidden" name="mode" value="{{ mode }}" />
-          </form>
 
-          <form class="filter-group" method="get">
-            <label for="pass-variant">ผู้สอบผ่าน</label>
+            <label for="pass-variant">รายการ</label>
             <select id="pass-variant" name="pass_variant" class="filter-select">
               {% for item in pass_variant_options %}
                 <option value="{{ item }}" {{ 'selected' if pass_variant == item else '' }}>{{ item }}</option>
               {% endfor %}
             </select>
-            <input type="hidden" name="year" value="{{ selected_year }}" />
-            <input type="hidden" name="mode" value="{{ mode }}" />
-          </form>
 
-          <form class="filter-group" method="get">
             <label for="level">ชั้น</label>
             <select id="level" name="level" class="filter-select">
               <option value="">ทั้งหมด</option>
@@ -75,12 +68,7 @@
                 <option value="{{ level }}" {{ 'selected' if selected_level == level else '' }}>{{ level }}</option>
               {% endfor %}
             </select>
-            <input type="hidden" name="year" value="{{ selected_year }}" />
-            <input type="hidden" name="mode" value="{{ mode }}" />
-            <input type="hidden" name="pass_variant" value="{{ pass_variant }}" />
-          </form>
 
-          <form class="filter-group" method="get">
             <label for="school">สังกัด</label>
             <select id="school" name="school" class="filter-select">
               <option value="">ทั้งหมด</option>
@@ -88,13 +76,7 @@
                 <option value="{{ school }}" {{ 'selected' if selected_school == school else '' }}>{{ school }}</option>
               {% endfor %}
             </select>
-            <input type="hidden" name="year" value="{{ selected_year }}" />
-            <input type="hidden" name="mode" value="{{ mode }}" />
-            <input type="hidden" name="pass_variant" value="{{ pass_variant }}" />
-            <input type="hidden" name="level" value="{{ selected_level }}" />
-          </form>
 
-          <form class="filter-group" method="get">
             <label for="group">กลุ่ม</label>
             <select id="group" name="group" class="filter-select">
               <option value="">ทั้งหมด</option>
@@ -102,14 +84,7 @@
                 <option value="{{ group }}" {{ 'selected' if selected_group == group else '' }}>{{ group }}</option>
               {% endfor %}
             </select>
-            <input type="hidden" name="year" value="{{ selected_year }}" />
-            <input type="hidden" name="mode" value="{{ mode }}" />
-            <input type="hidden" name="pass_variant" value="{{ pass_variant }}" />
-            <input type="hidden" name="level" value="{{ selected_level }}" />
-            <input type="hidden" name="school" value="{{ selected_school }}" />
-          </form>
 
-          <form class="filter-group" method="get">
             <label for="sort-by">เรียงตาม</label>
             <select id="sort-by" name="sort_by" class="filter-select">
               <option value="class_name" {{ 'selected' if sort_by == 'class_name' else '' }}>ชั้น</option>
@@ -118,28 +93,36 @@
               <option value="school_name" {{ 'selected' if sort_by == 'school_name' else '' }}>สังกัด</option>
               <option value="group_name" {{ 'selected' if sort_by == 'group_name' else '' }}>กลุ่ม</option>
             </select>
-            <input type="hidden" name="year" value="{{ selected_year }}" />
-            <input type="hidden" name="mode" value="{{ mode }}" />
-            <input type="hidden" name="pass_variant" value="{{ pass_variant }}" />
-            <input type="hidden" name="level" value="{{ selected_level }}" />
-            <input type="hidden" name="school" value="{{ selected_school }}" />
-            <input type="hidden" name="group" value="{{ selected_group }}" />
-          </form>
 
-          <div class="filter-group filter-group-actions">
-            <a
-              class="secondary-btn"
-              href="{{ url_for('staff_pass_export', year=selected_year, mode=mode, pass_variant=pass_variant, level=selected_level, school=selected_school, group=selected_group, sort_by=sort_by, format='csv') }}"
-            >ดาวน์โหลด CSV</a>
-            <button type="button" class="search-btn" onclick="window.print()">พิมพ์</button>
-          </div>
+            <input type="hidden" name="mode" value="{{ mode }}" />
+
+            <div class="filter-group-actions">
+              <button type="submit" class="search-btn">แสดงผล</button>
+              <a
+                class="secondary-btn"
+                href="{{ url_for('staff_pass_export', year=selected_year, mode=mode, pass_variant=pass_variant, level=selected_level, school=selected_school, group=selected_group, sort_by=sort_by, format='csv') }}"
+              >ดาวน์โหลด CSV</a>
+              <button type="button" class="search-btn" onclick="window.print()">พิมพ์</button>
+            </div>
+          </form>
         </section>
 
         <section class="pass-list-stats">
           <div class="stat-card pass-stat-card">
             <div class="stat-number">{{ pass_rows|length }}</div>
-            <div class="stat-label">ผู้สอบผ่าน</div>
+            <div class="stat-label">{{ pass_variant }}</div>
           </div>
+        </section>
+
+        {% if pass_variant != 'ทั้งหมด' and (pass_rows|length) == 0 and (status_counts.get('', 0) or 0) > 0 %}
+          <div class="config-notice screen-only">
+            <strong>ยังไม่พบ “ผู้สอบผ่าน” ในปีที่เลือก</strong><br />
+            ปีนี้อาจยังไม่ได้บันทึกผลสอบ หรือยังไม่ได้ import ผลสอบเข้าระบบ
+          </div>
+        {% endif %}
+
+        <section class="page-intro screen-only">
+          <p>สรุป: สอบได้ {{ to_thai_digits(pass_counts.get('สอบได้', 0) or 0) }} | สอบซ่อมได้ {{ to_thai_digits(pass_counts.get('สอบซ่อมได้', 0) or 0) }} | รวมสอบได้ {{ to_thai_digits(pass_counts.get('รวมสอบได้', 0) or 0) }}</p>
         </section>
 
         <div class="pass-list-table-wrapper">
