@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>หน้าพิมพ์นักเรียนบาลี A4</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body class="a4-profile-body">
+    <div class="a4-profile-shell screen-only">
+      <header class="main-header">
+        <h1>รายชื่อนักเรียนบาลี</h1>
+        <p>สรุปข้อมูล 24 ท่านสำหรับดูบนมือถือและพิมพ์ลงกระดาษ A4</p>
+      </header>
+
+      <main class="search-area">
+        <section class="page-intro">
+          <h2>ตารางข้อมูลจากชุดผู้สมัครสอบปัจจุบัน</h2>
+          <p>หน้านี้แสดงข้อมูลตามลำดับรายชื่อที่กำหนดไว้ โดยแบ่งเป็น 5 คอลัมน์ตามรูปแบบที่ต้องการ</p>
+        </section>
+
+        <div class="a4-profile-actions">
+          <button type="button" class="secondary-btn" onclick="window.print()">พิมพ์ A4</button>
+        </div>
+      </main>
+    </div>
+
+    <section class="a4-sheet">
+      <div class="a4-sheet-inner">
+        <header class="a4-sheet-header">
+          <h1>สรุปข้อมูลนักเรียนบาลี {{ to_thai_digits(table_profiles|length) }} ท่าน</h1>
+          <p>ปีการศึกษา {{ to_thai_digits(selected_school_year_start) }}-{{ to_thai_digits(selected_year) }}</p>
+        </header>
+
+        {% if table_profiles %}
+          <div class="a4-table-wrap">
+            <table class="a4-data-table">
+              <thead>
+                <tr>
+                  <th>คอลัมน์ ๑ รายชื่อ</th>
+                  <th>คอลัมน์ ๒ อายุ</th>
+                  <th>คอลัมน์ ๓ พรรษา</th>
+                  <th>คอลัมน์ ๔ สังกัด</th>
+                  <th>คอลัมน์ ๕ ระดับเรียน</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for profile in table_profiles %}
+                  <tr>
+                    <td>{{ profile.display_name }}</td>
+                    <td>อายุ {{ profile.age }} ปี</td>
+                    <td>พรรษา {{ profile.pansa }}</td>
+                    <td>ปัจจุบันรับบุญอยู่สังกัด {{ profile.school_name }}</td>
+                    <td>{{ profile.study_label }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if missing_names %}
+            <section class="a4-missing-note">
+              <h2>รายชื่อที่ยังไม่พบข้อมูล</h2>
+              <p>{{ missing_names|join(' | ') }}</p>
+            </section>
+          {% endif %}
+        {% else %}
+          <footer class="a4-sheet-footer">
+            <p>ยังไม่พบข้อมูลผู้สมัครสอบตามรายชื่อที่กำหนด</p>
+          </footer>
+        {% endif %}
+      </div>
+    </section>
+  </body>
+</html>

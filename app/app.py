@@ -1670,28 +1670,42 @@ def normalize_name_key(value):
     return text
 
 
+THAI_NAME_PREFIXES = [
+    'พระครูสังฆรักษ์',
+    'พระครูปลัด',
+    'พระครู',
+    'พระมหา',
+    'พระอธิการ',
+    'พระปลัด',
+    'พระใบฎีกา',
+    'พระ',
+    'สามเณร',
+    'นาย',
+    'นาง',
+    'นางสาว',
+]
+MONASTIC_PALI_PREFIXES = THAI_NAME_PREFIXES[:8]
+NOVICE_PREFIX = 'สามเณร'
+
+
+def split_thai_title_prefix(value):
+    text = str(value or '').strip()
+    if not text:
+        return '', ''
+    for prefix in THAI_NAME_PREFIXES:
+        if text.startswith(prefix):
+            return prefix, text[len(prefix):].strip()
+    return '', text
+
+
 def strip_thai_title_prefix(value):
     text = normalize_name_key(value)
     if not text:
         return ''
-    prefixes = [
-        'พระครูสังฆรักษ์',
-        'พระครูปลัด',
-        'พระครู',
-        'พระมหา',
-        'พระอธิการ',
-        'พระปลัด',
-        'พระใบฎีกา',
-        'พระ',
-        'สามเณร',
-        'นาย',
-        'นาง',
-        'นางสาว',
-    ]
     changed = True
     while changed:
         changed = False
-        for prefix in prefixes:
+        for prefix in THAI_NAME_PREFIXES:
             if text.startswith(prefix):
                 text = text[len(prefix):]
                 changed = True
@@ -1727,6 +1741,108 @@ def extract_last_name_from_display_name(display_name):
         return match.group(1).strip()
     parts = [part for part in text.split() if part]
     return parts[-1] if len(parts) >= 2 else ''
+
+
+def build_bali_target_name_key(display_name):
+    text = str(display_name or '').strip()
+    if not text:
+        return ''
+    without_parentheses = DISPLAY_NAME_PAREN_BLOCK_RE.sub(' ', text).strip()
+    parts = [part for part in without_parentheses.split() if part]
+    if len(parts) < 2:
+        return build_base_name_key_from_display_name(text) or normalize_name_key(text)
+    title_prefix, first_name = split_thai_title_prefix(parts[0])
+    if title_prefix in MONASTIC_PALI_PREFIXES:
+        return normalize_name_key(f'{first_name}{parts[1]}')
+    if title_prefix == NOVICE_PREFIX:
+        last_name = extract_last_name_from_display_name(text) or parts[-1]
+        return normalize_name_key(f'{first_name}{last_name}')
+    return build_base_name_key_from_display_name(text) or normalize_name_key(text)
+
+
+def calculate_age_pansa_for_target_year(row, target_year_numeric):
+    academic_year_numeric = int(target_year_numeric) - 1
+    birth_year = int(pd.to_numeric(row.get('dob_year_num', 0), errors='coerce') or 0)
+    birth_month = int(pd.to_numeric(row.get('dob_month_num', 0), errors='coerce') or 0)
+    birth_day = int(pd.to_numeric(row.get('dob_day_num', 0), errors='coerce') or 0)
+    api_age_num = int(pd.to_numeric(row.get('api_age_num', 0), errors='coerce') or 0)
+    monk_year = int(pd.to_numeric(row.get('monk_year_num', 0), errors='coerce') or 0)
+    ordain_after = int(pd.to_numeric(row.get('ordain_after_num', 0), errors='coerce') or 0)
+
+    if birth_year <= 0:
+        age_num = api_age_num
+    else:
+        ref_year = academic_year_numeric
+        ref_month = 10
+        ref_day = 10
+        birth_month = birth_month if 1 <= birth_month <= 12 else 1
+        birth_day = birth_day if 1 <= birth_day <= 31 else 1
+        age_num = ref_year - birth_year
+        if (ref_month, ref_day) < (birth_month, birth_day):
+            age_num -= 1
+        if age_num < 0:
+            age_num = 0
+
+    if monk_year <= 0:
+        pansa_num = 0
+        pansa_text = '-'
+    else:
+        pansa_num = academic_year_numeric - monk_year + 1
+        if ordain_after == 1:
+            pansa_num -= 1
+        if pansa_num < 0:
+            pansa_num = 0
+        pansa_text = to_thai_digits(pansa_num)
+
+    return {
+        'age_num': age_num,
+        'age_text': to_thai_digits(age_num) if age_num > 0 else '-',
+        'pansa_num': pansa_num,
+        'pansa_text': pansa_text,
+    }
+
+
+def extract_certificate_level_year(cert_text):
+    text = str(cert_text or '').strip()
+    if not text:
+        return {}
+    level_name = ''
+    for candidate_level in sorted(CLASS_NAME_ORDER, key=len, reverse=True):
+        if candidate_level in text:
+            level_name = candidate_level
+            break
+    certificate_candidate = text
+    cert_match = CERTIFICATE_NO_FROM_LICENSE_TEXT_RE.search(to_arabic_digits(text))
+    if cert_match:
+        certificate_candidate = cert_match.group(0)
+    parsed_year = ''
+    try:
+        parsed_year = str(parse_certificate_number_pattern(certificate_candidate).get('year') or '').strip()
+    except Exception:
+        parsed_year = ''
+    return {
+        'level': level_name,
+        'year': parsed_year,
+        'certificate_text': text,
+    }
+
+
+def select_better_certificate_info(current_info, candidate_info):
+    if not isinstance(candidate_info, dict) or not candidate_info.get('level'):
+        return current_info if isinstance(current_info, dict) else {}
+    if not isinstance(current_info, dict) or not current_info.get('level'):
+        return candidate_info
+    candidate_level_index = CLASS_NAME_ORDER_INDEX.get(str(candidate_info.get('level') or '').strip(), -1)
+    current_level_index = CLASS_NAME_ORDER_INDEX.get(str(current_info.get('level') or '').strip(), -1)
+    if candidate_level_index > current_level_index:
+        return candidate_info
+    if candidate_level_index < current_level_index:
+        return current_info
+    candidate_year = str(candidate_info.get('year') or '').strip()
+    current_year = str(current_info.get('year') or '').strip()
+    if candidate_year.isdigit() and current_year.isdigit() and int(candidate_year) > int(current_year):
+        return candidate_info
+    return current_info
 
 
 def build_result_key(row):
@@ -3308,6 +3424,182 @@ def index():
         available_years=available_years,
         mode=mode,
         snapshot_lock=snapshot_lock
+    )
+
+
+@app.route('/bali-student-a4')
+def bali_student_a4():
+    current_year_thai = get_current_buddhist_year(numeric=False)
+    requested_year = normalize_year_value(request.args.get('year'))
+    selected_year = requested_year or CURRENT_YEAR_NUMERIC
+    target_names = [
+        'พระมหาเสกสรร จิรภาโส (จี้แสง)',
+        'พระมหาสว่าง สุภภาโส (นาคนวล)',
+        'พระมหานัฐพล ปญฺญาชโย (ฤทธิ์รักษา)',
+        'พระมหาไพบูณ โสภณชโย (มะดารักษ์)',
+        'พระมหาผดุงพงษ์ ผาติวํโส (ผาติวํโส)',
+        'พระมหาอดิเรก อติชโย (แสงสุระ)',
+        'พระมหาวีระพล วชิรจิตฺโต (กุลศิริ)',
+        'พระมหาฐาปนาวุฒิ ถาวรชโย (คงช่วย)',
+        'พระมหาวชิรวิทย์ วุฑฺฒชโย (ปัญญาสมบัติ)',
+        'พระมหาโชคชัย สิริชโย (คมวิเศษ)',
+        'พระมหานิรัชฌาน รกฺขิตชโย (แก้ววชิราภรณ์)',
+        'พระมหาดุสิต ธมฺมเตโช (คชเดช)',
+        'พระมหาโนบุ จกฺกชโย (ทาคาซินา)',
+        'พระมหาพิทยาธร วิจิตฺตชโย (กรวิจิตต์ศิลป์)',
+        'พระมหาเนติธร ธมฺมนิมฺมิโต (มนต์ดี)',
+        'พระมหาปฏิภาณ วิลาสชโย (คำแผลง)',
+        'พระมหาศุภกร สุภทฺทชโย (เฟื่องคอน)',
+        'พระมหาอธิบุตร ธมฺมปุงฺคโว (ยอดพุดซา)',
+        'พระมหาโชคตระการ ธมฺมโชติกาโร (สิงห์คำ)',
+        'สามเณรธนารักษ์ แจ้งอรุณ',
+        'สามเณรรัชชานนท์ โพธิ์แก้ว',
+        'สามเณรธนเทพ เชวงศักดิ์โสภาคย์',
+        'สามเณรปิยะ จิตรซื่อ',
+        'สามเณรส่งบุญ จำปาเงิน',
+    ]
+    target_name_overrides = {}
+    target_name_keys = [
+        build_bali_target_name_key(target_name_overrides.get(name, name)) or normalize_name_key(target_name_overrides.get(name, name))
+        for name in target_names
+    ]
+
+    available_years = list_available_years()
+    if selected_year not in available_years:
+        available_years.append(selected_year)
+        available_years = sorted(available_years)
+
+    personal_profile_years = []
+    preferred_profile_year = max(selected_year - 1, 0)
+    if preferred_profile_year:
+        personal_profile_years.append(preferred_profile_year)
+    if selected_year not in personal_profile_years:
+        personal_profile_years.append(selected_year)
+    for candidate_year in sorted(available_years, reverse=True):
+        if candidate_year not in personal_profile_years:
+            personal_profile_years.append(candidate_year)
+
+    table_profiles = []
+    missing_names = []
+
+    personal_profile_by_key = {}
+    best_api_certificate_info_by_key = {}
+    bali_level_names = set(get_department_class_names('bali'))
+    for profile_year in personal_profile_years:
+        candidate_df = filter_df_by_mode(get_df_for_year(profile_year), MODE_BALI)
+        if candidate_df is None or candidate_df.empty:
+            continue
+        filtered_df = candidate_df[
+            candidate_df['display_name'].astype(str).map(
+                lambda value: (build_bali_target_name_key(value) or normalize_name_key(value)) in target_name_keys
+            )
+        ].copy()
+        for _, row in filtered_df.iterrows():
+            name_key = build_bali_target_name_key(str(row.get('display_name') or '').strip()) or normalize_name_key(str(row.get('display_name') or '').strip())
+            if not name_key:
+                continue
+            if name_key not in personal_profile_by_key:
+                personal_profile_by_key[name_key] = {
+                    'row': row,
+                    'source_year': int(profile_year),
+                }
+            cert_pali_text = str(row.get('cert_pali_text') or '').strip()
+            cert_pali_info = extract_certificate_level_year(cert_pali_text)
+            matched_class_name = str(row.get('class_name') or '-').strip() or '-'
+            if (
+                not cert_pali_info.get('level')
+                and cert_pali_info.get('year')
+                and cert_pali_info.get('year').isdigit()
+                and matched_class_name in bali_level_names
+                and int(profile_year) > 0
+                and int(cert_pali_info.get('year')) == int(profile_year)
+            ):
+                cert_pali_info['level'] = matched_class_name
+            best_api_certificate_info_by_key[name_key] = select_better_certificate_info(
+                best_api_certificate_info_by_key.get(name_key),
+                cert_pali_info
+            )
+
+    if personal_profile_by_key:
+        certificate_rows, _certificate_meta = load_public_certificate_rows()
+        highest_certificate_info_by_name = {}
+        for certificate_row in certificate_rows:
+            level_name = str(certificate_row.get('level') or '').strip()
+            if level_name not in bali_level_names:
+                continue
+            display_name = str(certificate_row.get('display_name') or '').strip()
+            if not display_name:
+                continue
+            name_key = build_bali_target_name_key(display_name) or normalize_name_key(display_name)
+            if not name_key:
+                continue
+            candidate_info = {
+                'level': level_name,
+                'year': str(certificate_row.get('year') or '').strip(),
+                'certificate_text': str(certificate_row.get('certificate_no') or certificate_row.get('license_text') or '').strip(),
+            }
+            highest_certificate_info_by_name[name_key] = select_better_certificate_info(
+                highest_certificate_info_by_name.get(name_key),
+                candidate_info
+            )
+
+        for input_name in target_names:
+            lookup_name = target_name_overrides.get(input_name, input_name)
+            name_key = build_bali_target_name_key(lookup_name) or normalize_name_key(lookup_name)
+            profile_entry = personal_profile_by_key.get(name_key)
+            if profile_entry is None:
+                missing_names.append(input_name)
+                continue
+            matched_row = profile_entry.get('row')
+            profile_source_year = int(profile_entry.get('source_year') or 0)
+
+            profile_calc = calculate_age_pansa_for_target_year(matched_row, selected_year)
+            certificate_info = best_api_certificate_info_by_key.get(name_key, {})
+            certificate_info = select_better_certificate_info(certificate_info, highest_certificate_info_by_name.get(name_key, {}))
+            previous_level = str(certificate_info.get('level') or '').strip()
+            passed_year = str(certificate_info.get('year') or '').strip()
+            pali_student_year = ''
+            current_class_name = str(matched_row.get('class_name') or '-').strip() or '-'
+            if previous_level in bali_level_names:
+                previous_level_index = CLASS_NAME_ORDER_INDEX.get(previous_level, -1)
+                next_level_name = ''
+                if 0 <= previous_level_index < len(CLASS_NAME_ORDER) - 1:
+                    candidate_level_name = CLASS_NAME_ORDER[previous_level_index + 1]
+                    if candidate_level_name in bali_level_names:
+                        next_level_name = candidate_level_name
+                if next_level_name:
+                    current_class_name = next_level_name
+
+            if previous_level and current_class_name != '-':
+                if passed_year.isdigit():
+                    pali_student_year_value = int(selected_year) - int(passed_year)
+                else:
+                    pali_student_year_value = 0
+                if pali_student_year_value > 0:
+                    pali_student_year = str(pali_student_year_value)
+
+            study_label = f'เรียนชั้น {current_class_name}'
+            if pali_student_year:
+                study_label = f'{study_label} เป็นปีที่ {to_thai_digits(pali_student_year)}'
+
+            table_profiles.append({
+                'display_name': str(matched_row.get('display_name') or input_name).strip(),
+                'age': profile_calc.get('age_text', '-'),
+                'pansa': profile_calc.get('pansa_text', '-'),
+                'school_name': str(matched_row.get('school_name') or '-').strip() or '-',
+                'study_label': study_label,
+                'certificate_text': str(certificate_info.get('certificate_text') or '').strip(),
+            })
+
+    return render_template(
+        'bali_student_a4.html',
+        current_buddhist_year=current_year_thai,
+        current_year_numeric=CURRENT_YEAR_NUMERIC,
+        selected_year=selected_year,
+        selected_school_year_start=selected_year - 1,
+        available_years=available_years,
+        table_profiles=table_profiles,
+        missing_names=missing_names,
     )
 
 

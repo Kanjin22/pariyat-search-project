@@ -1803,3 +1803,216 @@ a.phone-link:hover {
     border-color: #0f3460;
     color: #eaeaea;
 }
+
+.a4-profile-body {
+    background:
+        radial-gradient(circle at top left, rgba(255, 250, 240, 0.88), transparent 28%),
+        radial-gradient(circle at top right, rgba(250, 240, 230, 0.82), transparent 24%),
+        linear-gradient(180deg, #efe4d6 0%, #f6efe5 48%, #efe3d4 100%);
+    color: #111827;
+}
+
+.a4-profile-shell {
+    max-width: 980px;
+    margin: 0 auto 24px;
+}
+
+.a4-profile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.a4-sheet {
+    width: min(100%, 210mm);
+    min-height: 297mm;
+    margin: 0 auto;
+    background:
+        linear-gradient(180deg, rgba(255, 251, 245, 0.98), rgba(251, 246, 238, 0.98)),
+        repeating-linear-gradient(
+            135deg,
+            rgba(149, 117, 77, 0.03) 0,
+            rgba(149, 117, 77, 0.03) 8px,
+            rgba(255, 255, 255, 0.02) 8px,
+            rgba(255, 255, 255, 0.02) 16px
+        );
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.16);
+    border-radius: 18px;
+    overflow: hidden;
+}
+
+.a4-sheet-inner {
+    min-height: 297mm;
+    padding: 16mm 14mm 14mm;
+    display: flex;
+    flex-direction: column;
+    gap: 8mm;
+}
+
+.a4-sheet-header {
+    text-align: center;
+}
+
+.a4-sheet-header h1 {
+    margin: 0;
+    color: #111827;
+    font-size: 2.2rem;
+    line-height: 1.35;
+}
+
+.a4-sheet-header p {
+    margin: 6px 0 0;
+    color: #1d4ed8;
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.a4-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.a4-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid #d6c4af;
+    font-size: 1rem;
+}
+
+.a4-data-table th,
+.a4-data-table td {
+    padding: 12px 10px;
+    border: 1px solid #dccbb8;
+    vertical-align: top;
+    text-align: left;
+    line-height: 1.6;
+}
+
+.a4-data-table thead th {
+    background: #ead7c2;
+    color: #4b3522;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.a4-data-table td small {
+    color: #6b4f33;
+    font-size: 0.88em;
+}
+
+.a4-data-table tbody tr:nth-child(even) {
+    background: rgba(247, 240, 231, 0.72);
+}
+
+.a4-missing-note {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(255, 244, 229, 0.9);
+    color: #7c2d12;
+}
+
+.a4-missing-note h2 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+}
+
+.a4-missing-note p,
+.a4-sheet-footer p {
+    margin: 0;
+    line-height: 1.6;
+}
+
+.screen-only {
+    display: block;
+}
+
+@media (max-width: 900px) {
+    .a4-sheet {
+        border-radius: 14px;
+    }
+
+    .a4-sheet-inner {
+        min-height: 0;
+        padding: 24px 18px;
+        gap: 24px;
+    }
+
+    .a4-sheet-header h1 {
+        font-size: 1.45rem;
+    }
+
+    .a4-sheet-header p {
+        font-size: 1.05rem;
+    }
+
+    .a4-data-table {
+        font-size: 0.94rem;
+    }
+
+    .a4-data-table th,
+    .a4-data-table td {
+        padding: 10px 8px;
+    }
+}
+
+@page {
+    size: A4 portrait;
+    margin: 8mm;
+}
+
+@media print {
+    body.a4-profile-body {
+        background: #ffffff;
+        padding: 0;
+    }
+
+    .screen-only {
+        display: none !important;
+    }
+
+    .a4-sheet {
+        width: 100%;
+        min-height: auto;
+        margin: 0;
+        box-shadow: none;
+        border-radius: 0;
+        overflow: visible;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        background: #fffaf4;
+    }
+
+    .a4-sheet-inner {
+        min-height: 0;
+        padding: 0;
+        gap: 4mm;
+    }
+
+    .a4-sheet-header h1 {
+        font-size: 1.45rem;
+        line-height: 1.28;
+    }
+
+    .a4-sheet-header p {
+        font-size: 0.98rem;
+        line-height: 1.35;
+        margin-top: 3px;
+    }
+
+    .a4-data-table {
+        font-size: 0.78rem;
+    }
+
+    .a4-data-table th,
+    .a4-data-table td {
+        padding: 6px 5px;
+        line-height: 1.4;
+    }
+
+    .a4-missing-note {
+        padding: 8px 10px;
+    }
+}
