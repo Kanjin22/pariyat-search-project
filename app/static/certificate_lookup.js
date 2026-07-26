@@ -16,6 +16,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const toThaiDigits = (value) => String(value ?? '').replace(/\d/g, (digit) => '0123456789'.indexOf(digit) >= 0 ? '๐๑๒๓๔๕๖๗๘๙'[Number(digit)] : digit);
 
+    const getCertificateDepartmentClass = (subject, level) => {
+        const text = `${String(subject || '')} ${String(level || '')}`.trim();
+        if (!text) {
+            return '';
+        }
+        const thamPatterns = [
+            /นักธรรม/, /ธรรมศึกษา/, /^น\.ธ/i, /^ธ\.ศ/i,
+            /น\.ธ\.ตรี/, /น\.ธ\.โท/, /น\.ธ\.เอก/,
+            /ธ\.ศ\.ตรี/, /ธ\.ศ\.โท/, /ธ\.ศ\.เอก/
+        ];
+        for (const pattern of thamPatterns) {
+            if (pattern.test(text)) {
+                return 'cert-row-tham';
+            }
+        }
+        return 'cert-row-bali';
+    };
+
     const escapeHtml = (value) => String(value ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -103,8 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         resultsContainer.innerHTML = results.map((person, personIndex) => {
-            const certificateRows = (person.certificates || []).map((item) => `
-                <tr>
+            const certificateRows = (person.certificates || []).map((item) => {
+                const deptClass = getCertificateDepartmentClass(item.subject, item.level);
+                return `
+                <tr class="${deptClass}">
                     <td>${escapeHtml(item.subject || '-')}</td>
                     <td>${escapeHtml(item.level || '-')}</td>
                     <td class="number-cell">${escapeHtml(toThaiDigits(item.year || '-'))}</td>
@@ -112,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${escapeHtml(item.temple || '-')}</td>
                     <td>${escapeHtml(item.school || '-')}</td>
                 </tr>
-            `).join('');
+            `}).join('');
             const shouldOpen = autoOpenSingle || Number(person.certificate_count || 0) === 1;
             const detailsClass = shouldOpen ? 'details' : 'details hidden';
             const buttonText = shouldOpen ? '[ ^ ซ่อนรายละเอียด ]' : '[ v ดูใบประกาศทั้งหมด ]';

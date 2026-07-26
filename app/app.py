@@ -3407,6 +3407,30 @@ def update_exam_result():
     return jsonify({'success': True, 'message': 'บันทึกผลการสอบเรียบร้อยแล้ว'})
 
 
+@app.route('/health')
+def health_check():
+    healthy = True
+    message = 'ok'
+    data_count = 0
+    try:
+        if df is not None and not df.empty:
+            data_count = int(len(df))
+        if df is None:
+            healthy = False
+            message = 'dataframe_not_loaded'
+    except Exception as exc:
+        healthy = False
+        message = f'error: {exc}'
+    status_code = 200 if healthy else 503
+    return jsonify({
+        'status': 'healthy' if healthy else 'unhealthy',
+        'message': message,
+        'records': data_count,
+        'timestamp': get_data_timestamp(),
+        'service': 'pariyat-search'
+    }), status_code
+
+
 @app.route('/')
 def index():
     current_year_thai = get_current_buddhist_year(numeric=False)

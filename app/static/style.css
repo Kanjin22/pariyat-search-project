@@ -1570,6 +1570,22 @@ a.phone-link:hover {
     font-size: 1rem;
 }
 
+.pass-list-table tbody tr.cert-row-tham {
+    background-color: #f5f5f5;
+}
+
+.pass-list-table tbody tr.cert-row-tham:hover {
+    background-color: #eeeeee;
+}
+
+.dark-theme .pass-list-table tbody tr.cert-row-tham {
+    background-color: #1e293b;
+}
+
+.dark-theme .pass-list-table tbody tr.cert-row-tham:hover {
+    background-color: #334155;
+}
+
 .pass-list-table tbody tr:hover {
     background-color: #f8fafc;
 }
