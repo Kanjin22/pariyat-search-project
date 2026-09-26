@@ -1,0 +1,24 @@
+# docker compose up -d --build
+# ใช้ทดสอบ image เดียวกับที่จะ deploy จริง (ข้อมูลอยู่ใน volume pariyat-data)
+# เตรียมไฟล์ .env ก่อน: copy .env.example .env แล้วใส่ค่าจริง
+services:
+  pariyat-search:
+    build: .
+    image: pariyat-search:latest
+    container_name: pariyat-search
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RESULTS_DATA_DIR: /var/lib/pariyat-search/data
+      BACKUPS_DIR: /var/lib/pariyat-search/backups
+      LOGS_DIR: /var/lib/pariyat-search/logs
+      GUNICORN_BIND: 0.0.0.0:8000
+      TZ: Asia/Bangkok
+    ports:
+      - "8000:8000"
+    volumes:
+      - pariyat-data:/var/lib/pariyat-search
+
+volumes:
+  pariyat-data:

@@ -29,3 +29,4 @@ pariyat-search-project.git/
 *.csv
 .dbg/
 debug-*.md
+dist/

@@ -1,5 +1,11 @@
 # คู่มือการ Deploy
 
+> ⚠️ **อัปเดต 26 ก.ย. 2026:** บริการเดิมบน Render (`https://pariyat-search.onrender.com`) ถูกระงับ
+> ตอบ `503 Service Unavailable` พร้อม header `x-render-routing: suspend`
+> ทางออกที่แนะนำคือย้ายไปโฮสต์ฟรีถาวร (Oracle Cloud Always Free) หรือรันด้วย Docker
+> → ดูคู่มือฉบับใหม่ที่ละเอียดกว่าได้ที่ **[`deploy/DEPLOY_FREE_HOSTING.md`](deploy/DEPLOY_FREE_HOSTING.md)**
+> (มี Dockerfile, systemd, nginx, สคริปต์ seed ข้อมูล และภาคผนวกวิธีทำให้ Render ใช้ disk ถาวร)
+
 ## การ Deploy ขึ้น Heroku
 
 > หมายเหตุสำคัญ: Heroku เป็นไฟล์ระบบแบบชั่วคราว (ephemeral filesystem) โฟลเดอร์ `data/` จะหายเมื่อ dyno restart/redeploy

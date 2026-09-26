@@ -1,0 +1,28 @@
+[Unit]
+Description=pariyat-search (Gunicorn + Flask) - ระบบค้นหารายชื่อผู้สมัครสอบ ธรรม-บาลี
+Documentation=https://github.com/Kanjin22/pariyat-search-project
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# ปรับ User/Group ให้ตรงกับผู้ใช้จริงบน VM (Ubuntu image = ubuntu / Oracle Linux = opc)
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/pariyat-search
+EnvironmentFile=/etc/pariyat-search/pariyat-search.env
+Environment=PATH=/opt/pariyat-search/.venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStartPre=/bin/mkdir -p /var/lib/pariyat-search/data /var/lib/pariyat-search/logs /var/lib/pariyat-search/backups
+ExecStart=/opt/pariyat-search/.venv/bin/gunicorn --config /opt/pariyat-search/deploy/gunicorn.conf.py app.app:app
+Restart=always
+RestartSec=5
+KillSignal=SIGQUIT
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pariyat-search
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,34 @@
+# ไฟล์/โฟลเดอร์ที่ไม่ต้อง copy เข้า image (ลดขนาด + กันข้อมูลลับ)
+.git
+.gitignore
+.gitattributes
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.idea/
+.vscode/
+.env
+logs/
+backups/
+.dbg/
+pariyat-search-project.git/
+dist/
+
+# ไฟล์ไม่จำเป็น/หนัก ในโฟลเดอร์ data/ (ตัว JSON ที่ต้องใช้ยังถูก copy เข้า image ปกติ)
+data/*.csv
+data/*.ndjson
+data/*.xlsx
+data/*.xls
+data/*.xlsm
+data/*.pdf
+data/import_previews/
+data/tmp_uploads/
+data/api_snapshot_*.json.tmp
+
+# ไฟล์สำรอง/ทดสอบ
+*.zip
+*.log
+debug-*.md
+render_data.zip

@@ -1,0 +1,40 @@
+# ไฟล์ข้อมูลที่ต้องย้ายขึ้นโฮสต์ใหม่ (อยู่ในโฟลเดอร์ data/ ของเครื่อง PC)
+# ใช้คู่กับ scripts/pack_data_for_deploy.ps1 ที่จะคัดลอกเฉพาะไฟล์ในรายการนี้
+#
+# [จำเป็น] ถ้าไม่มี = หน้าเว็บจะว่างหรือฟีเจอร์นั้นใช้ไม่ได้
+# [เสริม]  มีไว้จะดี ถ้าไม่มีระบบจะสร้างใหม่/ใช้ค่า default
+#
+# ---- ข้อมูลผู้สมัคร (ใช้กับหน้า /search และ /get_data_info) ----
+[จำเป็น] api_snapshot_2568.json
+[จำเป็น] api_snapshot_2569.json
+[จำเป็น] exam_names_2568.json
+[จำเป็น] exam_names_2569.json
+#
+# ---- ผลสอบ (ใช้กับ /pass-list, /manage-results, สถิติ) ----
+[จำเป็น] exam_results.json
+[จำเป็น] exam_results_2568.json
+[จำเป็น] exam_results_2569.json
+[จำเป็น] manual_registrations_2568.json
+[จำเป็น] manual_registrations_2569.json
+[เสริม]   pending_exam_results.json
+[เสริม]   pending_exam_results_2568.json
+[เสริม]   pending_exam_results_2569.json
+#
+# ---- ใบประกาศนียบัตร / วุฒิ (ใช้กับ /certificates, /manage-legacy-certificates) ----
+[จำเป็น] certificate_snapshot_2568.json
+[จำเป็น] certificate_snapshot_2569.json
+[เสริม]   certificate_snapshot_all.json   (ถ้าไม่มี ระบบใช้ app/data/certificate_snapshot_all.json ที่อยู่ใน repo)
+[เสริม]   legacy_certificate_overrides.json
+[เสริม]   legacy_certificate_deletions.json
+#
+# ---- ระบบเจ้าหน้าที่ ----
+[จำเป็น] staff_accounts.json      (บัญชีเจ้าหน้าที่ทั้งหมด - ห้ามหายเด็ดขาด)
+[เสริม]   login_attempts.json
+[เสริม]   data_source_settings.json
+#
+# ---- สรุปผลบาลี / สถิติ ----
+[จำเป็น] bali_summary_2569.json
+[เสริม]   analytics.sqlite3        (ประวัติผู้เข้าชม/สถิติย้อนหลัง)
+#
+# ---- ไฟล์ที่ไม่ต้องคัดลอก (ระบบสร้างใหม่ได้ / ไฟล์ทดสอบ) ----
+# *.csv, *.xlsx, *_smoke*, legacy_certificates_retry_smoke*, legacy_certificates.ndjson
